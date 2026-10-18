@@ -225,26 +225,63 @@ export function shieldTex(field, charge, chargeColor, round) {
   });
 }
 
-// Material set for one figure (own instances so hits can flash them).
+// Fitted heraldic coat (jupon): quilted, charge on the front (u = 0.5) and back.
+export function juponTex(look) {
+  return tex(`jupon|${look.tabard}|${look.charge}|${look.trim}`, 128, 64, (ctx, w, h) => {
+    weave(ctx, look.tabard, w, h, 23);
+    for (let y = 6; y < h; y += 7) {
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.fillRect(0, y, w, 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(0, y + 1, w, 1);
+    }
+    ctx.fillStyle = look.trim;
+    ctx.fillRect(0, 0, w, 2);
+    if (look.charge) {
+      drawCharge(ctx, look.charge, w * 0.5, h * 0.5, 40, look.chargeColor || PALETTE.goldCss, 'rgba(0,0,0,0.5)');
+      drawCharge(ctx, look.charge, 0, h * 0.5, 34, look.chargeColor || PALETTE.goldCss, null);
+      drawCharge(ctx, look.charge, w, h * 0.5, 34, look.chargeColor || PALETTE.goldCss, null);
+    }
+  });
+}
+
+// Jupon skirt with a dagged (scalloped) hem, cut out with alpha.
+export function skirtTex(look) {
+  return tex(`skirt|${look.tabard}|${look.trim}`, 128, 32, (ctx, w, h) => {
+    weave(ctx, look.tabard, w, h, 29);
+    for (let y = 5; y < h; y += 7) {
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.fillRect(0, y, w, 1);
+    }
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let x = 0; x < w; x += 8) {
+      ctx.beginPath();
+      ctx.arc(x + 4, h + 1, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = look.trim;
+    for (let x = 0; x < w; x += 8) {
+      ctx.beginPath();
+      ctx.arc(x + 4, h + 1, 5.4, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = look.trim;
+      ctx.stroke();
+    }
+  });
+}
+
+// Per-figure materials. Most parts share three sheets (metal, matte, mail) and
+// carry their colour in vertex colours, so a knight costs few draw calls.
 export function figureMaterials(look) {
   const steel = steelMap();
-  const std = (opts) => new THREE.MeshStandardMaterial(opts);
-  const plate = (color, rough = 0.32) => std({ color, map: steel, bumpMap: steel, bumpScale: 0.6, metalness: 0.88, roughness: rough, envMapIntensity: 1.0 });
+  const std = (opts) => new THREE.MeshStandardMaterial({ flatShading: true, ...opts });
   return {
-    steel: plate(look.plate || '#c4c9d1'),
-    dark: plate(look.helmColor || look.plate || '#c4c9d1', 0.36),
-    blade: plate(look.blade || '#dfe4ea', 0.22),
-    gold: std({ color: '#d4a13a', map: steel, metalness: 1, roughness: 0.3, envMapIntensity: 1.1 }),
-    mail: std({ color: look.mail || '#9aa0a8', map: mailMap(), bumpMap: mailMap(), bumpScale: 1.2, metalness: 0.8, roughness: 0.45, envMapIntensity: 0.7 }),
-    cloth: std({ color: look.tabard, map: clothMap(), roughness: 0.95, envMapIntensity: 0.25 }),
-    surcoat: std({ map: surcoatTex(look), roughness: 0.95, envMapIntensity: 0.25 }),
-    leather: std({ color: '#5a3a24', map: leatherMap(), roughness: 0.7, envMapIntensity: 0.3 }),
-    wood: std({ color: '#7a5434', map: woodMap(), roughness: 0.75, envMapIntensity: 0.25 }),
-    skin: std({ color: look.skin || '#e0b090', roughness: 0.75, envMapIntensity: 0.2 }),
-    hair: std({ color: look.beard || '#5a3a20', map: clothMap(), roughness: 0.95, envMapIntensity: 0.15 }),
-    black: std({ color: '#050404', roughness: 1, metalness: 0 }),
-    bone: std({ color: look.antler || '#d8cbb0', map: leatherMap(), roughness: 0.6, envMapIntensity: 0.4 }),
-    leaf: std({ color: '#4a8a3a', map: clothMap(), roughness: 0.85, envMapIntensity: 0.25 }),
-    crest: std({ color: look.crest || PALETTE.goldCss, map: clothMap(), roughness: 0.8 }),
+    metal: std({ vertexColors: true, map: steel, bumpMap: steel, bumpScale: 0.5, metalness: 0.85, roughness: 0.34, envMapIntensity: 1.0 }),
+    blade: std({ vertexColors: true, map: steel, metalness: 0.9, roughness: 0.22, envMapIntensity: 1.1 }),
+    matte: std({ vertexColors: true, map: clothMap(), metalness: 0, roughness: 0.85, envMapIntensity: 0.25 }),
+    mail: std({ color: look.mail || '#9aa0a8', map: mailMap(), bumpMap: mailMap(), bumpScale: 1.2, metalness: 0.75, roughness: 0.45, envMapIntensity: 0.7 }),
+    jupon: std({ map: juponTex(look), roughness: 0.95, envMapIntensity: 0.25 }),
+    skirt: std({ map: skirtTex(look), roughness: 0.95, envMapIntensity: 0.25, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }),
   };
 }

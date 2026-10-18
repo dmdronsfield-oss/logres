@@ -1,122 +1,247 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
-import { DIM, solveTwoBone, aimJoint, setWorldQuat } from './Knight.js';
+import { DIM, solveTwoBone, bendWrist, setWorldQuat } from './Knight.js';
 
-// Poses are authored in figure space (metres, figure facing +z, his right
-// hand on -x): where the hands go, which way the blade points, where the feet
-// stand, how the hips and chest turn. Springs carry the figure between poses
-// and IK turns them into joint rotations, so every pose keeps its feet planted.
+// Poses are authored in figure space (metres, figure facing +z, his right hand
+// on -x): where the hands go, which way the blade points, where the feet stand,
+// how the hips and chest turn. Moves are keyframed clips over those poses:
+// hands travel in arcs round the shoulder, the hips lead and the blade lags
+// (overlapping action), weight shifts back to load and forward to strike.
+// IK turns poses into joint rotations; feet stay planted.
 
-export const KEYS = ['pelvis', 'pelvisRot', 'chest', 'footL', 'footR', 'handR', 'bladeR', 'poleR', 'handL', 'faceL', 'poleL'];
+export const KEYS = ['pelvis', 'pelvisRot', 'chest', 'footL', 'footR', 'handR', 'bladeR', 'handL', 'faceL', 'poleL'];
 
-const base = (o) => o;
 export const pose = (from, over = {}) => {
   const p = {};
   for (const k of KEYS) p[k] = (over[k] || from[k]).slice();
   return p;
 };
 
+const add = (a, b) => a.map((v, i) => v + (b[i] || 0));
+
 // ---------- guards ----------
 
 export const GUARD = {
   // Sword (or axe) and shield: left side leading, weapon up, shield forward.
-  ss: base({
-    pelvis: [0, 0.95, 0], pelvisRot: [0, -0.22, 0], chest: [0.05, 0.16, 0],
-    footL: [0.17, 0.17, 0.3], footR: [-0.19, -0.2, -0.35],
-    handR: [-0.32, 1.2, 0.3], bladeR: [0.12, 0.86, 0.5], poleR: [-1, -0.7, -0.3],
-    handL: [0.16, 1.2, 0.36], faceL: [0.05, 0.05, 1], poleL: [1, -0.8, -0.2],
-  }),
+  ss: {
+    pelvis: [0, 0.94, 0], pelvisRot: [0, -0.24, 0], chest: [0.06, 0.18, 0],
+    footL: [0.16, 0.2, 0.3], footR: [-0.2, -0.22, -0.4],
+    handR: [-0.3, 1.18, 0.3], bladeR: [0.1, 0.88, 0.45],
+    handL: [0.14, 1.2, 0.36], faceL: [0.05, 0.05, 1], poleL: [1, -0.8, -0.2],
+  },
   // The Green Knight: wide A-frame, arms held out from the body, axe hanging.
-  giant: base({
-    pelvis: [0, 0.98, 0], pelvisRot: [0, 0, 0], chest: [-0.06, 0, 0],
-    footL: [0.31, 0.06, 0.18], footR: [-0.31, -0.06, -0.18],
-    handR: [-0.47, 1.0, 0.14], bladeR: [0.18, -0.94, 0.28], poleR: [-1, -0.2, -0.6],
-    handL: [0.47, 1.0, 0.12], faceL: [0.3, 0, 1], poleL: [1, -0.2, -0.6],
-  }),
+  giant: {
+    pelvis: [0, 0.97, 0], pelvisRot: [0, 0, 0], chest: [-0.06, 0, 0],
+    footL: [0.3, 0.06, 0.18], footR: [-0.3, -0.06, -0.18],
+    handR: [-0.46, 1.0, 0.16], bladeR: [0.15, -0.95, 0.25],
+    handL: [0.46, 1.0, 0.14], faceL: [0.3, 0, 1], poleL: [1, -0.2, -0.6],
+  },
   // Your knight, after the reference art: a deep lunge, point raised at the foe, shield across.
-  hero: base({
-    pelvis: [0, 0.86, 0.05], pelvisRot: [0.12, -0.15, 0], chest: [0.16, 0.1, 0],
-    footL: [0.2, 0.42, 0.15], footR: [-0.21, -0.46, -0.32],
-    handR: [-0.2, 1.24, 0.52], bladeR: [0.04, 0.62, 0.8], poleR: [-1, -0.9, -0.2],
-    handL: [0.17, 1.18, 0.4], faceL: [-0.12, 0, 1], poleL: [1, -0.8, -0.2],
-  }),
+  hero: {
+    pelvis: [0, 0.86, 0.05], pelvisRot: [0.1, -0.18, 0], chest: [0.14, 0.12, 0],
+    footL: [0.19, 0.42, 0.18], footR: [-0.21, -0.46, -0.38],
+    handR: [-0.2, 1.22, 0.5], bladeR: [0.05, 0.6, 0.8],
+    handL: [0.16, 1.18, 0.38], faceL: [-0.12, 0, 1], poleL: [1, -0.8, -0.2],
+  },
 };
 
-// ---------- attacks: [wind-up, strike] overrides, by direction of travel ----------
+// ---------- swing marks: [wind-up, impact] by direction of travel ----------
 // E = the blade travels toward the figure's +x (his left): a forehand from his right.
 
 export const SWINGS = {
   S: [
-    { handR: [-0.12, 1.98, -0.05], bladeR: [0, 0.25, -1], poleR: [-1, 0.4, 0], chest: [-0.24, -0.1, 0], pelvis: [0, 0.97, -0.05] },
-    { handR: [0.0, 1.0, 0.6], bladeR: [0, -0.6, 0.8], poleR: [-1, -0.5, 0], chest: [0.42, 0, 0], pelvis: [0, 0.86, 0.14], footL: [0.17, 0.44, 0.25] },
+    { handR: [-0.1, 1.92, -0.12], bladeR: [0.05, 0.3, -1], chest: [-0.22, -0.1, 0] },
+    { handR: [0.02, 1.0, 0.62], bladeR: [0, -0.62, 0.78], chest: [0.42, 0.02, 0], footL: [0.17, 0.42, 0.25] },
   ],
   E: [
-    { handR: [-0.62, 1.5, -0.02], bladeR: [-0.85, 0.35, -0.4], poleR: [-0.3, -1, -0.3], chest: [0, -0.78, 0], pelvisRot: [0, -0.5, 0] },
-    { handR: [0.44, 1.2, 0.48], bladeR: [0.95, -0.05, 0.3], poleR: [-0.2, -1, 0.2], chest: [0.15, 0.68, 0], pelvisRot: [0, 0.28, 0], pelvis: [0, 0.9, 0.1], footL: [0.2, 0.42, 0.2] },
+    { handR: [-0.6, 1.48, -0.08], bladeR: [-0.85, 0.3, -0.45], chest: [0, -0.8, 0], pelvisRot: [0, -0.5, 0] },
+    { handR: [0.42, 1.16, 0.5], bladeR: [0.95, -0.08, 0.3], chest: [0.15, 0.68, 0], pelvisRot: [0, 0.3, 0], footL: [0.2, 0.42, 0.2] },
   ],
   W: [
-    { handR: [0.32, 1.56, 0.06], bladeR: [0.85, 0.4, -0.35], poleR: [-0.4, -1, 0.5], chest: [0, 0.58, 0] },
-    { handR: [-0.64, 1.2, 0.42], bladeR: [-0.95, -0.05, 0.3], poleR: [-1, -0.6, 0], chest: [0.15, -0.62, 0], pelvis: [0, 0.9, 0.1] },
+    { handR: [0.3, 1.55, 0.04], bladeR: [0.85, 0.38, -0.38], chest: [0, 0.6, 0], pelvisRot: [0, 0.1, 0] },
+    { handR: [-0.64, 1.16, 0.42], bladeR: [-0.95, -0.08, 0.3], chest: [0.15, -0.64, 0], pelvisRot: [0, -0.5, 0] },
   ],
   SE: [
-    { handR: [-0.45, 1.92, 0.0], bladeR: [-0.55, 0.7, -0.45], poleR: [-1, 0, -0.2], chest: [-0.15, -0.52, 0] },
-    { handR: [0.36, 0.98, 0.52], bladeR: [0.7, -0.6, 0.4], poleR: [-0.3, -1, 0], chest: [0.36, 0.5, 0], pelvis: [0, 0.87, 0.1] },
+    { handR: [-0.45, 1.88, -0.04], bladeR: [-0.55, 0.68, -0.48], chest: [-0.15, -0.55, 0] },
+    { handR: [0.36, 0.96, 0.52], bladeR: [0.7, -0.6, 0.4], chest: [0.38, 0.5, 0] },
   ],
   SW: [
-    { handR: [0.25, 1.9, 0.02], bladeR: [0.55, 0.7, -0.45], poleR: [-0.3, -0.4, 1], chest: [-0.15, 0.46, 0] },
-    { handR: [-0.56, 0.98, 0.46], bladeR: [-0.7, -0.6, 0.4], poleR: [-1, -0.6, 0], chest: [0.36, -0.5, 0], pelvis: [0, 0.87, 0.1] },
+    { handR: [0.24, 1.86, -0.02], bladeR: [0.55, 0.68, -0.48], chest: [-0.15, 0.48, 0] },
+    { handR: [-0.56, 0.96, 0.46], bladeR: [-0.7, -0.6, 0.4], chest: [0.38, -0.5, 0] },
   ],
   T: [
-    { handR: [-0.36, 1.15, -0.2], bladeR: [0.05, 0.08, 1], poleR: [-0.6, -0.4, -1], chest: [0, -0.58, 0], pelvisRot: [0, -0.42, 0] },
-    { handR: [-0.05, 1.32, 0.72], bladeR: [0, 0.05, 1], poleR: [-1, -0.4, 0], chest: [0.16, 0.25, 0], pelvis: [0, 0.84, 0.3], footL: [0.18, 0.64, 0.2] },
+    { handR: [-0.36, 1.12, -0.22], bladeR: [0.05, 0.06, 1], chest: [0, -0.6, 0], pelvisRot: [0, -0.45, 0] },
+    { handR: [-0.05, 1.3, 0.74], bladeR: [0, 0.04, 1], chest: [0.16, 0.25, 0], footL: [0.18, 0.66, 0.2] },
   ],
   N: [
-    { handR: [-0.35, 0.86, 0.26], bladeR: [-0.4, -0.75, 0.4], poleR: [-1, -0.2, -0.2], chest: [0.26, -0.3, 0] },
-    { handR: [0.0, 1.96, 0.36], bladeR: [0.1, 0.8, 0.5], poleR: [-1, 0.2, 0], chest: [-0.16, 0.2, 0] },
+    { handR: [-0.34, 0.86, 0.24], bladeR: [-0.4, -0.75, 0.4], chest: [0.26, -0.3, 0] },
+    { handR: [0.0, 1.94, 0.34], bladeR: [0.1, 0.82, 0.5], chest: [-0.16, 0.2, 0] },
   ],
   NE: [
-    { handR: [-0.46, 0.9, 0.3], bladeR: [-0.6, -0.6, 0.4], poleR: [-1, -0.3, -0.2], chest: [0.2, -0.45, 0] },
-    { handR: [0.35, 1.86, 0.36], bladeR: [0.6, 0.7, 0.3], poleR: [-0.4, -0.6, 0.6], chest: [-0.12, 0.45, 0] },
+    { handR: [-0.46, 0.9, 0.28], bladeR: [-0.6, -0.6, 0.4], chest: [0.2, -0.45, 0] },
+    { handR: [0.35, 1.84, 0.36], bladeR: [0.6, 0.7, 0.3], chest: [-0.12, 0.45, 0] },
   ],
   NW: [
-    { handR: [0.3, 0.9, 0.36], bladeR: [0.6, -0.6, 0.4], poleR: [-0.3, -1, 0.3], chest: [0.2, 0.4, 0] },
-    { handR: [-0.5, 1.86, 0.3], bladeR: [-0.6, 0.7, 0.3], poleR: [-1, 0, -0.2], chest: [-0.12, -0.45, 0] },
+    { handR: [0.3, 0.9, 0.34], bladeR: [0.6, -0.6, 0.4], chest: [0.2, 0.4, 0] },
+    { handR: [-0.5, 1.84, 0.3], bladeR: [-0.6, 0.7, 0.3], chest: [-0.12, -0.45, 0] },
   ],
 };
 
 export const STATES = {
-  open: { handR: [-0.4, 0.95, 0.3], bladeR: [0.1, -0.8, 0.6], chest: [0.26, 0, 0], pelvis: [0, 0.9, 0], handL: [0.32, 1.0, 0.24], faceL: [0.3, -0.3, 1] },
-  parried: { handR: [-0.56, 1.9, -0.35], bladeR: [-0.4, 0.6, -0.7], chest: [-0.36, -0.3, 0.1], pelvis: [0, 0.96, -0.16], handL: [0.4, 1.32, 0.1] },
+  open: { handR: [-0.4, 0.95, 0.32], bladeR: [0.1, -0.8, 0.6], chest: [0.26, 0, 0], pelvis: [0, 0.89, 0], handL: [0.32, 1.0, 0.24], faceL: [0.3, -0.3, 1] },
+  parried: { handR: [-0.56, 1.86, -0.34], bladeR: [-0.4, 0.6, -0.7], chest: [-0.36, -0.3, 0.1], pelvis: [0, 0.96, -0.16], handL: [0.4, 1.3, 0.1] },
   staggered: {
     pelvis: [0, 0.8, -0.12], pelvisRot: [0.12, 0.22, 0.16], chest: [-0.36, 0.32, 0.26],
     handR: [-0.62, 0.95, 0.05], bladeR: [-0.4, -0.8, 0.3], handL: [0.56, 1.05, -0.05], faceL: [0.6, -0.4, 0.6],
     footL: [0.26, 0.05, 0.4], footR: [-0.25, -0.26, -0.3],
   },
   roar: {
-    chest: [-0.36, 0, 0], pelvis: [0, 1.0, 0], handR: [-0.76, 1.76, 0.16], bladeR: [-0.3, 0.9, 0.1],
-    handL: [0.76, 1.76, 0.16], faceL: [0.7, 0.3, 0.5], footL: [0.32, 0.05, 0], footR: [-0.32, -0.05, 0],
+    chest: [-0.36, 0, 0], pelvis: [0, 1.0, 0], handR: [-0.74, 1.74, 0.16], bladeR: [-0.3, 0.9, 0.1],
+    handL: [0.74, 1.74, 0.16], faceL: [0.7, 0.3, 0.5], footL: [0.32, 0.05, 0], footR: [-0.32, -0.05, 0],
   },
   kneel: {
     pelvis: [0, 0.55, 0.1], pelvisRot: [0.1, 0, 0], chest: [0.45, 0, 0], footR: [-0.18, -0.48, 0], footL: [0.18, 0.3, 0],
-    handR: [-0.32, 0.62, 0.38], bladeR: [0, -1, 0.15], handL: [0.3, 0.72, 0.22], faceL: [0.2, -0.5, 1],
+    handR: [-0.3, 0.62, 0.4], bladeR: [0, -1, 0.15], handL: [0.3, 0.72, 0.22], faceL: [0.2, -0.5, 1],
   },
   collapse: {
     pelvis: [0.12, 0.3, 0.2], pelvisRot: [0.3, 0, 1.15], chest: [0.8, 0, 0.4], footR: [-0.18, -0.48, 0], footL: [0.18, 0.3, 0],
     handR: [-0.5, 0.3, 0.4], bladeR: [-0.2, -0.3, 1], handL: [0.4, 0.3, 0.1], faceL: [0, -1, 0.2],
   },
   block: {
-    handL: [0.02, 1.42, 0.46], faceL: [0, 0.1, 1], poleL: [1, -0.4, -0.2], handR: [-0.36, 1.0, 0.16], bladeR: [-0.1, 0.6, 0.75],
+    handL: [0.02, 1.42, 0.46], faceL: [0, 0.1, 1], poleL: [1, -0.4, -0.2], handR: [-0.34, 1.0, 0.14], bladeR: [-0.1, 0.6, 0.75],
     chest: [0.26, 0.05, 0], pelvis: [0, 0.8, 0.02],
   },
-  stun: { chest: [-0.36, 0, 0.12], pelvis: [0, 0.88, -0.16], handR: [-0.52, 1.05, 0.1], bladeR: [-0.3, 0.4, 0.8], handL: [0.42, 1.05, 0.15] },
+  stun: { chest: [-0.36, 0, 0.12], pelvis: [0, 0.88, -0.16], handR: [-0.5, 1.04, 0.1], bladeR: [-0.3, 0.4, 0.8], handL: [0.42, 1.05, 0.15] },
   dead: {
-    pelvis: [0, 0.38, -0.32], pelvisRot: [-1.15, 0, 0.1], chest: [-0.3, 0, 0], handR: [-0.62, 0.4, -0.25], bladeR: [-0.5, 0, 0.8],
-    handL: [0.62, 0.4, -0.25], faceL: [0.4, 1, 0],
+    pelvis: [0, 0.38, -0.32], pelvisRot: [-1.15, 0, 0.1], chest: [-0.3, 0, 0], handR: [-0.6, 0.4, -0.25], bladeR: [-0.5, 0, 0.8],
+    handL: [0.6, 0.4, -0.25], faceL: [0.4, 1, 0],
   },
 };
 
 // Seen from behind, your swipe's screen direction is mirrored in your knight's own frame.
 const MIRROR = { E: 'W', W: 'E', NE: 'NW', NW: 'NE', SE: 'SW', SW: 'SE', N: 'N', S: 'S', T: 'T' };
 export const mirrorDir = (d) => MIRROR[d] || d;
+
+// ---------- clip sampling ----------
+
+const EASE = {
+  linear: (t) => t,
+  in: (t) => t * t,
+  out: (t) => 1 - (1 - t) * (1 - t),
+  inout: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  snap: (t) => 1 - Math.pow(1 - t, 4),
+  back: (t) => { const c = 1.6; const u = t - 1; return 1 + (c + 1) * u * u * u + c * u * u; },
+};
+
+// Overlapping action: the hips lead, the chest follows, the blade lags.
+const LAG = { pelvis: -0.05, pelvisRot: -0.06, footL: -0.04, footR: -0.04, chest: -0.025, handR: 0, bladeR: 0.035, handL: -0.01, faceL: -0.01, poleL: 0 };
+const SHOULDER = { handR: [-0.2, 1.46, 0], handL: [0.2, 1.46, 0] };
+
+const va = new THREE.Vector3();
+const vb = new THREE.Vector3();
+const vc = new THREE.Vector3();
+
+// Interpolate directions along the great circle (blades and swings sweep, they don't cut corners).
+function slerpDir(a, b, t, out) {
+  va.fromArray(a);
+  vb.fromArray(b);
+  const la = va.length() || 1;
+  const lb = vb.length() || 1;
+  va.divideScalar(la);
+  vb.divideScalar(lb);
+  let dot = Math.max(-1, Math.min(1, va.dot(vb)));
+  if (dot > 0.9995) {
+    vc.copy(va).lerp(vb, t);
+  } else {
+    if (dot < -0.98) {
+      // Opposite: swing over the top rather than through the body.
+      vb.add(vc.set(0, 0.25, 0.1)).normalize();
+      dot = va.dot(vb);
+    }
+    const th = Math.acos(dot);
+    const s = Math.sin(th);
+    vc.copy(va).multiplyScalar(Math.sin((1 - t) * th) / s).addScaledVector(vb, Math.sin(t * th) / s);
+  }
+  vc.multiplyScalar(la + (lb - la) * t);
+  return vc.toArray(out);
+}
+
+function mix(k, a, b, t) {
+  if (SHOULDER[k]) {
+    const s = SHOULDER[k];
+    const ra = [a[0] - s[0], a[1] - s[1], a[2] - s[2]];
+    const rb = [b[0] - s[0], b[1] - s[1], b[2] - s[2]];
+    const r = slerpDir(ra, rb, t, []);
+    return [r[0] + s[0], r[1] + s[1], r[2] + s[2]];
+  }
+  if (k === 'bladeR' || k === 'faceL') return slerpDir(a, b, t, []);
+  return a.map((v, i) => v + (b[i] - v) * t);
+}
+
+// keys: [[time, pose, ease]] (time ascending, any unit). Returns the pose at `time`.
+export function sampleClip(keys, time, span = keys[keys.length - 1][0]) {
+  const out = {};
+  for (const k of KEYS) {
+    const tk = time + (LAG[k] || 0) * span;
+    let i = 0;
+    while (i < keys.length - 2 && tk >= keys[i + 1][0]) i++;
+    const [t0, p0] = keys[i];
+    const [t1, p1, ease] = keys[Math.min(i + 1, keys.length - 1)];
+    const u = t1 === t0 ? 1 : Math.max(0, Math.min(1, (tk - t0) / (t1 - t0)));
+    out[k] = mix(k, p0[k], p1[k], (EASE[ease] || EASE.inout)(u));
+  }
+  return out;
+}
+
+// Push a pose's sword hand a little further round the shoulder (wind-up coil, follow-through).
+function extend(p, from, amount) {
+  const q = pose(p);
+  q.handR = mix('handR', from.handR, p.handR, 1 + amount);
+  q.bladeR = slerpDir(from.bladeR, p.bladeR, 1 + amount * 0.8, []);
+  q.chest = add(p.chest, [0, (p.chest[1] - from.chest[1]) * amount, 0]);
+  return q;
+}
+
+// The marks for one blow, with weight shifts: back onto the rear foot to load, over the front foot to strike.
+export function swingMarks(guard, dir) {
+  const [w, s] = SWINGS[dir] || SWINGS.S;
+  const wind = pose(guard, w);
+  wind.pelvis = add(wind.pelvis, [0, 0.015, -0.09]);
+  const coil = extend(wind, guard, 0.08);
+  const anticip = pose(guard, { pelvis: add(guard.pelvis, [0, -0.025, 0.03]), chest: add(guard.chest, [0.07, 0, 0]) });
+  const hit = pose(guard, s);
+  hit.pelvis = add(hit.pelvis, [0, -0.05, 0.13]);
+  hit.pelvisRot = add(hit.pelvisRot, [0.08, 0, 0]);
+  const follow = extend(hit, wind, 0.22);
+  follow.pelvis = add(hit.pelvis, [0, -0.01, 0.03]);
+  return { anticip, wind, coil, hit, follow };
+}
+
+// Enemy wind-up across its telegraph (u: 0..1).
+export function windupPose(guard, dir, u) {
+  const m = swingMarks(guard, dir);
+  return sampleClip([[0, guard], [0.14, m.anticip, 'inout'], [0.58, m.wind, 'out'], [1, m.coil, 'inout']], u, 1);
+}
+
+// Enemy blow, `ms` after the moment of impact (it was released ~110 ms earlier on screen).
+export function strikePose(guard, dir, ms) {
+  const m = swingMarks(guard, dir);
+  return sampleClip([[0, m.coil], [110, m.hit, 'snap'], [200, m.follow, 'out'], [420, m.follow, 'linear']], ms, 420);
+}
+
+// Settling into the open, winded stance after a combo.
+export function recoverPose(guard, dir, ms) {
+  const m = swingMarks(guard, dir);
+  const open = pose(guard, STATES.open);
+  return sampleClip([[0, m.follow], [380, open, 'inout'], [800, open, 'linear']], ms, 800);
+}
+
+// Your knight's swing (dir already mirrored into his frame). Null when finished.
+export function playerSwingPose(guard, dir, ms) {
+  if (ms > 360) return null;
+  const m = swingMarks(guard, dir);
+  const keep = (p) => { const q = pose(p); q.footL = guard.footL.slice(); q.footR = guard.footR.slice(); return q; };
+  return sampleClip([[0, guard], [70, keep(m.coil), 'out'], [150, keep(m.hit), 'snap'], [220, keep(m.follow), 'out'], [360, guard, 'inout']], ms, 360);
+}
 
 // ---------- the animator ----------
 
@@ -128,8 +253,8 @@ const mx = new THREE.Matrix4();
 const ax = new THREE.Vector3();
 const ay = new THREE.Vector3();
 const az = new THREE.Vector3();
-const DOWN = new THREE.Vector3(0, -1, 0);
 const UP = new THREE.Vector3(0, 1, 0);
+const euler = new THREE.Euler();
 
 export class Animator {
   constructor(knight, guard) {
@@ -153,14 +278,15 @@ export class Animator {
     this.cur = pose(target);
   }
 
-  // Knock the torso (spring that settles back): hit reactions.
+  // Knock the torso (a spring that settles back): directional hit reactions.
   jolt(p, y = 0, r = 0) {
     this.hit.vp += p;
     this.hit.vy += y;
     this.hit.vr += r;
   }
 
-  // Exact critically damped springs: stable at any frame time.
+  // Exact critically damped springs (stable at any frame time); clips set the
+  // shape of a move, the springs only smooth hand-offs between them.
   update(dt) {
     if (dt <= 0) return;
     const w = this.omega;
@@ -171,45 +297,46 @@ export class Animator {
       const t = this.target[key];
       for (let i = 0; i < 3; i++) {
         const y = c[i] - t[i];
-        const tmpv = v[i] + w * y;
-        c[i] = t[i] + (y + tmpv * dt) * e;
-        v[i] = (v[i] - w * tmpv * dt) * e;
+        const tv = v[i] + w * y;
+        c[i] = t[i] + (y + tv * dt) * e;
+        v[i] = (v[i] - w * tv * dt) * e;
       }
     }
-    // Feet lift while they travel.
     for (const s of ['L', 'R']) {
       const fv = this.vel[`foot${s}`];
       const speed = Math.hypot(fv[0], fv[1]);
-      this.lift[s] += (Math.min(0.12, speed * 0.05) - this.lift[s]) * Math.min(1, dt * 20);
+      this.lift[s] += (Math.min(0.12, speed * 0.06) - this.lift[s]) * Math.min(1, dt * 20);
     }
-    // Hit spring
     const h = this.hit;
-    const k = 140;
-    const d = 14;
     for (const [x, v] of [['p', 'vp'], ['y', 'vy'], ['r', 'vr']]) {
-      h[v] += (-k * h[x] - d * h[v]) * dt;
+      h[v] += (-140 * h[x] - 14 * h[v]) * dt;
       h[x] += h[v] * dt;
     }
   }
 
-  // FK for the trunk, IK for legs and arms, aim weapon and shield, look at `lookAt`.
+  // FK for the trunk, IK for legs and arms, wrist and shield, look at `lookAt`.
   apply(lookAt, { breathe = 0, wobble = 0, time = 0 } = {}) {
     const { J, fig, size } = this.k;
     const c = this.cur;
-    const sway = Math.sin(time * 0.0016) * 0.01 * breathe;
-    J.pelvis.position.set(c.pelvis[0] + sway, c.pelvis[1] + Math.sin(time * 0.0031) * 0.006 * breathe, c.pelvis[2]);
+    const b = breathe;
+    J.pelvis.position.set(c.pelvis[0] + Math.sin(time * 0.0016) * 0.01 * b, c.pelvis[1] + Math.sin(time * 0.0031) * 0.006 * b, c.pelvis[2]);
     J.pelvis.rotation.set(c.pelvisRot[0], c.pelvisRot[1], c.pelvisRot[2] + wobble * Math.sin(time * 0.009) * 0.08, 'YXZ');
     const h = this.hit;
-    const cp = c.chest[0] + h.p + Math.sin(time * 0.0031) * 0.012 * breathe;
+    const cp = c.chest[0] + h.p + Math.sin(time * 0.0031) * 0.012 * b;
     const cy = c.chest[1] + h.y;
     const cr = c.chest[2] + h.r + wobble * Math.sin(time * 0.007) * 0.12;
     J.spine.rotation.set(cp * 0.4, cy * 0.4, cr * 0.4, 'YXZ');
     J.chest.rotation.set(cp * 0.6, cy * 0.6, cr * 0.6, 'YXZ');
     J.neck.rotation.set(0, 0, 0);
     J.head.rotation.set(0, 0, 0);
+    // Shoulders shrug as the hands rise above them.
+    for (const [s, side] of [['R', -1], ['L', 1]]) {
+      const hand = c[`hand${s}`];
+      const rise = Math.max(0, Math.min(1, (hand[1] - (c.pelvis[1] + 0.48)) / 0.42));
+      J[`sh${s}`].position.set(side * (DIM.shX + rise * 0.015), DIM.shY + rise * 0.05, 0);
+    }
     fig.updateMatrixWorld(true);
 
-    // Head turns to watch the opponent.
     if (lookAt) {
       J.neck.getWorldPosition(tmp);
       tmp2.subVectors(lookAt, tmp);
@@ -228,20 +355,32 @@ export class Animator {
       const target = fig.localToWorld(tmp.set(f[0], DIM.ankle + this.lift[s], f[1]));
       const pole = tmp2.set(Math.sin(f[2]) + sign * 0.15, 0, Math.cos(f[2])).applyQuaternion(qa);
       solveTwoBone(J[`hip${s}`], J[`kn${s}`], DIM.thigh * size, DIM.shin * size, target, pole);
-      qb.setFromEuler(new THREE.Euler(0, f[2], 0)).premultiply(qa);
+      qb.setFromEuler(euler.set(0, f[2], 0)).premultiply(qa);
       setWorldQuat(J[`ft${s}`], qb);
     }
 
-    // Sword arm: hand to its mark, blade aimed.
+    // Sword arm. The elbow points away from the blade (down, out and back),
+    // so the forearm stays square to the sword and the wrist stays natural.
     const reachB = (DIM.fore + DIM.grip) * size;
     let target = fig.localToWorld(tmp.fromArray(c.handR));
-    let pole = tmp2.fromArray(c.poleR).normalize().applyQuaternion(qa);
-    solveTwoBone(J.shR, J.elR, DIM.upper * size, reachB, target, pole);
-    aimJoint(J.gripR, DOWN, tmp.fromArray(c.bladeR).normalize().applyQuaternion(qa));
+    ax.fromArray(c.bladeR).normalize().applyQuaternion(qa);
+    // The elbow goes opposite the part of the blade that crosses the arm line,
+    // so the forearm sits square to the sword. When the blade runs along the
+    // arm (end of a cut, a thrust) the elbow simply drops down and out.
+    J.shR.getWorldPosition(ay);
+    ay.subVectors(target, ay).normalize();
+    az.copy(ax).addScaledVector(ay, -ax.dot(ay));
+    const across = az.length();
+    const fallback = tmp2.set(-0.6, -0.8, -0.2).applyQuaternion(qa);
+    fallback.addScaledVector(ay, -fallback.dot(ay)).normalize();
+    if (across > 0.3) az.normalize().negate().lerp(fallback, 0.3).normalize();
+    else az.copy(fallback).lerp(az.normalize().negate(), across / 0.3 * 0.5).normalize();
+    solveTwoBone(J.shR, J.elR, DIM.upper * size, reachB, target, az);
+    bendWrist(J.haR, ax, 1.35);
 
     // Shield arm: hand to its mark, shield face turned toward `faceL`, top kept up.
     target = fig.localToWorld(tmp.fromArray(c.handL));
-    pole = tmp2.fromArray(c.poleL).normalize().applyQuaternion(qa);
+    const pole = tmp2.fromArray(c.poleL).normalize().applyQuaternion(qa);
     solveTwoBone(J.shL, J.elL, DIM.upper * size, reachB, target, pole);
     az.fromArray(c.faceL).normalize().applyQuaternion(qa);
     ay.copy(UP).addScaledVector(az, -az.y).normalize();

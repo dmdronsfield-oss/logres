@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v6';
+const VERSION = 'logres-v7';
 
 const CORE = [
   './',
@@ -41,6 +41,10 @@ const CORE = [
   './src/render3d/knight/Knight.js',
   './src/render3d/knight/Motion.js',
   './src/render3d/knight/Cloth.js',
+  './src/render3d/knight/Looks.js',
+  './lab/',
+  './lab/index.html',
+  './src/lab/Lab.js',
   './src/art/Heraldry.js',
   'https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js',
 ];

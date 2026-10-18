@@ -8,6 +8,8 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **3D third-person (main direction):** https://dmdronsfield-oss.github.io/logres/side/ (a voxel-style tourney in Camelot's great hall, seen over Sir Gawain's shoulder; five rounds, one challenger each; `?angle=NN` tries other camera angles)
 
+**Animation lab:** https://dmdronsfield-oss.github.io/logres/lab/ (every move for every knight on a loop, at ¼ or ⅒ speed, with a scrubber and front, side, back and in-game views; tell me what to fix by move name and time)
+
 Open it on your phone and turn the phone sideways. To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.
 
 ## How to play
@@ -56,7 +58,7 @@ Then open http://localhost:8000 (or the port `serve` prints). The service worker
 - `src/audio/Sfx.js`: every sound, generated with the Web Audio API.
 - `src/scenes/`: Boot, Title, Duel, Victory and Death (bloodline succession).
 
-There's no build step: it's plain ES modules plus Phaser 3.80.1 from cdnjs. The `/3d/` page also loads Three.js 0.160.0 from jsDelivr (only on that page); `src/render3d/View3D.js` maps the same pose data onto toon-shaded 3D figures. All art and sound are generated in code; the only external asset is the Cinzel font from Google Fonts.
+Armour reference for the knights: English harness c.1370-1400 (the Black Prince's effigy at Canterbury, the Churburg armour, Gawain's arming in *Sir Gawain and the Green Knight*), with the Saxon raider after 6th-century finds. There's no build step: it's plain ES modules plus Phaser 3.80.1 from cdnjs. The `/3d/` page also loads Three.js 0.160.0 from jsDelivr (only on that page); `src/render3d/View3D.js` maps the same pose data onto toon-shaded 3D figures. All art and sound are generated in code; the only external asset is the Cinzel font from Google Fonts.
 
 ## Releasing
 

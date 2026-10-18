@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 import { Reflector } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Reflector.js';
+import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/BufferGeometryUtils.js';
 import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -10,9 +11,11 @@ import { PS } from '../combat/Player.js';
 import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
-import { Animator, GUARD, SWINGS, STATES, pose, mirrorDir } from './knight/Motion.js';
+import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose } from './knight/Motion.js';
+import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
 import { drapeTex } from './knight/Mat.js';
+import { PLAYER_LOOK, lookFor } from './knight/Looks.js';
 
 // Third-person duel in Camelot's great hall, staged like Infinity Blade: the
 // camera rides over your knight's shoulder, the challenger faces you, and both
@@ -32,10 +35,6 @@ const ENEMY_TURN = 0.12;
 const REFLECT = 1;                // render layer seen by the floor's reflection
 const QUALITY_KEY = 'logres.quality';
 
-export const PLAYER_LOOK = {
-  tabard: '#24408c', trim: PALETTE.goldCss, charge: 'lion', helm: 'bascinet', helmColor: '#b9c0ca',
-  plate: '#c4c9d1', mail: '#9aa0a8', cape: '#2a4796', capeCharge: 'lion', crest: '#2a4796', skin: '#e2b48a',
-};
 
 // ---------- deterministic randomness and hall textures ----------
 
@@ -212,7 +211,7 @@ export class HallView extends World3D {
     }
   }
 
-  box(w, h, d, mat, x, y, z, parent, cast = true) {
+  box(w, h, d, mat, x, y, z, parent, cast = false) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y, z);
     m.castShadow = cast;
@@ -489,8 +488,36 @@ export class HallView extends World3D {
     });
 
     this._crowd(g, r);
+    this._mergeStatic(g);
     this._captureEnvironment();
     this.applyQuality();
+  }
+
+  // Merge the hall's static meshes per material to save draw calls.
+  _mergeStatic(g) {
+    const skip = new Set([this.mirror, this.floor, ...(this.banners || [])]);
+    const groups = new Map();
+    g.updateMatrixWorld(true);
+    for (const o of [...g.children]) {
+      // Recurse into props built as groups (candelabras, the royal couple).
+      if (!o.isMesh && !o.isLight && o.children.length && !o.isInstancedMesh) this._mergeStatic(o);
+      if (!o.isMesh || o.isInstancedMesh || skip.has(o) || Array.isArray(o.material)) continue;
+      if (!groups.has(o.material)) groups.set(o.material, []);
+      groups.get(o.material).push(o);
+    }
+    for (const [mat, meshes] of groups) {
+      if (meshes.length < 2) continue;
+      const geos = meshes.map((m) => {
+        const geo = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrix);
+        for (const n of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(n)) geo.deleteAttribute(n);
+        return geo;
+      });
+      const merged = new THREE.Mesh(mergeGeometries(geos, false), mat);
+      merged.receiveShadow = true;
+      merged.layers.mask = meshes.reduce((m, o) => m | o.layers.mask, 0);
+      meshes.forEach((m) => { g.remove(m); m.geometry.dispose(); });
+      g.add(merged);
+    }
   }
 
   // Bake the hall into a reflection map so armour reflects candles and windows.
@@ -570,18 +597,6 @@ export class HallView extends World3D {
 
   // ---------- figures ----------
 
-  _lookFor(def) {
-    const l = def.look || {};
-    const p = def.palette;
-    return {
-      tabard: l.tabard || p.body, trim: l.trim || p.trim || PALETTE.goldCss, charge: l.charge ?? null, chargeColor: l.chargeColor,
-      helm: l.helm || 'greathelm', helmColor: l.helmColor || p.helmColor, plate: l.plate || l.metal || '#b9bec6',
-      mail: l.mail || '#8f959d', cape: l.cape, capeCharge: l.capeCharge, crest: l.crest, skin: l.skin || p.skin,
-      beard: l.beard || p.beard, leafy: l.leafy, antler: l.antler, blade: p.blade,
-      shield: p.shield || l.tabard, shieldCharge: l.charge ?? null,
-    };
-  }
-
   // Build a knight with its animator, cloth and collision spheres.
   _figure(look, weaponKind, offhandKind, size, guard, { front = true, back = true } = {}) {
     const k = buildKnight(look, weaponKind, offhandKind, size);
@@ -624,15 +639,12 @@ export class HallView extends World3D {
     } else if (look.cape) {
       cloth({ cols: 7, rows: 10, width: 0.54, height: 1.2, material: drape(drapeTex(look.cape, look.trim, look.capeCharge, look.chargeColor, 'cape')), pin: along(J.chest, 0.21, -0.21, 0.19, -0.15, 7) });
     }
-    const skirt = drape(drapeTex(look.tabard, look.trim, null, null, 'skirt'));
-    if (front) cloth({ cols: 5, rows: 6, width: 0.38, height: 0.5, material: skirt, pin: along(J.pelvis, -0.19, 0.19, 0.07, 0.175, 5) });
-    if (back) cloth({ cols: 5, rows: 6, width: 0.38, height: 0.52, material: skirt, pin: along(J.pelvis, 0.19, -0.19, 0.07, -0.175, 5) });
     k.root.traverse((o) => { if (o.isMesh) o.layers.enable(REFLECT); });
     return { k, anim, cloths, updateSpheres, guard };
   }
 
   buildEnemy(def) {
-    const look = this._lookFor(def);
+    const look = lookFor(def);
     const giant = def.weapon === 'greataxe';
     const f = this._figure(look, def.weapon, def.offhand, def.size || 1, giant ? GUARD.giant : GUARD.ss);
     f.k.root.position.set(0, 0, ENEMY_Z);
@@ -693,23 +705,13 @@ export class HallView extends World3D {
     let target = guard;
     let omega = 7;
     let wobble = 0;
-    const atk = e.attack;
+    const dir = e.attack ? e.attack.direction : 'S';
     switch (e.state) {
-      case ES.TELEGRAPH: {
-        const [wind] = SWINGS[atk.direction] || SWINGS.S;
-        target = pose(guard, wind);
-        omega = 9;
-        break;
-      }
-      case ES.STRIKE: {
-        const [, strike] = SWINGS[atk.direction] || SWINGS.S;
-        target = pose(guard, strike);
-        omega = 30;
-        break;
-      }
-      case ES.GAP: omega = 14; break;
+      case ES.TELEGRAPH: target = windupPose(guard, dir, Math.min(1, e.t / e.telegraphTotal)); omega = 24; break;
+      case ES.STRIKE: target = strikePose(guard, dir, e.t); omega = 32; break;
+      case ES.GAP: target = strikePose(guard, dir, 270 + e.t); omega = 14; break;
       case ES.FEINT: omega = 16; break;
-      case ES.RECOVER: target = pose(guard, STATES.open); omega = 8; break;
+      case ES.RECOVER: target = recoverPose(guard, dir, e.t); omega = 18; break;
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 22; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
@@ -727,7 +729,10 @@ export class HallView extends World3D {
     // Wind-up tremble while holding at the top of the blow.
     if (e.state === ES.TELEGRAPH && e.t > e.telegraphTotal * 0.6) anim.jolt((Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, 0);
     if (v.hp !== null && e.health < v.hp) {
-      anim.jolt(-2.6, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2);
+      // Knocked the way your blade travelled (his +x is your screen-right).
+      const pl = this.playerState;
+      const [dx, dy] = (pl && DIR_VEC[pl.swingDir]) || [0, 0];
+      anim.jolt(-1.6 + dy * 2.4, dx * 3.2, -dx * 2.2);
       this.cheer = 1;
     }
     if (e.state === ES.PARRIED && e.t < 30) anim.jolt(-3.5, 1.5, 0);
@@ -770,12 +775,12 @@ export class HallView extends World3D {
       case PS.DEAD: target = pose(guard, STATES.dead); omega = 5; break;
       default: break;
     }
-    // Your swing: quick wind-up, cut along the swipe, back to guard.
+    // Your swing: coil, cut along the swipe with follow-through, back to guard.
+    this.playerState = pl;
     const t = now - (pl.swingAt || -1e9);
-    if (t >= 0 && t < 320 && pl.swingDir && pl.state !== PS.DEAD && pl.state !== PS.STUNNED) {
-      const [wind, strike] = SWINGS[mirrorDir(pl.swingDir)] || SWINGS.E;
-      if (t < 80) { target = pose(guard, wind); omega = 34; }
-      else if (t < 230) { target = pose(guard, { ...strike, footL: guard.footL, footR: guard.footR }); omega = 32; }
+    if (t >= 0 && pl.swingDir && pl.state !== PS.DEAD && pl.state !== PS.STUNNED && pl.state !== PS.BLOCKING) {
+      const sw = playerSwingPose(guard, mirrorDir(pl.swingDir), t);
+      if (sw) { target = sw; omega = 30; }
     }
     k.root.position.x = rootX;
     anim.set(target, omega);
