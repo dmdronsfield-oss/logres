@@ -10,7 +10,7 @@ import { Juice } from '../fx/Juice.js';
 import { SwipeInput } from '../input/SwipeInput.js';
 import { Hud } from '../ui/Hud.js';
 import { menuButton } from '../ui/Button.js';
-import { img, text } from '../art/Tex.js';
+import { img, text, canvasTex } from '../art/Tex.js';
 import { PLAYER_CREST, playerName } from '../art/Heraldry.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { setupCamera, fadeTo, isPortrait } from './common.js';
@@ -68,6 +68,17 @@ export class Duel extends Phaser.Scene {
     this.hud = new Hud(this, {
       enemyName: def.name, leftHanded: s.leftHanded, bannerY, style: tourney ? 'tourney' : 'classic', tourney,
     });
+    if (tourney) {
+      // Painterly vignette over the 3D hall, under the HUD.
+      const vk = canvasTex(this, `vignette_${W}`, W, H, (ctx) => {
+        const g = ctx.createRadialGradient(W / 2, H * 0.48, H * 0.35, W / 2, H * 0.5, W * 0.62);
+        g.addColorStop(0, 'rgba(10,8,14,0)');
+        g.addColorStop(1, 'rgba(10,8,14,0.72)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+      });
+      img(this, W / 2, H / 2, vk).setDepth(6);
+    }
     this.director = new CombatDirector(this, { player: this.player, juice: this.juice, hud: this.hud });
     this.enemy = new Enemy(this, def, { cycle: s.cycle, x: W / 2, y: 318, director: this.director });
     this.world.add(this.w3 ? [this.enemy.aura] : [this.enemy.aura, this.enemy.rig.root]);

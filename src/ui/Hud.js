@@ -112,15 +112,22 @@ export class Hud {
       pause: { x: pauseX, y: 44, r: 28 },
     };
     if (this.tourney) {
-      // The top of the screen belongs to the tourney bar.
-      this.pos.super = { x: leftHanded ? W / 2 + 150 : W / 2 - 150, y: H - 66 - padB, r: 44 };
-      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 134, r: 28 };
+      // The top of the screen belongs to the tourney bar; buttons shrink and sink
+      // so the fighters' legs stay visible.
+      const s = 0.82;
+      this.btnScale = s;
+      this.pos.dodgeL = { x: padL + 54, y: H - 52 - padB, r: 54 * s };
+      this.pos.dodgeR = { x: W - padR - 54, y: H - 52 - padB, r: 54 * s };
+      this.pos.block = { x: W / 2, y: H - 54 - padB, r: 54 * s };
+      this.pos.super = { x: leftHanded ? W / 2 + 120 : W / 2 - 120, y: H - 46 - padB, r: 44 * s };
+      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 118, r: 28 };
     }
 
     this.btn = {};
     for (const id of ['dodgeL', 'dodgeR', 'block', 'super', 'pause']) {
       const p = this.pos[id];
       const b = img(scene, p.x, p.y, `btn_${id}`).setDepth(DEPTH);
+      if (this.btnScale && id !== 'pause') b.setScale(b.scaleX * this.btnScale).setAlpha(0.9);
       b.baseScale = b.scaleX;
       this.btn[id] = b;
     }
@@ -131,7 +138,7 @@ export class Hud {
 
     // Shield pips above the block button
     this.pips = [];
-    this.pipY = this.pos.block.y - 70;
+    this.pipY = this.pos.block.y - (this.tourney ? 56 : 70);
 
     // Bars
     this.bars = scene.add.graphics().setDepth(DEPTH);
@@ -177,10 +184,10 @@ export class Hud {
     const W = VIEW.W;
     const plaqueW = 112;
     const panelW = Math.min(440, (W - 40 - plaqueW - 16) / 2);
-    const panelH = 70;
-    const top = 10;
-    const crestW = 58;
-    const crestH = 70;
+    const panelH = 60;
+    const top = 8;
+    const crestW = 50;
+    const crestH = 60;
     const leftX = W / 2 - plaqueW / 2 - 8 - panelW;
     const rightX = W / 2 + plaqueW / 2 + 8;
     const panel = (key, field, crest, crestLeft) => canvasTex(scene, key, panelW, panelH + 16, (ctx, w) => {
@@ -205,10 +212,10 @@ export class Hud {
     const eKey = panel(`tb_e_${t.enemyId}_${W}`, t.enemyCrest.field, t.enemyCrest, false);
     img(scene, leftX, top, pKey, 0, 0).setDepth(DEPTH);
     img(scene, rightX, top, eKey, 0, 0).setDepth(DEPTH);
-    const nameStyle = { fontSize: '22px', fontStyle: '700', color: '#f3ead2', stroke: PALETTE.inkCss, strokeThickness: 4 };
-    text(scene, leftX + crestW + 22, top + 22, t.playerName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
-    text(scene, rightX + panelW - crestW - 22, top + 22, enemyName, { ...nameStyle, originX: 1 }).setDepth(DEPTH + 1);
-    canvasTex(scene, 'tb_plaque', plaqueW, 84, (ctx, w, h) => {
+    const nameStyle = { fontSize: '20px', fontStyle: '700', color: '#f3ead2', stroke: PALETTE.inkCss, strokeThickness: 4 };
+    text(scene, leftX + crestW + 22, top + 19, t.playerName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
+    text(scene, rightX + panelW - crestW - 22, top + 19, enemyName, { ...nameStyle, originX: 1 }).setDepth(DEPTH + 1);
+    canvasTex(scene, 'tb_plaque', plaqueW, 72, (ctx, w, h) => {
       roundRect(ctx, 3, 3, w - 6, h - 6, 5);
       ctx.fillStyle = '#efe2c0';
       ctx.fill();
@@ -223,12 +230,12 @@ export class Hud {
       ctx.fillRect(w / 2 - 2, h - 18, 4, 10);
     });
     img(scene, W / 2, top, 'tb_plaque', 0.5, 0).setDepth(DEPTH);
-    text(scene, W / 2, top + 22, 'Round', { fontSize: '18px', fontStyle: '700' }).setDepth(DEPTH + 1);
-    text(scene, W / 2, top + 48, `${t.round}/${t.rounds}`, { fontSize: '26px', fontStyle: '700' }).setDepth(DEPTH + 1);
+    text(scene, W / 2, top + 18, 'Round', { fontSize: '16px', fontStyle: '700' }).setDepth(DEPTH + 1);
+    text(scene, W / 2, top + 41, `${t.round}/${t.rounds}`, { fontSize: '23px', fontStyle: '700' }).setDepth(DEPTH + 1);
     const segX = (x0) => x0 + crestW + 20;
     const segW = panelW - crestW - 40;
     this.bars.setDepth(DEPTH + 1);   // segments draw over the panels
-    this.tb = { top, panelW, panelH, leftSeg: segX(leftX), rightSeg: rightX + 20, segW, segY: top + 42 };
+    this.tb = { top, panelW, panelH, leftSeg: segX(leftX), rightSeg: rightX + 20, segW, segY: top + 36 };
   }
 
   _drawSegments(g, x, y, w, frac, fill) {
