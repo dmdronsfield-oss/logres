@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v7';
+const VERSION = 'logres-v8';
 
 const CORE = [
   './',

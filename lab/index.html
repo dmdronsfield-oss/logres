@@ -44,5 +44,15 @@
     <span id="label"></span>
   </div>
   <script type="module" src="../src/lab/Lab.js"></script>
+  <script>
+    // Same offline/update handling as the game: when a new release takes over, reload once
+    // so the page and its cached modules match.
+    if ('serviceWorker' in navigator && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+      const had = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+      navigator.serviceWorker.register('../service-worker.js').catch(() => {});
+    }
+  </script>
 </body>
 </html>
