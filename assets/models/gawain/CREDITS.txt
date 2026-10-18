@@ -1,0 +1,10 @@
+Sir Gawain (gawain.glb / gawain.blend) for Logres.
+
+Armour: derived from "Medieval Knight Armor (Low-poly / Rigged)" by INKXO,
+https://sketchfab.com/3d-models/medieval-knight-armor-low-poly-rigged-428913948904425e8daec81eea9aa287
+licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+Changes: sword, scabbard, buckles, hinges, rivets and plume removed; refitted to Logres's
+23-bone skeleton and body proportions; reduced from ~100k to 7k triangles; flat-shaded
+in Gawain's livery (steel, gold edges, blue cloth).
+
+Skeleton, sword, heater shield and lion device: made for Logres.
