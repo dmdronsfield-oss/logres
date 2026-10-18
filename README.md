@@ -10,6 +10,8 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **Model preview:** https://dmdronsfield-oss.github.io/logres/preview/ (the same game with a rigged, skinned CC0 knight model by Quaternius standing in for the code-built knights, driven by our combat motion through a retargeting layer; files and licence in `assets/models/quaternius-knight/`)
 
+**Sir Gawain model:** the player in `/side/` and `/preview/` is our own Sir Gawain, modelled, rigged and skinned in Blender (`assets/models/gawain/gawain.blend`, exported to `gawain.glb`): bascinet with hounskull visor, mail aventail, blue jupon with the gold lion, period plate on arms and legs, plus his sword and heater shield. Bone names match the retargeting layer, so the same combat motion drives him.
+
 **Animation lab:** https://dmdronsfield-oss.github.io/logres/lab/ (every move for every knight on a loop, at ¼ or ⅒ speed, with a scrubber and front, side, back and in-game views; tell me what to fix by move name and time)
 
 Open it on your phone and turn the phone sideways. To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.

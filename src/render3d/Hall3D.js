@@ -11,7 +11,7 @@ import { PS } from '../combat/Player.js';
 import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
-import { loadQuaternius, buildSkinnedKnight } from './knight/Skinned.js';
+import { loadQuaternius, loadGawain, buildSkinnedKnight } from './knight/Skinned.js';
 import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
@@ -155,10 +155,13 @@ export class HallView extends World3D {
     this.cheer = 0;
     this.time = 0;
     this.perf = { frames: 0, total: 0, last: 0 };
-    // ?model preview: knights use a rigged model from a 3D tool instead of code-built armour.
-    this.ready = window.LOGRES_MODEL === 'quaternius'
-      ? loadQuaternius().then((a) => { this.skinned = a; })
-      : Promise.resolve();
+    // The player is Sir Gawain, modelled and rigged in Blender (falls back to
+    // the code-built knight if the model can't load). On the model preview the
+    // challengers use the CC0 Quaternius knight too.
+    this.ready = Promise.all([
+      loadGawain().then((a) => { this.hero = a; }).catch((err) => console.warn('Gawain model failed to load', err)),
+      window.LOGRES_MODEL === 'quaternius' ? loadQuaternius().then((a) => { this.skinned = a; }) : null,
+    ]);
     this.fovKick = 0;
   }
 
@@ -603,8 +606,8 @@ export class HallView extends World3D {
   // ---------- figures ----------
 
   // Build a knight with its animator, cloth and collision spheres.
-  _figure(look, weaponKind, offhandKind, size, guard, { front = true, back = true } = {}) {
-    const k = this.skinned ? buildSkinnedKnight(this.skinned, look, weaponKind, offhandKind, size) : buildKnight(look, weaponKind, offhandKind, size);
+  _figure(look, weaponKind, offhandKind, size, guard, { front = true, back = true, assets = this.skinned } = {}) {
+    const k = assets ? buildSkinnedKnight(assets, look, weaponKind, offhandKind, size) : buildKnight(look, weaponKind, offhandKind, size);
     this.content.add(k.root);
     const anim = new Animator(k, guard);
     const J = k.J;
@@ -678,7 +681,7 @@ export class HallView extends World3D {
 
   buildPlayer(sword, shield) {
     const look = { ...PLAYER_LOOK, blade: sword.color, shield: shield.field, shieldCharge: 'lion' };
-    const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false });
+    const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false, assets: this.hero || this.skinned });
     f.k.root.position.set(0, 0, PLAYER_Z);
     f.k.root.rotation.y = Math.PI;
     this.player = { body3d: true, ...f, hp: null };

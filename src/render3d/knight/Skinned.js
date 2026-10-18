@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
 import { DIM, buildSkeleton, weapon, shield } from './Knight.js';
 import { figureMaterials } from './Mat.js';
@@ -9,9 +10,11 @@ import { figureMaterials } from './Mat.js';
 // invisible skeleton built to the model's own proportions; each frame its
 // joint orientations are copied onto the model's bones (retargeting), so all
 // the directional attacks, blocks and dodges still line up with the gameplay.
-// The same layer will take any rigged knight exported from Blender.
+// The same layer takes our own Sir Gawain, modelled and rigged in Blender
+// (assets/models/gawain/), with the same bone names.
 
 const BASE = new URL('../../../assets/models/quaternius-knight/', import.meta.url).href;
+const GAWAIN = new URL('../../../assets/models/gawain/gawain.glb', import.meta.url).href;
 
 // Our joint -> the model's bone (FBXLoader strips the dots from Blender names).
 const MAP = {
@@ -77,6 +80,45 @@ export function loadQuaternius() {
   return assetsPromise;
 }
 
+// Sir Gawain from Blender: one skinned body plus separate sword and shield
+// objects (grip / centre at their origins). Metres, authored materials.
+let gawainPromise = null;
+export function loadGawain() {
+  if (!gawainPromise) {
+    gawainPromise = new GLTFLoader().loadAsync(GAWAIN).then(({ scene }) => {
+      const take = (n) => {
+        const o = scene.getObjectByName(n);
+        o.removeFromParent();
+        o.position.set(0, 0, 0);
+        return o;
+      };
+      const sword = take('Weapon');
+      const shieldObj = take('Shield');
+      return { kind: 'gltf', knight: scene, sword, shield: shieldObj };
+    });
+  }
+  return gawainPromise;
+}
+
+// Give a cloned object its own copies of its materials (so hit flashes and
+// tints stay per knight) and return them.
+function ownMaterials(obj) {
+  const mats = [];
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    const list = Array.isArray(o.material) ? o.material : [o.material];
+    const next = list.map((m) => {
+      const mm = m.clone();
+      mm.envMapIntensity = mm.metalness > 0.5 ? 1 : 0.35;
+      mats.push(mm);
+      return mm;
+    });
+    o.material = Array.isArray(o.material) ? next : next[0];
+  });
+  return mats;
+}
+
 const v = new THREE.Vector3();
 const v2 = new THREE.Vector3();
 const q = new THREE.Quaternion();
@@ -113,19 +155,21 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   const root = new THREE.Group();
   const model = SkeletonUtils.clone(assets.knight);
   model.animations = assets.knight.animations;
+  const gltf = assets.kind === 'gltf';
   const height = 1.85 * size;
-  const unit = height / 539;   // the model is ~539 units tall (centimetres)
+  const unit = gltf ? size : height / 539;   // Quaternius's model is ~539 units tall (centimetres)
   model.scale.setScalar(unit);
   root.add(model);
   root.updateMatrixWorld(true);
 
   // Livery: armour in the knight's colours, skin, boots.
   const plate = look.plate || '#b9bec6';
-  const mats = [];
+  const mats = gltf ? ownMaterials(model) : [];
   model.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true;
     o.frustumCulled = false;
+    if (gltf) return;
     const list = Array.isArray(o.material) ? o.material : [o.material];
     const next = list.map((m) => {
       const n = (m.name || '').toLowerCase();
@@ -178,7 +222,7 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   const hipsDelta = hips.getWorldPosition(new THREE.Vector3()).sub(sk.J.pelvis.getWorldPosition(v));
 
   // Helmet and shoulder pads ride the head and torso bones.
-  const helmetKey = { greathelm: 'h1', antler: 'h3', bascinet: 'h2', nasal: 'h2', hood: null }[look.helm || 'greathelm'];
+  const helmetKey = gltf ? null : { greathelm: 'h1', antler: 'h3', bascinet: 'h2', nasal: 'h2', hood: null }[look.helm || 'greathelm'];
   if (helmetKey) {
     const h = assets.helmets[helmetKey].clone();
     mats.push(...dress(h, { default: [look.helmColor || plate, 0.8, 0.32] }));
@@ -188,13 +232,15 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
     root.updateMatrixWorld(true);
     bone('Head').attach(h);
   }
-  const pads = assets.pads.clone();
-  mats.push(...dress(pads, { default: [plate, 0.8, 0.32] }));
-  pads.scale.setScalar(unit);
-  pads.position.set(0, 352 * unit, -12 * unit);
-  root.add(pads);
-  root.updateMatrixWorld(true);
-  bone('Torso').attach(pads);
+  if (assets.pads) {
+    const pads = assets.pads.clone();
+    mats.push(...dress(pads, { default: [plate, 0.8, 0.32] }));
+    pads.scale.setScalar(unit);
+    pads.position.set(0, 352 * unit, -12 * unit);
+    root.add(pads);
+    root.updateMatrixWorld(true);
+    bone('Torso').attach(pads);
+  }
 
   // Weapon and shield follow our skeleton's hands (so the glint sits on the blade).
   const weaponFrame = new THREE.Object3D();
@@ -205,7 +251,16 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   let weaponObj;
   let weaponLen;
   const M = { ...figureMaterials(look), extra: [] };
-  if (weaponKind === 'sword') {
+  let swordMats = null;
+  if (weaponKind === 'sword' && gltf) {
+    const s = assets.sword.clone();
+    swordMats = ownMaterials(s);
+    mats.push(...swordMats);
+    s.scale.setScalar(unit);   // blade already runs down -y from the grip
+    weaponObj = new THREE.Object3D();
+    weaponObj.add(s);
+    weaponLen = 0.86 * unit;
+  } else if (weaponKind === 'sword') {
     const s = assets.sword.clone();
     mats.push(...dress(s, { metal: ['#dfe4ea', 0.9, 0.22], gold: ['#d4a13a', 1, 0.3], red: ['#8a1c1c', 0, 0.6], brown: ['#4a2f1a', 0, 0.8], default: ['#cccccc', 0.5, 0.4] }));
     s.scale.setScalar(unit * 0.62);
@@ -222,7 +277,14 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   holder.add(weaponObj);
   const shieldHolder = new THREE.Object3D();
   root.add(shieldHolder);
-  const off = shield(offhandKind, { plate, ...look }, M);
+  let off;
+  if (gltf && offhandKind === 'heater') {
+    off = assets.shield.clone();
+    mats.push(...ownMaterials(off));
+    off.scale.setScalar(unit);
+  } else {
+    off = shield(offhandKind, { plate, ...look }, M);
+  }
   shieldHolder.add(off);
   mats.push(...M.extra, M.metal, M.matte);
 
@@ -271,6 +333,6 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
 
   return {
     root, fig: sk.fig, J: sk.J, M, dims: D, mapPose, retarget, weaponObj, weaponLen, offhand: off,
-    mats, weaponMats: [M.blade, ...mats.filter((m) => m.metalness > 0.85)], size: 1, model, bodyScale: kA,
+    mats, weaponMats: swordMats || [M.blade, ...mats.filter((m) => m.metalness > 0.85)], size: 1, model, bodyScale: kA,
   };
 }

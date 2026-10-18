@@ -6,10 +6,10 @@ import { Cloth } from '../render3d/knight/Cloth.js';
 import { drapeTex } from '../render3d/knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from '../render3d/knight/Looks.js';
 import { ENEMIES } from '../combat/enemies.js';
-import { loadQuaternius, buildSkinnedKnight } from '../render3d/knight/Skinned.js';
+import { loadQuaternius, loadGawain, buildSkinnedKnight } from '../render3d/knight/Skinned.js';
 import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
 
-const ASSETS = await loadQuaternius();
+const [ASSETS, GAWAIN] = await Promise.all([loadQuaternius(), loadGawain()]);
 
 // Animation lab: one knight at a time playing each move on a loop, at real or
 // slowed speed, from the game camera or orbiting. Uses exactly the same
@@ -19,7 +19,8 @@ const ENEMY_Z = -3.4;
 const PLAYER_Z = -1.4;
 
 const FIGURES = [
-  { id: 'gawain', name: 'Sir Gawain', player: true, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
+  { id: 'gawain-blend', name: 'Sir Gawain (Blender model)', player: true, skinned: GAWAIN, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
+  { id: 'gawain', name: 'Sir Gawain (code-built)', player: true, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
   ...ENEMIES.map((d) => ({ id: d.id, name: d.name, look: lookFor(d), weapon: d.weapon, off: d.offhand, size: d.size || 1, guard: d.weapon === 'greataxe' ? GUARD.giant : GUARD.ss })),
   // The CC0 rigged model (Quaternius), driven by our motion or playing its own clips.
   { id: 'q-ours', name: 'CC0 model: our motion', skinned: true, look: lookFor(ENEMIES[1]), weapon: 'sword', off: 'heater', size: 1, guard: GUARD.ss },
@@ -194,7 +195,7 @@ function makeNative(def) {
 
 function makeFigure(def) {
   if (def.native) return makeNative(def);
-  const k = def.skinned ? buildSkinnedKnight(ASSETS, def.look, def.weapon, def.off, def.size) : buildKnight(def.look, def.weapon, def.off, def.size);
+  const k = def.skinned ? buildSkinnedKnight(def.skinned === true ? ASSETS : def.skinned, def.look, def.weapon, def.off, def.size) : buildKnight(def.look, def.weapon, def.off, def.size);
   scene.add(k.root);
   const anim = new Animator(k, def.guard);
   const J = k.J;

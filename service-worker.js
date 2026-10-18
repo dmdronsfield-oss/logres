@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v9';
+const VERSION = 'logres-v10';
 
 const CORE = [
   './',
@@ -49,6 +49,7 @@ const CORE = [
   './lab/index.html',
   './src/lab/Lab.js',
   './src/art/Heraldry.js',
+  './assets/models/gawain/gawain.glb',
   'https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js',
 ];
 
