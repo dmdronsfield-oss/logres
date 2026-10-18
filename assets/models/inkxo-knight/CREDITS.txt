@@ -1,0 +1,8 @@
+"Medieval Knight Armor (Low-poly / Rigged)" by INKXO
+https://sketchfab.com/3d-models/medieval-knight-armor-low-poly-rigged-428913948904425e8daec81eea9aa287
+Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+inkxo-knight.glb is the complete model and rig, unaltered except that its textures were
+reduced to 512 px WebP and the file is Draco-compressed for phones. In Logres it plays
+Sir Gawain; the game closes its gauntlets into fists and drives its skeleton with
+Logres's combat motion. The sword and lion shield in his hands come from gawain.glb.

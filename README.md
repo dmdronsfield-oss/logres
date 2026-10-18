@@ -10,7 +10,7 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **Model preview:** https://dmdronsfield-oss.github.io/logres/preview/ (the same game with a rigged, skinned CC0 knight model by Quaternius standing in for the code-built knights, driven by our combat motion through a retargeting layer; files and licence in `assets/models/quaternius-knight/`)
 
-**Sir Gawain model:** the player in `/side/` and `/preview/` is our own Sir Gawain, rigged in Blender (`assets/models/gawain/`). His armour is pared back from "Medieval Knight Armor (Low-poly / Rigged)" by INKXO (CC BY 4.0, https://sketchfab.com/3d-models/medieval-knight-armor-low-poly-rigged-428913948904425e8daec81eea9aa287), refitted to our skeleton and proportions and pared back to about 10k flat-shaded triangles (sword, scabbard, buckles and plume kept); details in `assets/models/gawain/CREDITS.txt`.
+**Sir Gawain model:** the player in `/side/` and `/preview/` is "Medieval Knight Armor (Low-poly / Rigged)" by INKXO (CC BY 4.0, https://sketchfab.com/3d-models/medieval-knight-armor-low-poly-rigged-428913948904425e8daec81eea9aa287), used whole with its own skeleton and driven by our combat motion (`assets/models/inkxo-knight/`). The sword and lion shield he holds, and the earlier pared-back Gawain, are in `assets/models/gawain/`.
 
 **Animation lab:** https://dmdronsfield-oss.github.io/logres/lab/ (every move for every knight on a loop, at ¼ or ⅒ speed, with a scrubber and front, side, back and in-game views; tell me what to fix by move name and time)
 

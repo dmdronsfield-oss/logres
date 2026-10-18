@@ -11,7 +11,7 @@ import { PS } from '../combat/Player.js';
 import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
-import { loadQuaternius, loadGawain, buildSkinnedKnight } from './knight/Skinned.js';
+import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.js';
 import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
@@ -155,11 +155,11 @@ export class HallView extends World3D {
     this.cheer = 0;
     this.time = 0;
     this.perf = { frames: 0, total: 0, last: 0 };
-    // The player is Sir Gawain, modelled and rigged in Blender (falls back to
+    // The player is Sir Gawain in INKXO's rigged knight armour (falls back to
     // the code-built knight if the model can't load). On the model preview the
     // challengers use the CC0 Quaternius knight too.
     this.ready = Promise.all([
-      loadGawain().then((a) => { this.hero = a; }).catch((err) => console.warn('Gawain model failed to load', err)),
+      loadInkxo().then((a) => { this.hero = a; }).catch((err) => console.warn('Player model failed to load', err)),
       window.LOGRES_MODEL === 'quaternius' ? loadQuaternius().then((a) => { this.skinned = a; }) : null,
     ]);
     this.fovKick = 0;

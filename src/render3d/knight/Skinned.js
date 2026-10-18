@@ -1,6 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js';
 import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
 import { DIM, buildSkeleton, weapon, shield } from './Knight.js';
 import { figureMaterials } from './Mat.js';
@@ -15,6 +16,15 @@ import { figureMaterials } from './Mat.js';
 
 const BASE = new URL('../../../assets/models/quaternius-knight/', import.meta.url).href;
 const GAWAIN = new URL('../../../assets/models/gawain/gawain.glb', import.meta.url).href;
+const INKXO = new URL('../../../assets/models/inkxo-knight/inkxo-knight.glb', import.meta.url).href;
+
+// INKXO's knight uses a Rigify metarig; its bones under our names.
+const INKXO_NAMES = {
+  Hips: 'spine', Abdomen: 'spine001', Torso: 'spine003', Neck: 'spine004', Head: 'head',
+  UpperArmR: 'upper_armR', LowerArmR: 'forearmR', PalmR: 'handR', MiddleHandR: 'f_middle01R', FingersR: 'f_middle02R',
+  UpperArmL: 'upper_armL', LowerArmL: 'forearmL', PalmL: 'handL', MiddleHandL: 'f_middle01L', FingersL: 'f_middle02L',
+  UpperLegR: 'thighR', LowerLegR: 'shinR', FootR: 'footR', UpperLegL: 'thighL', LowerLegL: 'shinL', FootL: 'footL',
+};
 
 // Our joint -> the model's bone (FBXLoader strips the dots from Blender names).
 const MAP = {
@@ -119,6 +129,20 @@ function ownMaterials(obj) {
   return mats;
 }
 
+// INKXO's "Medieval Knight Armor (Low-poly / Rigged)" (CC BY 4.0), whole and
+// unaltered apart from smaller textures; Draco-compressed. It carries its own
+// sheathed sword, so the sword and lion shield in hand come from Gawain's file.
+let inkxoPromise = null;
+export function loadInkxo() {
+  if (!inkxoPromise) {
+    const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
+    const loader = new GLTFLoader().setDRACOLoader(draco);
+    inkxoPromise = Promise.all([loader.loadAsync(INKXO), loadGawain()])
+      .then(([{ scene }, g]) => ({ kind: 'gltf', knight: scene, sword: g.sword, shield: g.shield, names: INKXO_NAMES, curlFingers: true }));
+  }
+  return inkxoPromise;
+}
+
 const v = new THREE.Vector3();
 const v2 = new THREE.Vector3();
 const q = new THREE.Quaternion();
@@ -180,7 +204,18 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
     o.material = Array.isArray(o.material) ? next : next[0];
   });
 
-  const bone = (n) => model.getObjectByName(n);
+  const names = assets.names || {};
+  const nm = (n) => names[n] || n;
+  const bone = (n) => model.getObjectByName(nm(n));
+  // Close open gauntlets into a fist around the grip.
+  if (assets.curlFingers) {
+    model.traverse((o) => {
+      if (!o.isBone) return;
+      if (/^f_(index|middle|ring|pinky)0[123]/.test(o.name)) o.rotateX(1.35);
+      else if (/^thumb0[23]/.test(o.name)) o.rotateX(0.6);
+    });
+    model.updateMatrixWorld(true);
+  }
   const wpos = (n) => bone(n).getWorldPosition(new THREE.Vector3());
 
   // Proportions of this body, for our invisible skeleton and pose remapping.
