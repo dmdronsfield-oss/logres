@@ -1,45 +1,43 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 import { Reflector } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Reflector.js';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/postprocessing/OutputPass.js';
 import { VIEW, PALETTE, CONFIG } from '../config.js';
 import { ES } from '../combat/Enemy.js';
 import { PS } from '../combat/Player.js';
-import { DIR_VEC } from '../input/SwipeInput.js';
-import { angFor } from '../art/Tex.js';
 import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
+import { buildKnight } from './knight/Knight.js';
+import { Animator, GUARD, SWINGS, STATES, pose, mirrorDir } from './knight/Motion.js';
+import { Cloth } from './knight/Cloth.js';
+import { drapeTex } from './knight/Mat.js';
 
-// Third-person "tourney at Camelot" view: chunky voxel knights with pixel
-// textures, fought in a candle-lit great hall, seen over your knight's shoulder.
-// Combat code is shared; enemies are still posed through the same proxies.
+// Third-person duel in Camelot's great hall, staged like Infinity Blade: the
+// camera rides over your knight's shoulder, the challenger faces you, and both
+// are sculpted, armoured figures driven by IK poses, springs and cloth.
+// Combat code is shared with the other views; the enemy's proxies still carry
+// its lunge and fade, but its body is animated here from its state.
 
 const DEG = Math.PI / 180;
-const ENEMY_Z = -3.3;
-const PLAYER_Z = -1.0;
+const ENEMY_Z = -3.4;
+const PLAYER_Z = -1.4;
 const MID_Z = (ENEMY_Z + PLAYER_Z) / 2;
-const HIP = 0.945;
-const THIGH = 0.44;
-const SHIN = 0.505;               // knee to sole
 const K = 0.0048;                 // metres per logical pixel for enemy pose offsets
-const FOV = 38;
-// Low, close camera behind your knight's sword shoulder, aimed past him at the enemy.
-const ORBIT = { angle: 50, dist: 5.2, height: 1.45, lookY: 1.45, lead: 0.45 };
-const ENEMY_TURN = 0.32;          // the enemy turns a little toward the camera so his sword arm reads
-const MAX_PIXEL_RATIO = 1.5;
+const FOV = 42;
+// Over the right shoulder, aimed at the challenger's chest (Infinity Blade framing).
+const CAM = { x: 2.2, y: 1.65, back: 2.0, lookX: -0.75, lookY: 1.32 };
+const ENEMY_TURN = 0.12;
 const REFLECT = 1;                // render layer seen by the floor's reflection
+const QUALITY_KEY = 'logres.quality';
 
 export const PLAYER_LOOK = {
-  tabard: '#24408c', trim: PALETTE.goldCss, charge: 'lion', helm: 'coif', helmColor: '#2e4588',
-  mail: '#8e949c', plate: '#a9b0ba', cape: '#2a4796', capeCharge: 'lion', skin: '#e2b48a',
+  tabard: '#24408c', trim: PALETTE.goldCss, charge: 'lion', helm: 'bascinet', helmColor: '#b9c0ca',
+  plate: '#c4c9d1', mail: '#9aa0a8', cape: '#2a4796', capeCharge: 'lion', crest: '#2a4796', skin: '#e2b48a',
 };
 
-// Your knight's guard, matching the reference: lunge, sword forward point-up, shield across.
-const GUARD = {
-  armR: 14, armRx: -1.15, elbowR: 0.35, wrist: -1.05, weapon: 0,
-  armL: 30, armLx: -0.95, elbowL: 1.05,
-  bodyA: 0, bodyRx: 0.2, bodyY: 0, twist: -0.18, rootX: 0,
-};
-
-// ---------- deterministic randomness and pixel textures ----------
+// ---------- deterministic randomness and hall textures ----------
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -71,8 +69,7 @@ function pix(w, h, draw, repeat = null) {
   draw(ctx, w, h);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  t.magFilter = THREE.NearestFilter;
-  t.minFilter = THREE.NearestMipmapLinearFilter;
+  t.anisotropy = 4;
   if (repeat) {
     t.wrapS = THREE.RepeatWrapping;
     t.wrapT = THREE.RepeatWrapping;
@@ -83,34 +80,30 @@ function pix(w, h, draw, repeat = null) {
 
 const texCache = new Map();
 
-// Small noisy pixel texture in the given colour; `kind` picks the pattern.
 function noiseTex(hex, kind = 'cloth') {
   const key = `${hex}|${kind}`;
   if (texCache.has(key)) return texCache.get(key);
   const base = rgb(hex);
   const r = rng(hex.length * 131 + kind.length * 17 + base[0]);
-  const size = kind === 'stone' ? 32 : 16;
+  const size = kind === 'stone' ? 64 : 32;
   const t = pix(size, size, (ctx, w, h) => {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        let f = 0.9 + r() * 0.16;
-        if (kind === 'mail') f *= ((x + (y % 2)) % 2 ? 0.66 : 1.12) * (y % 3 === 0 ? 0.9 : 1);
-        if (kind === 'plate') f *= 1.18 - (y / h) * 0.32 + (x === 3 || x === 4 ? 0.22 : 0) + (r() > 0.95 ? 0.2 : 0);
-        if (kind === 'wood') f *= y % 4 === 0 ? 0.75 : 1;
-        if (kind === 'leaf') f *= r() > 0.6 ? 1.3 : r() > 0.5 ? 0.68 : 1;
-        if (kind === 'gold') f *= 1.1 - (y / h) * 0.25 + (r() > 0.9 ? 0.3 : 0);
+        let f = 0.9 + r() * 0.14;
+        if (kind === 'wood') f *= y % 6 === 0 ? 0.8 : 1;
+        if (kind === 'gold') f *= 1.1 - (y / h) * 0.25;
         if (kind === 'stone') {
-          const row = Math.floor(y / 8);
-          const off = row % 2 ? 8 : 0;
-          if (y % 8 === 0 || (x + off) % 16 === 0) f = 0.55;
-          else f *= 0.92 + ((Math.floor((x + off) / 16) * 7 + row * 3) % 5) * 0.04;
+          const row = Math.floor(y / 16);
+          const off = row % 2 ? 16 : 0;
+          if (y % 16 === 0 || (x + off) % 32 === 0) f = 0.6;
+          else f *= 0.92 + ((Math.floor((x + off) / 32) * 7 + row * 3) % 5) * 0.035;
         }
         ctx.fillStyle = css(base, f);
         ctx.fillRect(x, y, 1, 1);
       }
     }
   });
-  t.userData.keep = true;   // shared between duels; never disposed
+  t.userData.keep = true;
   texCache.set(key, t);
   return t;
 }
@@ -140,25 +133,85 @@ export class HallView extends World3D {
     super(game);
     this.cam = 'side';
     this.tourney = true;
-    // Replace the toon lighting with our own per-scene lights.
     this.scene.remove(this.hemi, this.sun, this.sun.target);
     this.camera.children.filter((c) => c.isLight).forEach((c) => this.camera.remove(c));
     this.camera.fov = FOV;
     this.camera.updateProjectionMatrix();
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
-    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.4;
+    this.renderer.toneMappingExposure = 0.95;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const q = Number(new URLSearchParams(location.search).get('angle'));
-    const a = (q && Math.abs(q) < 90 ? q : ORBIT.angle) * DEG;
-    this.camTarget = new THREE.Vector3(0, ORBIT.lookY, MID_Z - ORBIT.lead);
-    this.camHome = new THREE.Vector3(Math.sin(a) * ORBIT.dist, ORBIT.height, MID_Z + Math.cos(a) * ORBIT.dist);
+    let q = 2;
+    try { q = Number(localStorage.getItem(QUALITY_KEY) ?? 2); } catch (e) { /* ignore */ }
+    this.quality = Number.isFinite(q) ? Math.max(0, Math.min(2, q)) : 2;
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, [1, 1.25, 1.5][this.quality]);
+    this.renderer.setPixelRatio(this.pixelRatio);
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.35, 0.92);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+    this.camTarget = new THREE.Vector3(CAM.lookX, CAM.lookY, ENEMY_Z);
+    this.camHome = new THREE.Vector3(CAM.x, CAM.y, PLAYER_Z + CAM.back);
     this.cheer = 0;
     this.time = 0;
+    this.perf = { frames: 0, total: 0, last: 0 };
+    this.fovKick = 0;
   }
 
-  // Box helper: w/h/d in metres, positioned in `parent`.
+  syncCanvas(force = false) {
+    const gc = this.game.canvas;
+    const key = `${gc.offsetLeft},${gc.offsetTop},${gc.offsetWidth},${gc.offsetHeight},${this.pixelRatio}`;
+    if (!force && key === this.lastRect) return;
+    this.lastRect = key;
+    this.canvas.style.left = `${gc.offsetLeft}px`;
+    this.canvas.style.top = `${gc.offsetTop}px`;
+    const w = gc.offsetWidth || 1;
+    const h = gc.offsetHeight || 1;
+    this.renderer.setPixelRatio(this.pixelRatio);
+    this.renderer.setSize(w, h);
+    this.composer.setPixelRatio(this.pixelRatio);
+    this.composer.setSize(w, h);
+    this.camera.aspect = VIEW.W / VIEW.H;
+    this.camera.updateProjectionMatrix();
+  }
+
+  // 2 = everything; 1 = no bloom; 0 = no bloom, no reflections, no shadows, lower resolution.
+  applyQuality() {
+    const q = this.quality;
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, [1, 1.25, 1.5][q]);
+    if (this.mirror) this.mirror.visible = q > 0;
+    if (this.floor) {
+      this.floor.material.opacity = q > 0 ? 0.74 : 1;
+      this.floor.material.transparent = q > 0;
+    }
+    this.renderer.shadowMap.enabled = q > 0;
+    this.lastRect = '';
+  }
+
+  // Step quality down if the phone can't hold ~45 fps.
+  _watchPerformance(now) {
+    const p = this.perf;
+    if (p.last) {
+      const d = now - p.last;
+      if (d < 200) {
+        p.frames += 1;
+        if (p.frames > 60) p.total += d;
+      }
+    }
+    p.last = now;
+    if (p.frames >= 150) {
+      const avg = p.total / (p.frames - 60);
+      if (avg > 22 && this.quality > 0) {
+        this.quality -= 1;
+        try { localStorage.setItem(QUALITY_KEY, String(this.quality)); } catch (e) { /* ignore */ }
+        this.applyQuality();
+        this.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
+      }
+      p.frames = 0;
+      p.total = 0;
+    }
+  }
+
   box(w, h, d, mat, x, y, z, parent, cast = true) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y, z);
@@ -168,10 +221,9 @@ export class HallView extends World3D {
   }
 
   std(hex, kind = 'cloth', extra = {}) {
-    const rough = { plate: 0.38, mail: 0.5, stone: 0.92, wood: 0.8, leaf: 0.9, gold: 0.35 }[kind] ?? 0.86;
-    // Low metalness: there's no environment map, so very metallic surfaces would go black.
-    const metal = { plate: 0.22, mail: 0.15, gold: 0.3 }[kind] ?? 0;
-    return new THREE.MeshStandardMaterial({ map: noiseTex(hex, kind), roughness: rough, metalness: metal, flatShading: true, ...extra });
+    const rough = { plate: 0.38, mail: 0.5, stone: 0.9, wood: 0.8, leaf: 0.9, gold: 0.35 }[kind] ?? 0.86;
+    const metal = { plate: 0.5, mail: 0.3, gold: 0.8 }[kind] ?? 0;
+    return new THREE.MeshStandardMaterial({ map: noiseTex(hex, kind), roughness: rough, metalness: metal, envMapIntensity: 0.35, ...extra });
   }
 
   canvasW() { return this.game.canvas.offsetWidth || window.innerWidth; }
@@ -190,7 +242,7 @@ export class HallView extends World3D {
 
     // Cool window light with shadows; warm key from the camera side; dim fill.
     lights.push(new THREE.HemisphereLight('#94a8d0', '#4a3424', 0.95));
-    const win = new THREE.DirectionalLight('#cddcff', 2.1);
+    const win = new THREE.DirectionalLight('#cddcff', 1.3);
     win.position.set(-7, 9, 0);
     win.target.position.set(0, 0, MID_Z);
     win.castShadow = true;
@@ -198,11 +250,15 @@ export class HallView extends World3D {
     Object.assign(win.shadow.camera, { left: -3.5, right: 3.5, top: 3.5, bottom: -3.5, near: 1, far: 25 });
     win.shadow.bias = -0.0015;
     win.shadow.normalBias = 0.02;
-    const key = new THREE.DirectionalLight('#ffcf95', 1.9);
-    key.position.set(6, 4, 4);
+    const key = new THREE.DirectionalLight('#ffcf95', 2.2);
+    key.position.set(5, 4, 5);
     key.target.position.set(0, 1, MID_Z);
-    lights.push(win, key);
-    g.add(win.target, key.target);
+    // Cool rim light from beyond the challenger picks out both knights' silhouettes.
+    const rim = new THREE.DirectionalLight('#a9c8ff', 2.6);
+    rim.position.set(-1.5, 3.5, -9);
+    rim.target.position.set(0, 1.2, MID_Z);
+    lights.push(win, key, rim);
+    g.add(win.target, key.target, rim.target);
 
     const stone = this.std('#7a7c86', 'stone');
     const stoneDark = this.std('#585a64', 'stone');
@@ -221,21 +277,23 @@ export class HallView extends World3D {
     mirror.position.set(0, -0.002, -5);
     mirror.camera.layers.set(REFLECT);
     g.add(mirror);
+    this.mirror = mirror;
     const tile = pix(2, 2, (ctx) => {
-      ctx.fillStyle = '#c3c6cc';
+      ctx.fillStyle = '#8e939b';
       ctx.fillRect(0, 0, 2, 2);
-      ctx.fillStyle = '#5f6570';
+      ctx.fillStyle = '#3a3e46';
       ctx.fillRect(0, 0, 1, 1);
       ctx.fillRect(1, 1, 1, 1);
     }, [8, 15]);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(16, 30),
-      new THREE.MeshStandardMaterial({ map: tile, roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.74 }),
+      new THREE.MeshStandardMaterial({ map: tile, roughness: 0.85, metalness: 0.0, envMapIntensity: 0.25, transparent: true, opacity: 0.74 }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, 0, -5);
     floor.receiveShadow = true;
     g.add(floor);
+    this.floor = floor;
 
     // Walls and ceiling.
     this.box(0.6, 11, 30, stoneDark, -7.6, 5.5, -5, g, false);
@@ -415,8 +473,7 @@ export class HallView extends World3D {
       });
       const halo = new THREE.Sprite(haloMat);
       halo.scale.setScalar(1.6);
-      halo.position.set(0, 2.15, 0);
-      halo.layers.enable(REFLECT);
+      halo.position.set(0, 2.15, 0);   // (kept out of the floor reflection: it blooms into glare)
       c.add(halo);
       const light = new THREE.PointLight('#ffa64f', i < 2 ? 16 : 11, 10, 2);
       light.position.set(0, 2.2, 0.2);
@@ -432,6 +489,21 @@ export class HallView extends World3D {
     });
 
     this._crowd(g, r);
+    this._captureEnvironment();
+    this.applyQuality();
+  }
+
+  // Bake the hall into a reflection map so armour reflects candles and windows.
+  _captureEnvironment() {
+    if (this.envRT) this.envRT.dispose();
+    const pm = new THREE.PMREMGenerator(this.renderer);
+    this.mirror.visible = false;
+    this.content.position.set(0, -1.5, 2.4);
+    this.envRT = pm.fromScene(this.scene, 0.03, 0.1, 60);
+    this.content.position.set(0, 0, 0);
+    this.mirror.visible = true;
+    this.scene.environment = this.envRT.texture;
+    pm.dispose();
   }
 
   // Spectators: knights and courtiers built from instanced blocks.
@@ -496,430 +568,101 @@ export class HallView extends World3D {
     Object.values(parts).forEach((m) => { m.instanceMatrix.needsUpdate = true; });
   }
 
-  // ---------- voxel knights ----------
-
-  _tabardTex(look, w = 22, h = 28, charge = true) {
-    return pix(w, h, (ctx) => {
-      const base = rgb(look.tabard);
-      const rr = rng(look.tabard.length * 7 + base[1] + w);
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          ctx.fillStyle = css(base, 0.88 + rr() * 0.16);
-          ctx.fillRect(x, y, 1, 1);
-        }
-      }
-      ctx.fillStyle = look.trim;
-      ctx.fillRect(0, h - 2, w, 2);
-      ctx.fillRect(0, 0, 1, h);
-      ctx.fillRect(w - 1, 0, 1, h);
-      if (charge && look.charge) drawCharge(ctx, look.charge, w / 2, h * 0.42, w * 0.82, look.chargeColor || PALETTE.goldCss, null);
-    });
-  }
-
-  _weapon(kind, M) {
-    const g = new THREE.Group();
-    if (kind === 'axe' || kind === 'greataxe') {
-      const big = kind === 'greataxe';
-      const len = big ? 1.25 : 0.68;
-      this.box(big ? 0.055 : 0.045, len, big ? 0.055 : 0.045, M.wood, 0, -len / 2 + 0.05, 0, g);
-      this.box(big ? 0.07 : 0.06, 0.05, big ? 0.07 : 0.06, M.plate, 0, 0.06, 0, g);
-      const hy = -len + (big ? 0.16 : 0.11);
-      this.box(big ? 0.1 : 0.07, big ? 0.16 : 0.1, 0.05, M.plate, 0.02, hy, 0, g);
-      this.box(big ? 0.22 : 0.12, big ? 0.26 : 0.16, 0.032, M.steel, big ? 0.17 : 0.11, hy, 0, g);
-      this.box(0.045, big ? 0.42 : 0.25, 0.034, M.edge, big ? 0.3 : 0.19, hy, 0, g);
-      if (big) this.box(0.14, 0.06, 0.03, M.steel, -0.1, hy, 0, g);
-      return { g, len: len - 0.05 };
-    }
-    const fal = kind === 'falchion';
-    const blade = fal ? 0.6 : 0.78;
-    this.box(0.06, 0.06, 0.06, M.gold, 0, 0.09, 0, g);
-    this.box(0.042, 0.15, 0.042, M.leather, 0, 0, 0, g);
-    this.box(0.3, 0.045, 0.065, M.gold, 0, -0.09, 0, g);
-    [-1, 1].forEach((s) => this.box(0.05, 0.07, 0.07, M.gold, s * 0.15, -0.09, 0, g));
-    this.box(fal ? 0.08 : 0.06, blade, 0.02, M.steel, fal ? 0.01 : 0, -0.11 - blade / 2, 0, g);
-    this.box(0.018, blade * 0.8, 0.022, M.dark, 0, -0.11 - blade * 0.42, 0, g, false);   // fuller
-    const tip = this.box(0.043, 0.043, 0.02, M.steel, 0, -0.11 - blade, 0, g);
-    tip.rotation.z = Math.PI / 4;
-    return { g, len: 0.11 + blade + 0.03 };
-  }
-
-  _offhand(kind, look, M) {
-    const g = new THREE.Group();
-    if (!kind) return g;
-    if (kind === 'holly') {
-      this.box(0.03, 0.55, 0.03, M.wood, 0, -0.2, 0, g);
-      for (let i = 0; i < 7; i++) this.box(0.1, 0.05, 0.03, M.leaf, (i % 2 ? 1 : -1) * 0.05, -0.04 - i * 0.07, 0.01, g);
-      return g;
-    }
-    const field = look.shield || look.tabard;
-    const charge = look.shieldCharge ?? look.charge;
-    const face = pix(20, 24, (ctx, w, h) => {
-      const base = rgb(field);
-      const rr = rng(base[0] + 3);
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { ctx.fillStyle = css(base, 0.88 + rr() * 0.16 - y * 0.008); ctx.fillRect(x, y, 1, 1); }
-      ctx.fillStyle = PALETTE.goldCss;
-      ctx.fillRect(0, 0, w, 1);
-      ctx.fillRect(0, 0, 1, h);
-      ctx.fillRect(w - 1, 0, 1, h);
-      if (charge) drawCharge(ctx, charge, w / 2, h * 0.45, w * 0.82, look.chargeColor || PALETTE.goldCss, null);
-    });
-    const faceMat = new THREE.MeshStandardMaterial({ map: face, roughness: 0.6, flatShading: true });
-    M.extra.push(faceMat);
-    const w = kind === 'buckler' ? 0.3 : kind === 'round' ? 0.52 : 0.44;
-    const h = kind === 'buckler' ? 0.3 : kind === 'round' ? 0.52 : 0.5;
-    const board = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), [M.wood, M.wood, M.wood, M.wood, faceMat, M.wood]);
-    board.castShadow = true;
-    g.add(board);
-    // gold rim and boss
-    this.box(w + 0.03, 0.03, 0.06, M.gold, 0, h / 2, 0, g);
-    [-1, 1].forEach((s) => this.box(0.03, h, 0.06, M.gold, s * (w / 2 + 0.005), 0, 0, g));
-    if (kind === 'heater') {
-      [[0.82, 0.08], [0.56, 0.07], [0.3, 0.06], [0.1, 0.05]].forEach(([bw, bh], i) => {
-        const y = -h / 2 - 0.035 - i * 0.065;
-        this.box(w * bw, bh, 0.05, faceMat, 0, y, 0, g);
-        this.box(0.03, bh, 0.06, M.gold, (w * bw) / 2, y, 0, g);
-        this.box(0.03, bh, 0.06, M.gold, -(w * bw) / 2, y, 0, g);
-      });
-    } else {
-      this.box(w + 0.03, 0.03, 0.06, M.gold, 0, -h / 2, 0, g);
-      this.box(0.1, 0.1, 0.05, M.gold, 0, 0, 0.04, g);
-    }
-    return g;
-  }
-
-  _helm(look, head, M) {
-    const helm = M.helm;
-    const dark = M.dark;
-    const face = () => {
-      this.box(0.2, 0.22, 0.2, M.skin, 0, 0, 0, head);
-      [-1, 1].forEach((s) => this.box(0.035, 0.028, 0.01, dark, s * 0.048, 0.025, 0.102, head, false));
-      this.box(0.05, 0.02, 0.01, M.skinDark, 0, -0.045, 0.102, head, false);
-    };
-    switch (look.helm) {
-      case 'coif':
-        // Mail coif under a blue arming cap with a gold band.
-        this.box(0.19, 0.2, 0.02, M.skin, 0, -0.01, 0.12, head);
-        [-1, 1].forEach((s) => this.box(0.035, 0.028, 0.01, dark, s * 0.048, 0.02, 0.131, head, false));
-        this.box(0.26, 0.28, 0.25, M.mail, 0, -0.01, -0.005, head);
-        this.box(0.28, 0.1, 0.28, helm, 0, 0.15, 0, head);
-        this.box(0.285, 0.03, 0.285, M.gold, 0, 0.105, 0, head);
-        this.box(0.32, 0.12, 0.3, M.mail, 0, -0.17, -0.01, head);   // mail falling to the shoulders
-        break;
-      case 'nasal':
-        face();
-        this.box(0.235, 0.11, 0.235, helm, 0, 0.1, 0, head);
-        this.box(0.17, 0.06, 0.17, helm, 0, 0.18, 0, head);
-        this.box(0.04, 0.13, 0.03, helm, 0, 0.0, 0.113, head);
-        this.box(0.24, 0.03, 0.24, M.gold, 0, 0.055, 0, head);
-        break;
-      case 'hood':
-        face();
-        this.box(0.28, 0.05, 0.28, helm, 0, 0.13, 0, head);
-        this.box(0.28, 0.3, 0.05, helm, 0, 0.0, -0.12, head);
-        [-1, 1].forEach((s) => this.box(0.04, 0.3, 0.28, helm, s * 0.12, 0.0, 0, head));
-        this.box(0.36, 0.1, 0.32, helm, 0, -0.16, 0, head);
-        this.box(0.1, 0.16, 0.06, helm, 0, 0.06, -0.16, head);   // liripipe stub
-        break;
-      case 'antler': {
-        this.box(0.28, 0.34, 0.28, helm, 0, 0.03, 0, head);
-        this.box(0.25, 0.04, 0.25, helm, 0, 0.21, 0, head);
-        this.box(0.22, 0.03, 0.01, dark, 0, 0.06, 0.141, head, false);
-        this.box(0.03, 0.14, 0.01, dark, 0, -0.04, 0.141, head, false);
-        [[-0.06, -0.08], [0.06, -0.08], [-0.06, -0.12], [0.06, -0.12]].forEach(([x, y]) => this.box(0.02, 0.02, 0.01, dark, x, y, 0.141, head, false));
-        [-1, 1].forEach((s) => this._antler(head, s, M));
-        break;
-      }
-      case 'greathelm':
-      default:
-        this.box(0.27, 0.31, 0.27, helm, 0, 0.02, 0, head);
-        this.box(0.24, 0.035, 0.24, helm, 0, 0.19, 0, head);
-        this.box(0.22, 0.028, 0.01, dark, 0, 0.055, 0.136, head, false);
-        this.box(0.035, 0.24, 0.012, M.trim, 0, 0.0, 0.137, head, false);
-        [[-0.07, -0.05], [0.07, -0.05], [-0.07, -0.09], [0.07, -0.09]].forEach(([x, y]) => this.box(0.02, 0.02, 0.01, dark, x, y, 0.136, head, false));
-        if (look.crest) {
-          this.box(0.05, 0.18, 0.28, M.crest, 0, 0.29, -0.01, head);
-          this.box(0.08, 0.05, 0.1, M.crest, 0, 0.36, 0.08, head);
-        }
-        break;
-    }
-    if (look.beard && (look.helm === 'nasal' || look.helm === 'hood')) {
-      this.box(0.2, 0.12, 0.08, M.beard, 0, -0.13, 0.07, head);
-      this.box(0.12, 0.08, 0.06, M.beard, 0, -0.21, 0.08, head);
-    }
-  }
-
-  // A great branching antler built from short beams.
-  _antler(head, s, M) {
-    const a = new THREE.Group();
-    a.position.set(s * 0.13, 0.17, 0);
-    head.add(a);
-    const seg = (p, ang, len, z = 0) => {
-      const ex = p[0] + Math.sin(ang) * len * s;
-      const ey = p[1] + Math.cos(ang) * len;
-      const m = this.box(0.055, len + 0.03, 0.055, M.antler, (p[0] + ex) / 2, (p[1] + ey) / 2, z, a);
-      m.rotation.z = -s * ang;
-      return [ex, ey];
-    };
-    const e1 = seg([0, 0], 0.95, 0.24);
-    const e2 = seg(e1, 0.35, 0.3);
-    const e3 = seg(e2, 0.7, 0.28);
-    const e4 = seg(e3, 1.15, 0.2);
-    seg(e1, -0.15, 0.2, 0.04);
-    seg(e2, -0.05, 0.24);
-    seg(e3, 0.15, 0.2);
-    seg(e2, 1.25, 0.16);
-    seg(e4, 0.4, 0.14);
-  }
-
-  // Builds a knight facing +z. Returns the parts the animator moves.
-  _knight(look, weaponKind, offhandKind, size = 1) {
-    const extra = [];
-    const M = {
-      mail: this.std(look.mail || '#8e949c', 'mail'),
-      plate: this.std(look.plate || look.metal || '#a9b0ba', 'plate'),
-      helm: this.std(look.helmColor || look.plate || look.metal || '#a9b0ba', look.helm === 'coif' ? 'cloth' : 'plate'),
-      skin: this.std(look.skin || '#e2b48a'),
-      skinDark: this.std('#8a5a40'),
-      beard: this.std(look.beard || '#5a3a20'),
-      dark: new THREE.MeshBasicMaterial({ color: '#0d0a08' }),
-      trim: this.std(look.trim || PALETTE.goldCss, 'gold'),
-      crest: this.std(look.crest || PALETTE.goldCss),
-      gold: this.std(PALETTE.goldCss, 'gold'),
-      leather: this.std('#4a2f1a', 'wood'),
-      wood: this.std('#6b4423', 'wood'),
-      boot: this.std('#35241a', 'wood'),
-      belt: this.std('#3b2716'),
-      steel: this.std(look.blade || '#c9ced6', 'plate'),
-      edge: this.std('#e8ecf2', 'plate'),
-      leaf: this.std('#3f7a35', 'leaf'),
-      antler: this.std(look.antler || '#d8cbb0', 'wood'),
-      tabard: this.std(look.tabard),
-      extra,
-    };
-    const front = new THREE.MeshStandardMaterial({ map: this._tabardTex(look), roughness: 0.88, flatShading: true });
-    const skirtTex = new THREE.MeshStandardMaterial({ map: this._tabardTex(look, 12, 22, false), roughness: 0.88, flatShading: true });
-    extra.push(front, skirtTex);
-
-    const root = new THREE.Group();
-    const fig = new THREE.Group();
-    fig.scale.setScalar(size);
-    root.add(fig);
-
-    // Legs: mail thighs, plate greaves and knee cops, booted feet.
-    const legs = [-1, 1].map((s) => {
-      const hip = new THREE.Group();
-      hip.position.set(s * 0.13, HIP, 0);
-      fig.add(hip);
-      this.box(0.18, 0.42, 0.2, M.mail, 0, -0.21, 0, hip);
-      const knee = new THREE.Group();
-      knee.position.y = -THIGH;
-      hip.add(knee);
-      this.box(0.17, 0.1, 0.08, M.plate, 0, 0.0, 0.09, knee);
-      this.box(0.155, 0.36, 0.17, M.plate, 0, -0.2, 0, knee);
-      this.box(0.18, 0.13, 0.23, M.boot, 0, -0.43, 0.01, knee);
-      this.box(0.16, 0.08, 0.12, M.plate, 0, -0.455, 0.15, knee);
-      return { hip, knee, s };
-    });
-
-    const body = new THREE.Group();
-    body.position.y = HIP;
-    fig.add(body);
-    this.box(0.46, 0.24, 0.28, M.mail, 0, -0.04, 0, body);
-    this.box(0.48, 0.5, 0.29, M.mail, 0, 0.34, 0, body);
-    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.48, 0.31), [M.tabard, M.tabard, M.tabard, M.tabard, front, front]);
-    chest.position.set(0, 0.29, 0);
-    chest.castShadow = true;
-    body.add(chest);
-    this.box(0.5, 0.075, 0.33, M.belt, 0, 0.04, 0, body);
-    this.box(0.08, 0.08, 0.02, M.gold, 0, 0.04, 0.17, body);
-    this.box(0.09, 0.11, 0.06, M.leather, 0.21, -0.03, 0.12, body);
-    // Split tabard skirt that flares over the legs.
-    const flap = (w, h, x, z, rx, rz, d = 0.03) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), skirtTex);
-      m.position.set(x, -0.25, z);
-      m.rotation.set(rx, 0, rz);
-      m.castShadow = true;
-      body.add(m);
-      return m;
-    };
-    const skirt = [
-      flap(0.23, 0.46, -0.12, 0.165, -0.12, 0.05),
-      flap(0.23, 0.46, 0.12, 0.165, -0.12, -0.05),
-      flap(0.46, 0.48, 0, -0.165, 0.12, 0),
-      flap(0.03, 0.44, -0.245, 0, 0, 0.1, 0.28),
-      flap(0.03, 0.44, 0.245, 0, 0, -0.1, 0.28),
-    ];
-    this.box(0.28, 0.11, 0.28, M.mail, 0, 0.62, 0, body);
-    [-1, 1].forEach((s) => {
-      const p1 = this.box(0.24, 0.09, 0.29, M.plate, s * 0.3, 0.61, 0, body);
-      p1.rotation.z = -s * 0.35;
-      const p2 = this.box(0.21, 0.08, 0.26, M.plate, s * 0.35, 0.53, 0, body);
-      p2.rotation.z = -s * 0.55;
-      const p3 = this.box(0.04, 0.04, 0.3, M.gold, s * 0.38, 0.575, 0, body);
-      p3.rotation.z = -s * 0.4;
-    });
-    const head = new THREE.Group();
-    head.position.y = 0.81;
-    body.add(head);
-    this._helm(look, head, M);
-
-    const arm = (x) => {
-      const sh = new THREE.Group();
-      sh.position.set(x, 0.55, 0);
-      sh.rotation.order = 'XYZ';
-      body.add(sh);
-      this.box(0.14, 0.31, 0.15, M.mail, 0, -0.15, 0, sh);
-      const elbow = new THREE.Group();
-      elbow.position.y = -0.3;
-      sh.add(elbow);
-      this.box(0.15, 0.08, 0.08, M.plate, 0, 0, -0.06, elbow);
-      this.box(0.13, 0.24, 0.14, M.plate, 0, -0.13, 0, elbow);
-      this.box(0.17, 0.06, 0.18, M.plate, 0, -0.27, 0, elbow);
-      this.box(0.13, 0.1, 0.14, M.leather, 0, -0.33, 0, elbow);
-      return { sh, elbow };
-    };
-    const R = arm(-0.32);
-    const L = arm(0.32);
-    const w = this._weapon(weaponKind, M);
-    const weapon = new THREE.Group();
-    weapon.position.y = -0.35;
-    weapon.add(w.g);
-    R.elbow.add(weapon);
-    const off = this._offhand(offhandKind, look, M);
-    off.position.set(0, -0.33, offhandKind === 'holly' ? 0.04 : 0.1);
-    L.elbow.add(off);
-
-    // Cape with folds, or the Green Knight's cloak of leaves.
-    let cape = null;
-    if (look.leafy) {
-      cape = this._leafCloak(body, M);
-    } else if (look.cape) {
-      cape = new THREE.Group();
-      cape.position.set(0, 0.63, -0.18);
-      body.add(cape);
-      const capeTex = pix(22, 44, (ctx, cw, ch) => {
-        const base = rgb(look.cape);
-        const rr = rng(base[2] + 5);
-        for (let y = 0; y < ch; y++) {
-          for (let x = 0; x < cw; x++) {
-            const fold = Math.sin(x * 0.9) * 0.06;
-            ctx.fillStyle = css(base, 0.84 + rr() * 0.12 + fold - (y / ch) * 0.14);
-            ctx.fillRect(x, y, 1, 1);
-          }
-        }
-        ctx.fillStyle = PALETTE.goldCss;
-        ctx.fillRect(0, ch - 2, cw, 2);
-        ctx.fillRect(0, 0, cw, 1);
-        if (look.capeCharge) drawCharge(ctx, look.capeCharge, cw / 2, 15, cw * 0.86, PALETTE.goldCss, null);
-      });
-      const capeMat = new THREE.MeshStandardMaterial({ map: capeTex, roughness: 0.9, flatShading: true });
-      extra.push(capeMat);
-      const cm = new THREE.Mesh(new THREE.BoxGeometry(0.58, 1.3, 0.035), [M.tabard, M.tabard, M.tabard, M.tabard, M.tabard, capeMat]);
-      cm.position.y = -0.65;
-      cm.castShadow = true;
-      cape.add(cm);
-      [-1, 1].forEach((s) => {
-        const fold = this.box(0.1, 1.24, 0.04, M.tabard, s * 0.31, -0.62, 0.05, cape);
-        fold.rotation.y = s * 0.5;
-      });
-      this.box(0.56, 0.08, 0.07, M.tabard, 0, -0.01, 0.01, cape);
-      [-1, 1].forEach((s) => this.box(0.07, 0.07, 0.04, M.gold, s * 0.2, 0.0, 0.06, cape));
-    }
-
-    const mats = [];
-    root.traverse((o) => {
-      if (!o.isMesh) return;
-      o.layers.enable(REFLECT);
-      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-        if (m.emissive && !mats.includes(m)) mats.push(m);
-      });
-    });
-    return { root, fig, body, head, armR: R.sh, elbowR: R.elbow, armL: L.sh, elbowL: L.elbow, weapon, off, legs, cape, skirt, len: w.len, mats, weaponMats: [M.steel, M.edge] };
-  }
-
-  // The Green Knight's floor-length cloak of leaves, as instanced leaf blocks.
-  _leafCloak(body, M) {
-    const cape = new THREE.Group();
-    cape.position.set(0, 0.63, -0.16);
-    body.add(cape);
-    for (let i = -2; i <= 2; i++) {
-      const strip = this.box(0.2, 1.45, 0.04, M.leaf, i * 0.15, -0.72, -Math.abs(i) * 0.02, cape);
-      strip.rotation.z = i * 0.09;
-      strip.rotation.x = 0.05;
-    }
-    const rr = rng(4242);
-    const onBody = [];
-    const onCape = [];
-    for (let i = 0; i < 46; i++) {
-      const s = rr() > 0.5 ? 1 : -1;
-      onBody.push({ p: [s * (0.18 + rr() * 0.22), 0.46 + rr() * 0.22, -0.12 + rr() * 0.3], size: 0.08 + rr() * 0.07 });
-    }
-    for (let i = 0; i < 18; i++) onBody.push({ p: [-0.22 + rr() * 0.44, 0.15 + rr() * 0.4, 0.17], size: 0.07 + rr() * 0.05 });
-    for (let i = 0; i < 40; i++) onCape.push({ p: [-0.42 + rr() * 0.84, -0.2 - rr() * 1.3, -0.04 - rr() * 0.04], size: 0.08 + rr() * 0.07 });
-    for (let i = 0; i < 16; i++) onCape.push({ p: [-0.45 + i * 0.06, -1.45 - rr() * 0.12, -0.03], size: 0.07 + rr() * 0.04 });
-    const greens = ['#2f6b2a', '#3f8a35', '#557a2a', '#2a5226', '#6a9a3a', '#4a6a24'].map((c) => new THREE.Color(c));
-    const geo = new THREE.BoxGeometry(1, 1, 0.4);
-    const mat = this.std('#ffffff', 'leaf');
-    const make = (list, parent) => {
-      const im = new THREE.InstancedMesh(geo, mat, list.length);
-      const m = new THREE.Matrix4();
-      const q = new THREE.Quaternion();
-      const e = new THREE.Euler();
-      list.forEach((l, i) => {
-        q.setFromEuler(e.set(rr() * 0.8, rr() * 1.2, rr() * 3));
-        m.compose(new THREE.Vector3(...l.p), q, new THREE.Vector3(l.size, l.size * 1.3, l.size));
-        im.setMatrixAt(i, m);
-        im.setColorAt(i, greens[Math.floor(rr() * greens.length)]);
-      });
-      im.castShadow = true;
-      parent.add(im);
-    };
-    make(onBody, body);
-    make(onCape, cape);
-    return cape;
-  }
+  // ---------- figures ----------
 
   _lookFor(def) {
-    if (def.look) return def.look;
+    const l = def.look || {};
     const p = def.palette;
-    return { tabard: p.body, trim: p.trim, helm: 'greathelm', helmColor: p.helmColor || '#888', mail: p.sleeve, plate: p.legs, skin: p.skin };
+    return {
+      tabard: l.tabard || p.body, trim: l.trim || p.trim || PALETTE.goldCss, charge: l.charge ?? null, chargeColor: l.chargeColor,
+      helm: l.helm || 'greathelm', helmColor: l.helmColor || p.helmColor, plate: l.plate || l.metal || '#b9bec6',
+      mail: l.mail || '#8f959d', cape: l.cape, capeCharge: l.capeCharge, crest: l.crest, skin: l.skin || p.skin,
+      beard: l.beard || p.beard, leafy: l.leafy, antler: l.antler, blade: p.blade,
+      shield: p.shield || l.tabard, shieldCharge: l.charge ?? null,
+    };
   }
 
-  // ---------- rigs handed to the combat code ----------
+  // Build a knight with its animator, cloth and collision spheres.
+  _figure(look, weaponKind, offhandKind, size, guard, { front = true, back = true } = {}) {
+    const k = buildKnight(look, weaponKind, offhandKind, size);
+    this.content.add(k.root);
+    const anim = new Animator(k, guard);
+    const J = k.J;
+    const sp = (r) => ({ c: new THREE.Vector3(), r: r * size });
+    const spheres = { pelvis: sp(0.21), chest: sp(0.22), thighL: sp(0.1), thighR: sp(0.1), kneeL: sp(0.08), kneeR: sp(0.08), shinL: sp(0.075), shinR: sp(0.075) };
+    const list = Object.values(spheres);
+    const tmp = new THREE.Vector3();
+    const updateSpheres = () => {
+      J.pelvis.localToWorld(spheres.pelvis.c.set(0, -0.06, 0));
+      J.chest.localToWorld(spheres.chest.c.set(0, 0.02, -0.02));
+      for (const s of ['L', 'R']) {
+        J[`hip${s}`].getWorldPosition(tmp);
+        J[`kn${s}`].getWorldPosition(spheres[`knee${s}`].c);
+        spheres[`thigh${s}`].c.copy(tmp).lerp(spheres[`knee${s}`].c, 0.5);
+        J[`ft${s}`].getWorldPosition(tmp);
+        spheres[`shin${s}`].c.copy(spheres[`knee${s}`].c).lerp(tmp, 0.5);
+      }
+    };
+    const cloths = [];
+    const cloth = (opts) => {
+      const c = new Cloth({ ...opts, colliders: () => list });
+      c.mesh.layers.enable(REFLECT);
+      this.content.add(c.mesh);
+      cloths.push(c);
+      return c;
+    };
+    const drape = (map, alpha = false) => {
+      const m = new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.92, envMapIntensity: 0.25, transparent: alpha, alphaTest: alpha ? 0.45 : 0 });
+      k.mats.push(m);
+      return m;
+    };
+    const along = (jnt, x0, x1, y, z, cols) => (c, out) => jnt.localToWorld(out.set(x0 + ((x1 - x0) * c) / (cols - 1), y, z));
+    if (look.leafy) {
+      cloth({ cols: 9, rows: 12, width: 1.0, height: 1.55, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, 0.36, -0.36, 0.21, -0.12, 9) });
+      // A second leafy layer over the shoulders and chest, like a mantle.
+      cloth({ cols: 7, rows: 5, width: 0.6, height: 0.45, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, -0.3, 0.3, 0.22, 0.14, 7) });
+    } else if (look.cape) {
+      cloth({ cols: 7, rows: 10, width: 0.54, height: 1.2, material: drape(drapeTex(look.cape, look.trim, look.capeCharge, look.chargeColor, 'cape')), pin: along(J.chest, 0.21, -0.21, 0.19, -0.15, 7) });
+    }
+    const skirt = drape(drapeTex(look.tabard, look.trim, null, null, 'skirt'));
+    if (front) cloth({ cols: 5, rows: 6, width: 0.38, height: 0.5, material: skirt, pin: along(J.pelvis, -0.19, 0.19, 0.07, 0.175, 5) });
+    if (back) cloth({ cols: 5, rows: 6, width: 0.38, height: 0.52, material: skirt, pin: along(J.pelvis, 0.19, -0.19, 0.07, -0.175, 5) });
+    k.root.traverse((o) => { if (o.isMesh) o.layers.enable(REFLECT); });
+    return { k, anim, cloths, updateSpheres, guard };
+  }
 
   buildEnemy(def) {
-    const look = { ...this._lookFor(def), blade: def.palette.blade };
-    const f = this._knight(look, def.weapon, def.offhand, (def.size || 1) * 1.04);
-    f.root.position.set(0, 0, ENEMY_Z);
-    f.root.rotation.y = ENEMY_TURN;
-    this.content.add(f.root);
+    const look = this._lookFor(def);
+    const giant = def.weapon === 'greataxe';
+    const f = this._figure(look, def.weapon, def.offhand, def.size || 1, giant ? GUARD.giant : GUARD.ss);
+    f.k.root.position.set(0, 0, ENEMY_Z);
+    f.k.root.rotation.y = ENEMY_TURN;
     const prox = { root: new P(), body: new P(), head: new P(), armL: new P(), armR: new P(), weapon: new P() };
-    this.enemy = { ...f, prox, faded: false, reach: 0, elbow: 0.4, lastZ: ENEMY_Z, walk: 0, hp: null, stance: 0.55, crouch: 0.05, lean: 0 };
+    this.enemy = { ...f, prox, hp: null, walkPhase: 0, lastZ: null, fade: 1 };
     const view = this;
+    const { k } = f;
     prox.root.flash = (ms) => {
-      f.mats.forEach((m) => m.emissive.setRGB(0.9, 0.9, 0.85));
-      setTimeout(() => f.mats.forEach((m) => m.emissive.setRGB(0, 0, 0)), ms + 15);
+      k.mats.forEach((m) => m.emissive && m.emissive.setRGB(0.6, 0.6, 0.55));
+      setTimeout(() => k.mats.forEach((m) => m.emissive && m.emissive.setRGB(0, 0, 0)), ms + 25);
     };
     return {
       ...prox,
-      weaponLen: f.len / K,
+      weaponLen: k.weaponLen / K,
       setWeaponTint(c) {
-        f.weaponMats.forEach((m) => (c === null ? m.emissive.setRGB(0, 0, 0) : m.emissive.setRGB(0.9, 0.08, 0.03)));
+        k.weaponMats.forEach((m) => (c === null ? m.emissive.setRGB(0, 0, 0) : m.emissive.setRGB(0.9, 0.06, 0.02)));
       },
-      tip(frac = 1) { return view.project(f.weapon.localToWorld(view.v.set(0, -f.len * frac, 0))); },
-      headPoint() { return view.project(f.head.localToWorld(view.v.set(0, 0.3, 0))); },
-      chestPoint() { return view.project(f.body.localToWorld(view.v.set(0, 0.35, 0.2))); },
+      tip(frac = 1) { return view.project(k.weaponObj.localToWorld(view.v.set(0, -k.weaponLen * frac, 0))); },
+      headPoint() { return view.project(k.J.head.localToWorld(view.v.set(0, 0.3, 0))); },
+      chestPoint() { return view.project(k.J.chest.localToWorld(view.v.set(0, 0.05, 0.2))); },
     };
   }
 
   buildPlayer(sword, shield) {
     const look = { ...PLAYER_LOOK, blade: sword.color, shield: shield.field, shieldCharge: 'lion' };
-    const kind = shield.id === 'targe' ? 'round' : 'heater';
-    const f = this._knight(look, 'sword', kind, 1);
-    f.root.position.set(0, 0, PLAYER_Z);
-    f.root.rotation.y = Math.PI;
-    this.content.add(f.root);
-    this.player = { body3d: true, f, hp: null, flashUntil: 0, pose: { ...GUARD }, stance: 1, crouch: 0.42 };
+    const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false });
+    f.k.root.position.set(0, 0, PLAYER_Z);
+    f.k.root.rotation.y = Math.PI;
+    this.player = { body3d: true, ...f, hp: null };
     const W = VIEW.W;
     const H = VIEW.H;
     const swordHome = { x: W / 2 + W * 0.3, y: H + 20, angle: 8 };
@@ -927,179 +670,122 @@ export class HallView extends World3D {
     const view = this;
     return {
       swordArm: new P(swordHome.x, swordHome.y), shield: new P(shieldHome.x, shieldHome.y), swordHome, shieldHome, side: 1,
-      chestPoint() { return view.project(f.body.localToWorld(view.v.set(0, 0.5, 0))); },
+      chestPoint() { return view.project(f.k.J.chest.localToWorld(view.v.set(0, 0.2, 0))); },
     };
   }
 
   // ---------- animation ----------
 
-  // Fighting stance with the figure's left foot leading; keeps the feet on the floor.
-  _legs(f, stance, crouch, walk, spread = 1) {
-    const t = this.time;
-    let reach = 0;
-    f.legs.forEach(({ hip, knee, s }) => {
-      const lead = s > 0;
-      const swing = walk * Math.sin(t * 0.011 + (lead ? 0 : Math.PI)) * 0.55;
-      const hx = lead ? -(0.22 + 0.42 * stance) - crouch * 0.35 + swing : 0.12 + 0.34 * stance - crouch * 0.1 + swing;
-      const kx = lead ? 0.15 + 0.55 * stance + crouch * 0.75 + Math.max(0, -swing) : 0.08 + 0.2 * stance + crouch * 0.35 + Math.max(0, swing) * 0.6;
-      const hz = s * (0.06 + 0.13 * spread * stance);
-      hip.rotation.set(hx, 0, hz);
-      knee.rotation.x = kx;
-      const v = (THIGH * Math.cos(hx) + SHIN * Math.cos(hx + kx)) * Math.cos(hz);
-      reach = Math.max(reach, v);
-    });
-    f.fig.position.y = (reach - (THIGH + SHIN)) * f.fig.scale.y;
-    // Let the skirt flaps swing a little with the legs.
-    if (f.skirt) {
-      f.skirt[0].rotation.x = -0.12 + Math.min(0, f.legs[0].hip.rotation.x) * 0.5;
-      f.skirt[1].rotation.x = -0.12 + Math.min(0, f.legs[1].hip.rotation.x) * 0.5;
-      f.skirt[2].rotation.x = 0.12 + Math.max(0, f.legs[0].hip.rotation.x, f.legs[1].hip.rotation.x) * 0.5;
-    }
-  }
-
   _syncEnemy(e, dt) {
     const v = this.enemy;
     if (!v) return;
     const r = v.prox;
+    const { k, anim, guard } = v;
     const fwd = r.root.scaleX / e.size - 1;
-    const z = ENEMY_Z + fwd * 5;
-    v.root.position.set((r.root.x - e.baseX) * K, -(r.root.y - e.baseY) * K, z);
-    const speed = dt > 0 ? Math.abs(z - v.lastZ) / dt : 0;
+    const z = ENEMY_Z + fwd * 4;
+    k.root.position.set((r.root.x - e.baseX) * K, 0, z);
+    // Walking: legs step while the root travels (the walk in, lunges).
+    const speed = v.lastZ === null || dt <= 0 ? 0 : Math.abs(z - v.lastZ) / (dt / 1000);
     v.lastZ = z;
-    v.walk += ((speed > 0.0004 ? 1 : 0) - v.walk) * Math.min(1, dt / 120);
-    v.root.rotation.z = -r.root.angle * DEG;
-    v.body.position.set(r.body.x * K, HIP - r.body.y * K * 0.6, 0);
-    v.body.rotation.z = -r.body.angle * DEG;
-    v.head.rotation.z = -r.head.angle * DEG;
-    v.weapon.rotation.z = -r.weapon.angle * DEG;
+    const walking = speed > 0.4 && e.state === ES.INTRO;
+    if (walking) v.walkPhase += dt * 0.009;
 
-    // Imposing A-frame stance; sinks and lunges with the attack.
-    let reach = 0;
-    let elbow = 0.4;
-    let crouch = 0.05;
-    let stance = 0.55;
-    let lean = 0.04;
-    if (e.state === ES.TELEGRAPH) { reach = -0.5 * Math.min(1, e.t / 260); elbow = 0.25; crouch = 0.25; stance = 0.8; lean = -0.06; }
-    else if (e.state === ES.STRIKE) { reach = -0.85; elbow = 0; crouch = 0.4; stance = 1; lean = 0.22; }
-    else if (e.state === ES.PARRIED) { reach = 0.35; elbow = 0.6; crouch = 0.2; lean = -0.15; }
-    else if (e.state === ES.STAGGERED) { elbow = 0.2; crouch = 0.55; stance = 0.4; lean = 0.25; }
-    else if (e.state === ES.RECOVER) { elbow = 0.3; crouch = 0.3; stance = 0.7; lean = 0.12; }
-    const k = Math.min(1, dt / (e.state === ES.STRIKE ? 40 : 120));
-    v.reach += (reach - v.reach) * k;
-    v.elbow += (elbow - v.elbow) * k;
-    v.crouch += (crouch - v.crouch) * k;
-    v.stance += (stance - v.stance) * k;
-    v.lean += (lean - v.lean) * k;
-    v.body.rotation.x = v.lean;
-    v.armR.rotation.z = -r.armR.angle * DEG;
-    v.armR.rotation.x = v.reach;
-    v.elbowR.rotation.x = -v.elbow;
-    // Off arm held out from the body.
-    v.armL.rotation.set(-0.3, 0, -(r.armL.angle - 10) * DEG);
-    v.elbowL.rotation.x = -0.75;
-    if (v.off) v.off.rotation.x = 1.05;
-    this._legs(v, e.state === ES.DEFEATED ? 0.2 : v.stance, v.crouch, v.walk, 1.4);
-    if (v.cape) v.cape.rotation.x = 0.05 - v.lean + v.walk * 0.22 + Math.sin(this.time * 0.003) * 0.02;
-
-    if (v.hp !== null && e.health < v.hp) this.cheer = 1;
+    let target = guard;
+    let omega = 7;
+    let wobble = 0;
+    const atk = e.attack;
+    switch (e.state) {
+      case ES.TELEGRAPH: {
+        const [wind] = SWINGS[atk.direction] || SWINGS.S;
+        target = pose(guard, wind);
+        omega = 9;
+        break;
+      }
+      case ES.STRIKE: {
+        const [, strike] = SWINGS[atk.direction] || SWINGS.S;
+        target = pose(guard, strike);
+        omega = 30;
+        break;
+      }
+      case ES.GAP: omega = 14; break;
+      case ES.FEINT: omega = 16; break;
+      case ES.RECOVER: target = pose(guard, STATES.open); omega = 8; break;
+      case ES.PARRIED: target = pose(guard, STATES.parried); omega = 22; break;
+      case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; break;
+      case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
+      case ES.DEFEATED: target = pose(guard, e.t < 800 ? STATES.kneel : STATES.collapse); omega = e.t < 800 ? 7 : 4; break;
+      default: break;
+    }
+    if (walking) {
+      target = pose(target);
+      const s = Math.sin(v.walkPhase);
+      target.footL[1] += s * 0.28;
+      target.footR[1] -= s * 0.28;
+    }
+    anim.set(target, omega);
+    anim.update(dt / 1000);
+    // Wind-up tremble while holding at the top of the blow.
+    if (e.state === ES.TELEGRAPH && e.t > e.telegraphTotal * 0.6) anim.jolt((Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, 0);
+    if (v.hp !== null && e.health < v.hp) {
+      anim.jolt(-2.6, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2);
+      this.cheer = 1;
+    }
+    if (e.state === ES.PARRIED && e.t < 30) anim.jolt(-3.5, 1.5, 0);
     v.hp = e.health;
+    const look = this.player ? this.player.k.J.head.getWorldPosition(this.v2 || (this.v2 = new THREE.Vector3())) : null;
+    anim.apply(look, { breathe: e.state === ES.DEFEATED ? 0 : 1, wobble, time: this.time });
+    v.updateSpheres();
+    v.cloths.forEach((c) => c.update(dt / 1000));
 
     const a = r.root.alpha;
-    if (a < 0.999 || v.faded) {
-      v.faded = a < 0.999;
-      v.root.traverse((o) => {
-        if (!o.isMesh) return;
-        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-          m.transparent = a < 0.999;
-          m.opacity = a;
-        });
-      });
+    if (Math.abs(a - v.fade) > 0.001) {
+      v.fade = a;
+      const all = [k.root, ...v.cloths.map((c) => c.mesh)];
+      all.forEach((root) => root.traverse((o) => {
+        if (!o.material) return;
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.transparent = a < 0.999 || m.alphaTest > 0; m.opacity = a; });
+      }));
     }
   }
 
   _syncPlayerBody(pl, dt) {
     const v = this.player;
     if (!v || !pl) return;
-    const f = v.f;
+    const { k, anim, guard } = v;
     const now = performance.now();
-    const T = { ...GUARD };
-    let stance = 1;
-    let crouch = 0.42;
-    let walk = 0;
-    let speed = 110;
+    let target = guard;
+    let omega = 9;
+    let rootX = 0;
     switch (pl.state) {
       case PS.DODGING: {
         const s = Math.sin(Math.PI * Math.min(1, pl.stateT / CONFIG.dodge.durationMs));
         const dir = pl.dodgeSide === 'left' ? -1 : 1;
-        T.rootX = dir * 0.9 * s;
-        T.bodyA = -dir * 12 * s;
-        crouch = 0.42 + 0.35 * s;
-        walk = s * 0.6;
-        speed = 1;
+        rootX = dir * 0.85 * s;
+        target = pose(guard, { pelvis: [0, 0.8, 0.05], chest: [0.2, 0.1, -dir * 0.25] });
+        omega = 18;
         break;
       }
-      case PS.BLOCKING:
-        Object.assign(T, { armLx: -1.25, armL: 34, elbowL: 0.95, bodyRx: 0.24, armRx: -0.6, armR: 18, elbowR: 0.5, wrist: -0.2, twist: -0.25 });
-        crouch = 0.6;
-        speed = 45;
-        break;
-      case PS.STUNNED:
-        Object.assign(T, { bodyRx: -0.25, armR: 40, armRx: -0.2, wrist: 0.3, armL: 15, armLx: -0.3, elbowR: 0.2 });
-        crouch = 0.2;
-        speed = 40;
-        break;
-      case PS.DEAD:
-        Object.assign(T, { bodyRx: -1.45, bodyY: -0.3, armR: 110, armRx: 0, armL: -110, armLx: 0, wrist: 0, elbowR: 0, elbowL: 0 });
-        stance = 0.2;
-        crouch = 0.9;
-        speed = 260;
-        break;
-      default:
-        break;
+      case PS.BLOCKING: target = pose(guard, STATES.block); omega = 24; break;
+      case PS.STUNNED: target = pose(guard, STATES.stun); omega = 18; break;
+      case PS.DEAD: target = pose(guard, STATES.dead); omega = 5; break;
+      default: break;
     }
-    const sp = (now - (pl.swingAt || -1e9)) / 280;
-    if (sp >= 0 && sp < 1 && pl.state !== PS.DEAD && pl.state !== PS.STUNNED && pl.swingDir) {
-      const [dx0, dy] = DIR_VEC[pl.swingDir];
-      const dx = -dx0;   // seen from behind, screen-right is his right
-      if (sp < 0.22) {
-        const COCKED = { S: [135, 135], SW: [125, 110], SE: [-160, 70] };
-        const c = COCKED[pl.swingDir];
-        Object.assign(T, {
-          armR: c ? c[0] : angFor(-dx, -dy - 0.4 * (1 - Math.abs(dy))), weapon: c ? c[1] : -dx * 25,
-          armRx: 0.2, elbowR: 0.5, wrist: 0, twist: 0.35, bodyA: -dx * 6, bodyRx: 0.1,
-        });
-      } else if (sp < 0.7) {
-        Object.assign(T, { armR: angFor(dx, dy + 0.35), weapon: 0, armRx: -1.0, elbowR: 0, wrist: 0, twist: -0.45, bodyA: dx * 8, bodyRx: 0.3 });
-        crouch = 0.6;
-      }
-      speed = 18;
+    // Your swing: quick wind-up, cut along the swipe, back to guard.
+    const t = now - (pl.swingAt || -1e9);
+    if (t >= 0 && t < 320 && pl.swingDir && pl.state !== PS.DEAD && pl.state !== PS.STUNNED) {
+      const [wind, strike] = SWINGS[mirrorDir(pl.swingDir)] || SWINGS.E;
+      if (t < 80) { target = pose(guard, wind); omega = 34; }
+      else if (t < 230) { target = pose(guard, { ...strike, footL: guard.footL, footR: guard.footR }); omega = 32; }
     }
-    const k = speed <= 1 ? 1 : Math.min(1, dt / speed);
-    const P0 = v.pose;
-    for (const key of Object.keys(T)) P0[key] += (T[key] - P0[key]) * k;
-    v.stance += (stance - v.stance) * Math.min(1, dt / 120);
-    v.crouch += (crouch - v.crouch) * (speed <= 1 ? 1 : k);
-
-    f.root.position.x = P0.rootX;
-    f.body.position.y = HIP + P0.bodyY + Math.sin(now / 650) * 0.008;
-    f.body.rotation.set(P0.bodyRx, P0.twist, -P0.bodyA * DEG);
-    f.armR.rotation.set(P0.armRx, 0, -P0.armR * DEG);
-    f.elbowR.rotation.x = -P0.elbowR;
-    f.weapon.rotation.set(P0.wrist, 0, -P0.weapon * DEG);
-    f.armL.rotation.set(P0.armLx, 0, -P0.armL * DEG);
-    f.elbowL.rotation.x = -P0.elbowL;
-    if (f.off) f.off.rotation.x = -(P0.armLx - P0.elbowL);
-    this._legs(f, v.stance, v.crouch, walk, 1);
-    // The cape hangs straight down whatever the lean, flaring a little when he moves.
-    if (f.cape) f.cape.rotation.x = 0.06 - P0.bodyRx + Math.abs(P0.rootX) * 0.3 + Math.sin(now * 0.003) * 0.025;
-
-    if (v.hp !== null && pl.health < v.hp) v.flashUntil = now + 120;
+    k.root.position.x = rootX;
+    anim.set(target, omega);
+    anim.update(dt / 1000);
+    if (v.hp !== null && pl.health < v.hp) anim.jolt(-3.5, (Math.random() - 0.5) * 2, 0);
     v.hp = pl.health;
-    const on = now < v.flashUntil;
-    if (on !== v.flashing) {
-      v.flashing = on;
-      f.mats.forEach((m) => (on ? m.emissive.setRGB(0.8, 0.1, 0.05) : m.emissive.setRGB(0, 0, 0)));
-    }
+    const look = this.enemy ? this.enemy.k.J.head.getWorldPosition(this.v3 || (this.v3 = new THREE.Vector3())) : null;
+    anim.apply(look, { breathe: pl.state === PS.DEAD ? 0 : 1, time: now });
+    v.updateSpheres();
+    v.cloths.forEach((c) => c.update(dt / 1000));
   }
 
   // ---------- per-frame ----------
@@ -1108,24 +794,31 @@ export class HallView extends World3D {
     this.syncCanvas();
     const now = performance.now();
     this.time = now;
+    this._watchPerformance(now);
     const cam = this.camera;
-    const px = this.player ? this.player.f.root.position.x : 0;
+    const px = this.player ? this.player.k.root.position.x : 0;
     cam.position.copy(this.camHome);
-    cam.position.x += px * 0.3;
-    cam.position.y += Math.sin(now / 1900) * 0.015;
+    cam.position.x += px * 0.55;
+    cam.position.y += Math.sin(now / 1900) * 0.012;
     const sh = duel.cameras.main.shakeEffect;
     if (sh && sh.isRunning) {
       cam.position.x += (sh._offsetX || 0) * 0.004;
       cam.position.y += (sh._offsetY || 0) * 0.004;
     }
     cam.up.set(0, 1, 0);
-    cam.lookAt(this.camTarget.x + px * 0.2, this.camTarget.y, this.camTarget.z);
+    cam.lookAt(this.camTarget.x + px * 0.25, this.camTarget.y, this.camTarget.z);
+    // A short zoom punch on parries and staggers.
+    const e = duel.enemy;
+    if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 4;
+    this.fovKick *= Math.exp(-(dt || 16) / 180);
+    cam.fov = FOV - this.fovKick;
+    cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
 
-    if (duel.enemy) {
-      this._syncEnemy(duel.enemy, dt);
-      const c = duel.enemy.rig.chestPoint();
-      duel.enemy.aura.setPosition(c.x - (duel.world ? duel.world.x : 0), c.y - 20);
+    if (e) {
+      this._syncEnemy(e, dt);
+      const c = e.rig.chestPoint();
+      e.aura.setPosition(c.x - (duel.world ? duel.world.x : 0), c.y - 20);
     }
     this._syncPlayerBody(duel.player, dt);
 
@@ -1136,7 +829,8 @@ export class HallView extends World3D {
     this.cheer = Math.max(0, this.cheer - (dt || 16) / 700);
     this._updateCrowd(now);
 
-    this.renderer.render(this.scene, cam);
+    if (this.quality >= 2) this.composer.render();
+    else this.renderer.render(this.scene, cam);
   }
 
   clear() {
@@ -1145,5 +839,7 @@ export class HallView extends World3D {
     this.candles = [];
     this.banners = [];
     this.scene.background = null;
+    this.scene.environment = null;
+    if (this.envRT) { this.envRT.dispose(); this.envRT = null; }
   }
 }
