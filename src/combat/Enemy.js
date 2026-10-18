@@ -1,0 +1,513 @@
+import { CONFIG, VIEW } from '../config.js';
+import { Fighter } from './Fighter.js';
+import { buildEnemyRig } from '../art/Rig.js';
+import { canvasTex, localToWorld, angFor, star, text } from '../art/Tex.js';
+import { DIR_VEC } from '../input/SwipeInput.js';
+import { Sfx } from '../audio/Sfx.js';
+
+export const ES = {
+  INTRO: 'Intro',
+  IDLE: 'Idle',
+  TELEGRAPH: 'Telegraph',
+  STRIKE: 'Strike',
+  GAP: 'ComboGap',
+  RECOVER: 'Recover',
+  PARRIED: 'Parried',
+  STAGGERED: 'Staggered',
+  FEINT: 'Feint',
+  INTERLUDE: 'Interlude',
+  DEFEATED: 'Defeated',
+};
+
+const rand = ([a, b]) => a + Math.random() * (b - a);
+
+function pickWeighted(list, avoid) {
+  const pool = list.length > 1 ? list.filter((c) => c !== avoid) : list;
+  const total = pool.reduce((s, c) => s + (c.weight || 1), 0);
+  let r = Math.random() * total;
+  for (const c of pool) {
+    r -= c.weight || 1;
+    if (r <= 0) return c;
+  }
+  return pool[pool.length - 1];
+}
+
+export class Enemy extends Fighter {
+  constructor(scene, def, { cycle, x, y, director }) {
+    const mult = 1 + CONFIG.enemy.cycleMult * cycle;
+    super(scene, Math.round(def.health * mult));
+    this.def = def;
+    this.dmgMult = mult;
+    this.director = director;
+    this.cfg = {
+      idleMs: def.idleMs,
+      comboGapMs: def.comboGapMs,
+      feintChance: def.feintChance || 0,
+      combos: def.combos,
+      telegraphMult: 1,
+    };
+    this.phaseIdx = 0;
+    this.pendingPhase = null;
+    this.stagger = 0;
+    this.script = [];        // forced combos (tutorial): { seq, recoverMs }
+    this.hold = false;       // when true, stays idle
+    this.lastCombo = null;
+
+    this.baseX = x;
+    this.baseY = y;
+    this.size = (def.size || 1) * 0.9;
+    this.rig = buildEnemyRig(scene, def);
+    this.rig.root.setPosition(x, y).setScale(this.size);
+
+    canvasTex(scene, 'glint_gold', 64, 64, (ctx) => {
+      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+      g.addColorStop(0, 'rgba(255,252,230,1)');
+      g.addColorStop(0.3, 'rgba(246,208,97,0.9)');
+      g.addColorStop(1, 'rgba(217,169,51,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 64);
+      star(ctx, 32, 32, 4, 31, 4);
+      ctx.fillStyle = 'rgba(255,255,240,0.95)';
+      ctx.fill();
+    });
+    canvasTex(scene, 'glint_red', 64, 64, (ctx) => {
+      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+      g.addColorStop(0, 'rgba(255,230,220,1)');
+      g.addColorStop(0.3, 'rgba(230,60,40,0.95)');
+      g.addColorStop(1, 'rgba(200,54,31,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 64);
+      star(ctx, 32, 32, 4, 31, 4);
+      ctx.fillStyle = 'rgba(255,220,210,0.95)';
+      ctx.fill();
+    });
+    canvasTex(scene, 'daze', 20, 20, (ctx) => {
+      star(ctx, 10, 10, 5, 9, 4);
+      ctx.fillStyle = '#f6d061';
+      ctx.fill();
+      ctx.strokeStyle = '#2a1d14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+    canvasTex(scene, 'aura', 200, 200, (ctx) => {
+      const g = ctx.createRadialGradient(100, 100, 10, 100, 100, 100);
+      g.addColorStop(0, 'rgba(140,230,110,0.7)');
+      g.addColorStop(1, 'rgba(60,160,60,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 200, 200);
+    });
+
+    this.aura = scene.add.image(x, y - 80, 'aura').setScale(3.4 / VIEW.RES, 4.2 / VIEW.RES)
+      .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(9);
+    this.glint = scene.add.image(0, 0, 'glint_gold').setBlendMode(Phaser.BlendModes.ADD).setDepth(24).setVisible(false);
+    this.dazeStars = [0, 1, 2].map(() => scene.add.image(0, 0, 'daze').setScale(1 / VIEW.RES).setDepth(23).setVisible(false));
+
+    this.state = ES.INTRO;
+    this.t = 0;
+    this.swayT = Math.random() * 1000;
+    this.pose('guard', 1);
+    // Walk in from the distance.
+    this.rig.root.setScale(this.size * 0.75).setAlpha(0);
+    scene.tweens.add({ targets: this.rig.root, scale: this.size, alpha: 1, duration: 800, ease: 'Cubic.easeOut' });
+  }
+
+  // Objects that slide with the world when the player dodges.
+  get worldObjects() {
+    return [this.rig.root, this.aura];
+  }
+
+  // ---------------- poses ----------------
+
+  _tw(target, props, ms, ease) {
+    this.scene.tweens.killTweensOf(target);
+    if (ms <= 1) {
+      Object.assign(target, props);
+      return;
+    }
+    this.scene.tweens.add({ targets: target, ...props, duration: ms, ease });
+  }
+
+  _apply(spec, ms, ease = 'Sine.easeInOut') {
+    const r = this.rig;
+    if (spec.body) this._tw(r.body, spec.body, ms, ease);
+    if (spec.armR !== undefined) this._tw(r.armR, { angle: spec.armR }, ms, ease);
+    if (spec.weapon !== undefined) this._tw(r.weapon, { angle: spec.weapon }, ms, ease);
+    if (spec.armL !== undefined) this._tw(r.armL, { angle: spec.armL }, ms, ease);
+    if (spec.head !== undefined) this._tw(r.head, { angle: spec.head }, ms, ease);
+    if (spec.root) {
+      const rp = { x: this.baseX + (spec.root.x || 0), y: this.baseY + (spec.root.y || 0), scale: this.size * (spec.root.scale || 1) };
+      this._tw(r.root, rp, ms, ease);
+    }
+  }
+
+  pose(name, ms = 200, attack = null) {
+    switch (name) {
+      case 'guard':
+        this._apply({
+          body: { angle: 0, x: 0, y: 0 }, armR: 28, weapon: -168, armL: -14, head: 0, root: {},
+        }, ms);
+        break;
+      case 'windup': {
+        if (attack.direction === 'T') {
+          this._apply({
+            body: { angle: -5, x: 0, y: -6 }, armR: 12, weapon: -110, armL: -30, head: -4, root: { scale: 0.95, y: -6 },
+          }, ms, 'Sine.easeOut');
+        } else {
+          const [dx, dy] = DIR_VEC[attack.direction];
+          // Downward blows cock the weapon behind the head so it stays on screen.
+          const COCKED = { S: [135, 135], SE: [125, 110], SW: [-160, 70] };
+          const cocked = COCKED[attack.direction];
+          const vx = -dx;
+          const vy = -dy - 0.4 * (1 - Math.abs(dy));
+          this._apply({
+            body: { angle: -dx * 7, x: -dx * 10, y: -8 },
+            armR: cocked ? cocked[0] : angFor(vx, vy),
+            weapon: cocked ? cocked[1] : -dx * 25,
+            armL: -30,
+            head: -dx * 4,
+            root: {},
+          }, ms, 'Sine.easeOut');
+        }
+        break;
+      }
+      case 'strike': {
+        if (attack.direction === 'T') {
+          this._apply({
+            body: { angle: 6, x: 10, y: 14 }, armR: -38, weapon: -32, armL: -10, head: 4, root: { scale: 1.16, y: 34 },
+          }, ms, 'Quad.easeIn');
+        } else {
+          const [dx, dy] = DIR_VEC[attack.direction];
+          this._apply({
+            body: { angle: dx * 8, x: dx * 14, y: 12 },
+            armR: angFor(dx, dy + 0.35),
+            weapon: 0,
+            armL: -6,
+            head: dx * 4,
+            root: { scale: 1.04, y: 10 },
+          }, ms, 'Quad.easeIn');
+        }
+        break;
+      }
+      case 'open':
+        this._apply({
+          body: { angle: Phaser.Math.Between(-6, 6), x: 0, y: 18 }, armR: 10, weapon: 12, armL: 32, head: 8, root: { scale: 0.98 },
+        }, ms);
+        break;
+      case 'recoil':
+        this._apply({
+          body: { angle: -10, x: -8, y: 6 }, armR: 150, weapon: 40, armL: 40, head: -12, root: { scale: 0.96, y: -4 },
+        }, ms, 'Back.easeOut');
+        break;
+      case 'staggered':
+        this._apply({
+          body: { angle: 12, x: 6, y: 40 }, armR: 4, weapon: 30, armL: 44, head: 18, root: { scale: 0.97, y: 6 },
+        }, ms, 'Back.easeOut');
+        break;
+      case 'roar':
+        this._apply({
+          body: { angle: 0, x: 0, y: -14 }, armR: 120, weapon: -10, armL: -120, head: -10, root: { scale: 1.06 },
+        }, ms, 'Back.easeOut');
+        break;
+      case 'fall':
+        this._apply({
+          body: { angle: 78, x: 40, y: 120 }, armR: 70, weapon: 60, armL: 60, head: 30, root: { y: 40 },
+        }, ms, 'Quad.easeIn');
+        break;
+      default:
+        break;
+    }
+  }
+
+  // ---------------- state machine ----------------
+
+  setState(s) {
+    this.state = s;
+    this.t = 0;
+  }
+
+  isOpen() {
+    return this.state === ES.RECOVER || this.state === ES.PARRIED || this.state === ES.STAGGERED;
+  }
+
+  canBeStaggered() {
+    return this.state !== ES.STAGGERED && this.state !== ES.DEFEATED && this.state !== ES.INTERLUDE && this.state !== ES.INTRO;
+  }
+
+  telegraphRemaining() {
+    return this.state === ES.TELEGRAPH ? this.telegraphTotal - this.t : Infinity;
+  }
+
+  inParryWindow() {
+    const rem = this.telegraphRemaining();
+    return rem <= CONFIG.parry.windowMs && rem > 0 && !this.feintAt;
+  }
+
+  openFraction() {
+    if (!this.isOpen()) return 0;
+    return Math.max(0, 1 - this.t / this.openDur);
+  }
+
+  damageTakenMult() {
+    if (this.state !== ES.STAGGERED) return 1;
+    return this.superStagger ? CONFIG.super.damageMult : CONFIG.stagger.damageMult;
+  }
+
+  update(dt) {
+    this.t += dt;
+    this.swayT += dt;
+    const sway = this.state === ES.IDLE || this.state === ES.INTRO ? 1 : this.state === ES.STAGGERED ? 2.5 : 0.3;
+    this.rig.root.angle = Math.sin(this.swayT / 520) * 1.4 * sway;
+
+    switch (this.state) {
+      case ES.INTRO:
+        if (this.t >= 900) this.toIdle();
+        break;
+      case ES.IDLE:
+        if (!this.hold && this.t >= this.idleDur) this.startCombo();
+        break;
+      case ES.TELEGRAPH: {
+        if (this.feintAt && this.t >= this.feintAt) {
+          this.doFeint();
+          break;
+        }
+        const rem = this.telegraphTotal - this.t;
+        if (!this.windowOpened && rem <= CONFIG.parry.windowMs && !this.feintAt) {
+          this.windowOpened = true;
+          if (this.attack.parryable) Sfx.windowOpen();
+        }
+        this._updateGlint(rem);
+        if (rem <= 0) this.impact();
+        break;
+      }
+      case ES.STRIKE:
+        if (this.t >= CONFIG.enemy.strikeMs + CONFIG.enemy.strikeHoldMs) this.afterStrike();
+        break;
+      case ES.GAP:
+        if (this.t >= this.gapDur) this.telegraph(this.comboIdx + 1);
+        break;
+      case ES.RECOVER:
+      case ES.PARRIED:
+        if (this.t >= this.openDur) this.toIdle();
+        break;
+      case ES.STAGGERED:
+        this._updateDaze();
+        if (this.t >= this.openDur) {
+          this.dazeStars.forEach((s) => s.setVisible(false));
+          this.toIdle();
+        }
+        break;
+      case ES.FEINT:
+        if (this.t >= CONFIG.enemy.feintRecoverMs) this.startCombo(true);
+        break;
+      case ES.INTERLUDE:
+        this.aura.setAlpha(0.5 + Math.sin(this.t / 90) * 0.25);
+        if (this.t >= CONFIG.enemy.phaseInterludeMs) this.toIdle();
+        break;
+      default:
+        break;
+    }
+    if (this.phaseIdx > 0 && this.state !== ES.INTERLUDE && this.state !== ES.DEFEATED) {
+      this.aura.setAlpha(0.3 + Math.sin(this.swayT / 300) * 0.12);
+    }
+  }
+
+  toIdle() {
+    if (this.pendingPhase) {
+      this.enterPhase(this.pendingPhase);
+      return;
+    }
+    this.setState(ES.IDLE);
+    this.superStagger = false;
+    this.idleDur = this.forceShortIdle ? 250 : rand(this.cfg.idleMs);
+    this.forceShortIdle = false;
+    this.pose('guard', 260);
+  }
+
+  startCombo(afterFeint = false) {
+    let seq;
+    this.scriptRecover = null;
+    if (this.script.length) {
+      const s = this.script.shift();
+      seq = s.seq;
+      this.scriptRecover = s.recoverMs || null;
+      this.scripted = true;
+    } else {
+      const c = pickWeighted(this.cfg.combos, this.lastCombo);
+      this.lastCombo = c;
+      seq = c.seq;
+      this.scripted = false;
+    }
+    this.combo = seq.map((id) => ({ id, ...this.def.attacks[id] }));
+    this.afterFeint = afterFeint;
+    this.telegraph(0);
+  }
+
+  telegraph(i) {
+    this.comboIdx = i;
+    this.attack = this.combo[i];
+    this.telegraphTotal = this.attack.telegraphMs * this.cfg.telegraphMult;
+    this.setState(ES.TELEGRAPH);
+    this.windowOpened = false;
+    this.feintAt = null;
+    if (!this.scripted && !this.afterFeint && i === 0 && Math.random() < this.cfg.feintChance) {
+      const latest = this.telegraphTotal - CONFIG.parry.windowMs - 90;
+      this.feintAt = Math.min(latest, this.telegraphTotal * (0.45 + Math.random() * 0.2));
+    }
+    this.pose('windup', Math.min(this.telegraphTotal * 0.55, 380), this.attack);
+    const red = !this.attack.parryable;
+    this.glint.setTexture(red ? 'glint_red' : 'glint_gold').setVisible(true).setAlpha(0);
+    const wImg = this.rig.weapon.list[0];
+    if (red) wImg.setTint(0xff7a6a);
+    else wImg.clearTint();
+    Sfx.glint(red);
+    this.director.onTelegraph?.(this.attack);
+  }
+
+  _tip() {
+    return localToWorld(this.rig.weapon, 0, this.rig.weaponLen);
+  }
+
+  _updateGlint(rem) {
+    const p = this._tip();
+    const g = this.glint;
+    g.setPosition(p.x, p.y);
+    const win = CONFIG.parry.windowMs;
+    const intro = Math.min(1, this.t / 140);
+    let s = 0.7 + Math.sin(this.t / 45) * 0.12;
+    if (rem <= win && !this.feintAt) s = 1.5 + (1 - rem / win) * 0.6;
+    g.setAlpha(intro);
+    g.setScale((s * 1.3) / VIEW.RES);
+    g.angle += 4;
+  }
+
+  impact() {
+    this.glint.setVisible(false);
+    this.rig.weapon.list[0].clearTint();
+    this.setState(ES.STRIKE);
+    this.pose('strike', CONFIG.enemy.strikeMs, this.attack);
+    this.lastOutcome = this.director.resolveImpact(this.attack);
+  }
+
+  afterStrike() {
+    if (this.comboIdx + 1 < this.combo.length) {
+      this.setState(ES.GAP);
+      this.gapDur = rand(this.cfg.comboGapMs);
+      this.pose('guard', Math.min(this.gapDur, 200));
+    } else {
+      this.recover(this.scriptRecover || this.attack.recoverMs);
+    }
+  }
+
+  recover(ms) {
+    this.setState(ES.RECOVER);
+    this.openDur = ms;
+    this.pose('open', 220);
+    this.director.onOpen?.();
+  }
+
+  doFeint() {
+    this.feintAt = null;
+    this.glint.setVisible(false);
+    this.rig.weapon.list[0].clearTint();
+    this.setState(ES.FEINT);
+    this.pose('guard', 200);
+    const p = this.rig.root;
+    const t = text(this.scene, p.x, p.y - 260 * this.size, 'Feint!', {
+      fontSize: '24px', fontStyle: '700', color: '#f6dc8a', stroke: '#2a1d14', strokeThickness: 5,
+    }).setDepth(41);
+    this.scene.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+  }
+
+  // Red Knight: wait out an early dodge, then strike.
+  delayStrike(newRemaining) {
+    if (this.state !== ES.TELEGRAPH) return;
+    this.feintAt = null;
+    this.telegraphTotal = this.t + newRemaining;
+    this.windowOpened = false;
+  }
+
+  parried() {
+    this.glint.setVisible(false);
+    this.rig.weapon.list[0].clearTint();
+    this.setState(ES.PARRIED);
+    this.openDur = CONFIG.parriedOpenMs;
+    this.pose('recoil', 160);
+    this.director.onOpen?.();
+  }
+
+  forceStagger(ms, superFlag) {
+    this.glint.setVisible(false);
+    this.rig.weapon.list[0].clearTint();
+    this.setState(ES.STAGGERED);
+    this.openDur = ms;
+    this.superStagger = superFlag;
+    this.stagger = 0;
+    this.pose('staggered', 240);
+    this.dazeStars.forEach((s) => s.setVisible(true));
+    this.director.onOpen?.();
+  }
+
+  _updateDaze() {
+    const head = localToWorld(this.rig.head, 0, -60);
+    this.dazeStars.forEach((s, i) => {
+      const a = this.t / 220 + (i * Math.PI * 2) / 3;
+      s.setPosition(head.x + Math.cos(a) * 46, head.y + Math.sin(a) * 12);
+      s.setDepth(Math.sin(a) > 0 ? 23 : 8);
+    });
+  }
+
+  // Blocked your blow: weapon snaps into guard.
+  guardFlinch() {
+    if (this.state === ES.IDLE || this.state === ES.GAP || this.state === ES.FEINT) {
+      this._apply({ armR: 40, weapon: -150 }, 60, 'Quad.easeOut');
+      this.scene.time.delayedCall(120, () => {
+        if (this.state === ES.IDLE) this.pose('guard', 160);
+      });
+    }
+    return localToWorld(this.rig.weapon, 0, this.rig.weaponLen * 0.5);
+  }
+
+  takeHit(amount, dir) {
+    const dead = this.applyDamage(amount);
+    const [dx, dy] = DIR_VEC[dir] || [0, 0];
+    const root = this.rig.root;
+    this.scene.tweens.add({
+      targets: root, x: this.baseX + dx * 14, duration: 50, yoyo: true, ease: 'Quad.easeOut',
+      onComplete: () => { root.x = this.baseX; },
+    });
+    this.scene.tweens.add({ targets: this.rig.head, angle: this.rig.head.angle + dx * 8 + dy * 4, duration: 60, yoyo: true });
+    if (dead) {
+      this.defeat();
+      return true;
+    }
+    const phases = this.def.phases || [];
+    const next = phases[this.phaseIdx];
+    if (next && !this.pendingPhase && this.healthFrac <= next.atHealth) this.pendingPhase = next;
+    return false;
+  }
+
+  enterPhase(ph) {
+    this.pendingPhase = null;
+    this.phaseIdx += 1;
+    Object.assign(this.cfg, {
+      telegraphMult: ph.telegraphMult ?? this.cfg.telegraphMult,
+      idleMs: ph.idleMs ?? this.cfg.idleMs,
+      comboGapMs: ph.comboGapMs ?? this.cfg.comboGapMs,
+      feintChance: ph.feintChance ?? this.cfg.feintChance,
+      combos: ph.combos ?? this.cfg.combos,
+    });
+    this.setState(ES.INTERLUDE);
+    this.pose('roar', 300);
+    Sfx.laugh();
+    this.director.onPhase?.(ph);
+  }
+
+  defeat() {
+    this.setState(ES.DEFEATED);
+    this.glint.setVisible(false);
+    this.dazeStars.forEach((s) => s.setVisible(false));
+    this.scene.tweens.add({ targets: this.aura, alpha: 0, duration: 400 });
+    this.pose('fall', 1100);
+    this.scene.tweens.add({ targets: this.rig.root, alpha: 0.0, delay: 900, duration: 900 });
+  }
+}

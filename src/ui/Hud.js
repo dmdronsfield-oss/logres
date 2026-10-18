@@ -1,0 +1,304 @@
+import { CONFIG, VIEW, PALETTE } from '../config.js';
+import { canvasTex, img, text, roundel, ink, star, roundRect } from '../art/Tex.js';
+import { drawShieldShape } from '../art/Rig.js';
+
+const DEPTH = 40;
+
+function iconArrow(ctx, cx, cy, s, dir) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(dir, 1);
+  ctx.beginPath();
+  ctx.moveTo(-s, 0);
+  ctx.lineTo(-s * 0.1, -s * 0.75);
+  ctx.lineTo(-s * 0.1, -s * 0.3);
+  ctx.lineTo(s * 0.9, -s * 0.3);
+  ctx.lineTo(s * 0.9, s * 0.3);
+  ctx.lineTo(-s * 0.1, s * 0.3);
+  ctx.lineTo(-s * 0.1, s * 0.75);
+  ctx.closePath();
+  ctx.fillStyle = PALETTE.lapisCss;
+  ctx.fill();
+  ink(ctx, 2.5);
+  ctx.restore();
+}
+
+function makeButtonTextures(scene) {
+  const R = 54;
+  const S = R * 2 + 4;
+  canvasTex(scene, 'btn_dodgeL', S, S, (ctx) => { roundel(ctx, S / 2, S / 2, R); iconArrow(ctx, S / 2, S / 2, 24, 1); });
+  canvasTex(scene, 'btn_dodgeR', S, S, (ctx) => { roundel(ctx, S / 2, S / 2, R); iconArrow(ctx, S / 2, S / 2, 24, -1); });
+  canvasTex(scene, 'btn_block', S, S, (ctx) => {
+    roundel(ctx, S / 2, S / 2, R);
+    drawShieldShape(ctx, 'heater', S / 2, S / 2 - 6, 22, PALETTE.lapisCss, 'cross', PALETTE.goldDark);
+  });
+  const SR = 44;
+  const SS = SR * 2 + 4;
+  canvasTex(scene, 'btn_super', SS, SS, (ctx) => {
+    roundel(ctx, SS / 2, SS / 2, SR);
+    star(ctx, SS / 2, SS / 2, 8, 24, 11);
+    ctx.fillStyle = PALETTE.vermilionCss;
+    ctx.fill();
+    ink(ctx, 2);
+  });
+  canvasTex(scene, 'btn_super_lit', SS, SS, (ctx) => {
+    roundel(ctx, SS / 2, SS / 2, SR, { lit: true });
+    star(ctx, SS / 2, SS / 2, 8, 28, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ink(ctx, 2);
+  });
+  const PR = 28;
+  const PS = PR * 2 + 4;
+  canvasTex(scene, 'btn_pause', PS, PS, (ctx) => {
+    roundel(ctx, PS / 2, PS / 2, PR);
+    ctx.fillStyle = PALETTE.inkCss;
+    ctx.fillRect(PS / 2 - 9, PS / 2 - 10, 6, 20);
+    ctx.fillRect(PS / 2 + 3, PS / 2 - 10, 6, 20);
+  });
+  canvasTex(scene, 'pip_on', 18, 18, (ctx) => {
+    ctx.beginPath();
+    ctx.arc(9, 9, 7, 0, Math.PI * 2);
+    ctx.fillStyle = PALETTE.goldCss;
+    ctx.fill();
+    ink(ctx, 2);
+  });
+  canvasTex(scene, 'pip_off', 18, 18, (ctx) => {
+    ctx.beginPath();
+    ctx.arc(9, 9, 7, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(42,29,20,0.35)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(42,29,20,0.7)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+  canvasTex(scene, 'banner', 620, 92, (ctx, w, h) => {
+    roundRect(ctx, 4, 4, w - 8, h - 8, 12);
+    ctx.fillStyle = 'rgba(241,227,196,0.94)';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = PALETTE.goldCss;
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = PALETTE.inkCss;
+    ctx.stroke();
+    ctx.fillStyle = PALETTE.vermilionCss;
+    ctx.fillRect(14, 14, 8, h - 28);
+    ctx.fillRect(w - 22, 14, 8, h - 28);
+  });
+}
+
+export class Hud {
+  constructor(scene, { enemyName, leftHanded }) {
+    this.scene = scene;
+    makeButtonTextures(scene);
+    const W = VIEW.W;
+    const H = VIEW.H;
+    const padL = Math.max(14, VIEW.safeL + 6);
+    const padR = Math.max(14, VIEW.safeR + 6);
+    const padB = Math.max(0, VIEW.safeB);
+
+    const superX = leftHanded ? W - padR - 54 : padL + 54;
+    const pauseX = leftHanded ? padL + 40 : W - padR - 74;
+
+    this.pos = {
+      dodgeL: { x: padL + 66, y: H - 70 - padB, r: 54 },
+      dodgeR: { x: W - padR - 66, y: H - 70 - padB, r: 54 },
+      block: { x: W / 2, y: H - 92 - padB, r: 54 },
+      super: { x: superX, y: 62, r: 44 },
+      pause: { x: pauseX, y: 44, r: 28 },
+    };
+
+    this.btn = {};
+    for (const id of ['dodgeL', 'dodgeR', 'block', 'super', 'pause']) {
+      const p = this.pos[id];
+      const b = img(scene, p.x, p.y, `btn_${id}`).setDepth(DEPTH);
+      b.baseScale = b.scaleX;
+      this.btn[id] = b;
+    }
+    this.btn.super.setAlpha(0.8);
+
+    // Super meter ring
+    this.superRing = scene.add.graphics().setDepth(DEPTH + 1);
+
+    // Shield pips above the block button
+    this.pips = [];
+    this.pipY = this.pos.block.y - 70;
+
+    // Bars
+    this.bars = scene.add.graphics().setDepth(DEPTH);
+    this.enemyBar = { x: W / 2 - 220, y: 40, w: 440, h: 16 };
+    this.playerBar = { x: W / 2 - 150, y: H - 22 - padB, w: 300, h: 12 };
+    this.enemyName = text(scene, W / 2, 20, enemyName, {
+      fontSize: '19px', fontStyle: '700', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
+    }).setDepth(DEPTH);
+    this.vals = { enemy: 1, player: 1, stagger: 0, open: 0, superF: 0 };
+
+    // Hit counter
+    this.counter = text(scene, W - padR - 130, 190, '', {
+      fontSize: '40px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 7,
+    }).setDepth(DEPTH).setAlpha(0);
+
+    // Banner / prompts
+    this.bannerBg = img(scene, W / 2, 236, 'banner').setDepth(DEPTH + 5).setAlpha(0);
+    this.bannerText = text(scene, W / 2, 236, '', {
+      fontSize: '21px', fontStyle: '700', color: PALETTE.inkCss, wordWrap: { width: 560 }, lineSpacing: 2,
+    }).setDepth(DEPTH + 6).setAlpha(0);
+    this.promptArrow = text(scene, W / 2, 330, '', {
+      fontSize: '92px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
+    }).setDepth(DEPTH + 6).setAlpha(0);
+    this.pulsing = new Set();
+
+    // Debug overlay
+    this.debugOn = false;
+    this.debugText = text(scene, padL + 110, 100, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.6)', align: 'left',
+      originX: 0, originY: 0, padding: { x: 6, y: 4 },
+    }).setDepth(60).setVisible(false);
+
+    this.realT = 0;
+  }
+
+  setPips(n, max) {
+    if (this.pips.length !== max) {
+      this.pips.forEach((p) => p.destroy());
+      this.pips = [];
+      for (let i = 0; i < max; i++) {
+        const x = this.pos.block.x + (i - (max - 1) / 2) * 20;
+        this.pips.push(img(this.scene, x, this.pipY, 'pip_on').setDepth(DEPTH));
+      }
+    }
+    this.pips.forEach((p, i) => p.setTexture(i < n ? 'pip_on' : 'pip_off'));
+  }
+
+  set(vals) {
+    Object.assign(this.vals, vals);
+  }
+
+  press(id, down) {
+    const b = this.btn[id];
+    if (!b) return;
+    b.setScale(b.baseScale * (down ? 0.9 : 1));
+    if (down) b.setTint(0xe8d8b0);
+    else b.clearTint();
+  }
+
+  pulse(ids, on) {
+    ids.forEach((id) => (on ? this.pulsing.add(id) : this.pulsing.delete(id)));
+    if (!on) ids.forEach((id) => this.btn[id] && this.btn[id].setScale(this.btn[id].baseScale));
+  }
+
+  _drawBars() {
+    const g = this.bars;
+    g.clear();
+    const v = this.vals;
+    // Enemy health
+    const e = this.enemyBar;
+    g.fillStyle(PALETTE.ink, 0.85);
+    g.fillRoundedRect(e.x - 4, e.y - 4, e.w + 8, e.h + 8, 6);
+    g.fillStyle(0x5a1a10, 1);
+    g.fillRect(e.x, e.y, e.w, e.h);
+    g.fillStyle(PALETTE.vermilion, 1);
+    g.fillRect(e.x, e.y, e.w * v.enemy, e.h);
+    g.fillStyle(0xffffff, 0.25);
+    g.fillRect(e.x, e.y, e.w * v.enemy, 4);
+    // Stagger meter
+    const sy = e.y + e.h + 7;
+    g.fillStyle(PALETTE.ink, 0.75);
+    g.fillRect(e.x + 60, sy, e.w - 120, 7);
+    g.fillStyle(0xf6d061, 1);
+    g.fillRect(e.x + 60, sy, (e.w - 120) * v.stagger, 7);
+    // Open window
+    if (v.open > 0) {
+      g.fillStyle(0xfff6cf, 0.95);
+      const ow = (e.w - 200) * v.open;
+      g.fillRect(VIEW.W / 2 - ow / 2, sy + 11, ow, 4);
+    }
+    // Player health
+    const p = this.playerBar;
+    g.fillStyle(PALETTE.ink, 0.85);
+    g.fillRoundedRect(p.x - 4, p.y - 4, p.w + 8, p.h + 8, 6);
+    g.fillStyle(0x14204a, 1);
+    g.fillRect(p.x, p.y, p.w, p.h);
+    g.fillStyle(PALETTE.lapis, 1);
+    g.fillRect(p.x, p.y, p.w * v.player, p.h);
+    g.fillStyle(0xffffff, 0.25);
+    g.fillRect(p.x, p.y, p.w * v.player, 3);
+
+    // Super ring
+    const r = this.superRing;
+    r.clear();
+    const sp = this.pos.super;
+    r.lineStyle(6, PALETTE.ink, 0.6);
+    r.strokeCircle(sp.x, sp.y, sp.r + 5);
+    if (v.superF > 0) {
+      r.lineStyle(5, v.superF >= 1 ? 0xfff6cf : 0xf6d061, 1);
+      r.beginPath();
+      r.arc(sp.x, sp.y, sp.r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.superF, false);
+      r.strokePath();
+    }
+  }
+
+  setSuperReady(ready) {
+    if (this.superReady === ready) return;
+    this.superReady = ready;
+    this.btn.super.setTexture(ready ? 'btn_super_lit' : 'btn_super').setAlpha(ready ? 1 : 0.8);
+  }
+
+  showCounter(n) {
+    if (n < 2) return;
+    this.counter.setText(`×${n}`).setAlpha(1).setScale(1.4);
+    this.scene.tweens.killTweensOf(this.counter);
+    this.scene.tweens.add({ targets: this.counter, scale: 1, duration: 120, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: this.counter, alpha: 0, delay: 700, duration: 300 });
+  }
+
+  bigText(str, color = PALETTE.goldLight, y = 210, size = 54) {
+    const t = text(this.scene, VIEW.W / 2, y, str, {
+      fontSize: `${size}px`, fontStyle: '700', color, stroke: PALETTE.inkCss, strokeThickness: 8,
+    }).setDepth(DEPTH + 4).setScale(0.6).setAlpha(0);
+    this.scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 140, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: 650, duration: 350, onComplete: () => t.destroy() });
+  }
+
+  // Persistent banner (tutorial prompts, phase messages). ms = 0 keeps it up.
+  banner(str, ms = 2400, arrow = '') {
+    this.bannerText.setText(str);
+    const tw = Math.min(600, Math.max(320, this.bannerText.width + 70));
+    const th = Math.max(70, this.bannerText.height + 34);
+    this.bannerBg.setDisplaySize(tw, th);
+    this.scene.tweens.killTweensOf([this.bannerBg, this.bannerText, this.promptArrow]);
+    this.bannerBg.setAlpha(1);
+    this.bannerText.setAlpha(1);
+    this.promptArrow.setText(arrow).setAlpha(arrow ? 1 : 0);
+    if (this._bannerTimer) this._bannerTimer.remove();
+    this._bannerTimer = null;
+    if (ms > 0) this._bannerTimer = this.scene.time.delayedCall(ms, () => this.hideBanner());
+  }
+
+  hideBanner() {
+    this.scene.tweens.add({ targets: [this.bannerBg, this.bannerText, this.promptArrow], alpha: 0, duration: 250 });
+  }
+
+  toggleDebug() {
+    this.debugOn = !this.debugOn;
+    this.debugText.setVisible(this.debugOn);
+  }
+
+  update(realDelta, debugInfo) {
+    this.realT += realDelta;
+    this._drawBars();
+    const k = 1 + Math.sin(this.realT / 130) * 0.09;
+    for (const id of this.pulsing) {
+      const b = this.btn[id];
+      if (b) b.setScale(b.baseScale * k);
+    }
+    if (this.superReady) {
+      this.btn.super.setScale(this.btn.super.baseScale * (1 + Math.sin(this.realT / 160) * 0.06));
+    }
+    if (this.promptArrow.alpha > 0) {
+      this.promptArrow.y = 330 + Math.sin(this.realT / 120) * 10;
+    }
+    if (this.debugOn && debugInfo) this.debugText.setText(debugInfo());
+  }
+}

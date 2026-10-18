@@ -1,0 +1,262 @@
+import { CONFIG, VIEW, PALETTE } from '../config.js';
+import { Save } from '../save/Save.js';
+import { Sfx } from '../audio/Sfx.js';
+import { ENEMIES } from '../combat/enemies.js';
+import { Player } from '../combat/Player.js';
+import { Enemy } from '../combat/Enemy.js';
+import { CombatDirector } from '../combat/CombatDirector.js';
+import { Tutorial } from '../combat/Tutorial.js';
+import { Juice } from '../fx/Juice.js';
+import { SwipeInput } from '../input/SwipeInput.js';
+import { Hud } from '../ui/Hud.js';
+import { menuButton } from '../ui/Button.js';
+import { img, text } from '../art/Tex.js';
+import { backgroundKey, borderKey } from '../art/Backgrounds.js';
+import { setupCamera, fadeTo, isPortrait } from './common.js';
+
+export class Duel extends Phaser.Scene {
+  constructor() {
+    super('Duel');
+  }
+
+  create() {
+    this._leaving = false;
+    this._ended = false;
+    this.paused = false;
+    setupCamera(this);
+    this.tweens.timeScale = 1;
+    const W = VIEW.W;
+    const H = VIEW.H;
+    const s = Save.data;
+    const def = ENEMIES[s.runStage] || ENEMIES[0];
+    this.def = def;
+
+    // World layer slides on dodges.
+    this.world = this.add.container(0, 0).setDepth(10);
+    this.bgKey = backgroundKey(this, def.scene);
+    this.world.add(img(this, W / 2, H / 2, this.bgKey));
+    img(this, W / 2, H / 2, borderKey(this)).setDepth(38);
+
+    this.juice = new Juice(this);
+    this.player = new Player(this, {
+      level: s.level, sword: Save.sword(), shield: Save.shield(), leftHanded: s.leftHanded,
+    });
+    this.hud = new Hud(this, { enemyName: def.name, leftHanded: s.leftHanded });
+    this.director = new CombatDirector(this, { player: this.player, juice: this.juice, hud: this.hud });
+    this.enemy = new Enemy(this, def, { cycle: s.cycle, x: W / 2, y: 318, director: this.director });
+    this.world.add([this.enemy.aura, this.enemy.rig.root]);
+    this.director.enemy = this.enemy;
+
+    this.tutorial = !s.tutorialDone && s.runStage === 0 ? new Tutorial(this.director, this.hud) : null;
+    if (!this.tutorial) this.hud.banner(`${def.name}, ${def.epithet}`, 1900);
+
+    this._setupInput();
+
+    this._onVis = () => { if (document.hidden) this.pause(); };
+    document.addEventListener('visibilitychange', this._onVis);
+    this.events.once('shutdown', () => {
+      document.removeEventListener('visibilitychange', this._onVis);
+      if (this.input.keyboard) this.input.keyboard.removeAllListeners();
+      this.tweens.timeScale = 1;
+      if (this.textures.exists(this.bgKey)) this.textures.remove(this.bgKey);
+    });
+
+    this.cameras.main.fadeIn(300, 26, 20, 16);
+  }
+
+  _setupInput() {
+    const hud = this.hud;
+    const d = this.director;
+    this.debugTaps = [];
+    this.swipe = new SwipeInput(this, {
+      onSwipe: (dir) => d.onSwipe(dir),
+      swipesBlocked: () => this.player.blockHeld || this.paused,
+      tolerance: () => this.player.sword.tolerance,
+      onButtonDown: (id) => {
+        Sfx.unlock();
+        hud.press(id, true);
+        if (id === 'dodgeL') d.onDodge('left');
+        else if (id === 'dodgeR') d.onDodge('right');
+        else if (id === 'block') d.onBlock(true);
+        else if (id === 'super') d.onSuper();
+        else if (id === 'pause') this.pause();
+        else if (id === 'debug') this._debugTap();
+      },
+      onButtonUp: (id) => {
+        hud.press(id, false);
+        if (id === 'block') d.onBlock(false);
+      },
+    });
+    for (const id of ['dodgeL', 'dodgeR', 'block', 'super', 'pause']) {
+      const p = hud.pos[id];
+      this.swipe.addButton(id, p.x, p.y, { r: p.r, pad: id === 'pause' ? 8 : 14 });
+    }
+    const cs = CONFIG.debug.cornerSize;
+    const debugX = Save.data.leftHanded ? cs / 2 : VIEW.W - cs / 2;
+    this.swipe.addButton('debug', debugX, cs / 2, { w: cs, h: cs, pad: 0 });
+
+    // Desktop testing: arrows dodge, space blocks, Esc pauses. Mouse drag swipes.
+    const kb = this.input.keyboard;
+    if (kb) {
+      kb.on('keydown-LEFT', () => { Sfx.unlock(); d.onDodge('left'); });
+      kb.on('keydown-RIGHT', () => { Sfx.unlock(); d.onDodge('right'); });
+      kb.on('keydown-SPACE', (e) => {
+        if (e.repeat) return;
+        Sfx.unlock();
+        d.onBlock(true);
+        hud.press('block', true);
+      });
+      kb.on('keyup-SPACE', () => { d.onBlock(false); hud.press('block', false); });
+      kb.on('keydown-S', () => d.onSuper());
+      kb.on('keydown-ESC', () => (this.paused ? this.resume() : this.pause()));
+    }
+  }
+
+  _debugTap() {
+    const now = performance.now();
+    this.debugTaps = this.debugTaps.filter((t) => now - t < CONFIG.debug.tapWindowMs);
+    this.debugTaps.push(now);
+    if (this.debugTaps.length >= CONFIG.debug.tapsToToggle) {
+      this.debugTaps = [];
+      this.hud.toggleDebug();
+    }
+  }
+
+  dodgeShift(side) {
+    const dir = side === 'left' ? 1 : -1;
+    const shift = CONFIG.dodge.shift * dir;
+    const dur = CONFIG.dodge.durationMs;
+    this.tweens.killTweensOf(this.world);
+    this.tweens.add({
+      targets: this.world,
+      x: shift,
+      angle: dir * -1.5,
+      duration: dur * 0.4,
+      ease: 'Quad.easeOut',
+      yoyo: true,
+      hold: dur * 0.2,
+      onComplete: () => { this.world.x = 0; this.world.angle = 0; },
+    });
+  }
+
+  _debugInfo() {
+    const e = this.enemy;
+    const p = this.player;
+    const rem = e.telegraphRemaining();
+    return [
+      `FPS ${Math.round(this.game.loop.actualFps)}`,
+      `Enemy ${e.state}  t=${Math.round(e.t)}`,
+      `Attack ${e.attack ? `${e.attack.id} (${e.attack.direction})` : '-'}`,
+      `Impact in ${Number.isFinite(rem) ? Math.round(rem) : '-'} ms`,
+      `Parry window ${e.inParryWindow() ? 'OPEN' : 'closed'} (${CONFIG.parry.windowMs}ms)`,
+      `Open ${Math.round(e.openFraction() * 100)}%  Stagger ${Math.round(e.stagger)}`,
+      `Player ${p.state}  pips ${p.pips}/${p.maxPips}`,
+      `Last swipe ${this.swipe.lastDir}`,
+      `Time scale ${this.juice.scale().toFixed(2)}`,
+    ].join('\n');
+  }
+
+  update(time, delta) {
+    const dReal = Math.min(delta, 50);
+    if (!this.paused && isPortrait()) this.pause();
+    if (this.paused) {
+      this.swipe.update();
+      return;
+    }
+    this.juice.update(dReal);
+    const scale = this.juice.scale() * (this.tutorial ? this.tutorial.scale() : 1);
+    this.tweens.timeScale = scale;
+    const dt = dReal * scale;
+    this.player.update(dt);
+    this.enemy.update(dt);
+    this.director.update();
+    if (this.tutorial) this.tutorial.update(dReal);
+    this.swipe.update();
+    this.hud.update(dReal, () => this._debugInfo());
+  }
+
+  // ---------- pause menu ----------
+
+  pause() {
+    if (this.paused || this.director.over) return;
+    this.paused = true;
+    this.swipe.releaseAll();
+    this.swipe.enabled = false;
+    this.player.setBlock(false);
+    this.tweens.pauseAll();
+    const W = VIEW.W;
+    const H = VIEW.H;
+    const c = this.add.container(0, 0).setDepth(70);
+    c.add(this.add.rectangle(W / 2, H / 2, W + 400, H + 400, 0x120c08, 0.72).setInteractive());
+    c.add(text(this, W / 2, 92, 'Paused', {
+      fontSize: '46px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
+    }));
+    const toggle = (y, label, get, set) => {
+      const b = menuButton(this, W / 2, y, 320, 50, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: 19 });
+      b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
+      c.add(b);
+    };
+    c.add(menuButton(this, W / 2, 170, 300, 58, 'Resume', () => this.resume(), { size: 26, fill: '#f6dc8a' }));
+    toggle(238, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
+    toggle(296, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
+    toggle(354, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
+    c.add(menuButton(this, W / 2, 430, 300, 54, 'Retreat to camp', () => {
+      this.tweens.resumeAll();
+      fadeTo(this, 'Title');
+    }, { size: 20 }));
+    this.pauseMenu = c;
+  }
+
+  resume() {
+    if (!this.paused) return;
+    if (isPortrait()) return;
+    this.paused = false;
+    this.tweens.resumeAll();
+    this.swipe.enabled = true;
+    if (this.pauseMenu) this.pauseMenu.destroy();
+    this.pauseMenu = null;
+  }
+
+  // ---------- end of duel ----------
+
+  endDuel(won) {
+    if (this._ended) return;
+    this._ended = true;
+    const s = Save.data;
+    const def = this.def;
+    const stats = this.director.stats;
+    const tutorialPassed = !this.tutorial || this.tutorial.step === 'free' || won;
+    if (won) {
+      const xp = Math.round(def.xp * (1 + CONFIG.enemy.cycleMult * s.cycle));
+      const levels = Save.addXp(xp);
+      const currentRun = s.currentRun + 1;
+      let runStage = s.runStage + 1;
+      let { cycle, generation } = s;
+      const final = runStage >= ENEMIES.length;
+      if (final) {
+        runStage = 0;
+        cycle += 1;
+        generation += 1;
+      }
+      const unlocks = final ? this._unlocksAt(generation) : [];
+      Save.set({
+        wins: s.wins + 1, currentRun, bestRun: Math.max(s.bestRun, currentRun), runStage, cycle, generation,
+        tutorialDone: true,
+      });
+      fadeTo(this, 'Victory', { enemyId: def.id, xp, levels, final, unlocks, stats });
+    } else {
+      const xp = Math.round(def.xp * CONFIG.progression.lossXpFraction);
+      const levels = Save.addXp(xp);
+      const generation = s.generation + 1;
+      const unlocks = this._unlocksAt(generation);
+      Save.set({
+        deaths: s.deaths + 1, generation, runStage: 0, currentRun: 0, tutorialDone: s.tutorialDone || tutorialPassed,
+      });
+      fadeTo(this, 'Death', { enemyId: def.id, fallenGen: generation - 1, xp, levels, unlocks, shield: Save.shield().id });
+    }
+  }
+
+  _unlocksAt(gen) {
+    return [...CONFIG.swords, ...CONFIG.shields].filter((i) => i.unlockGen === gen).map((i) => i.name);
+  }
+}
