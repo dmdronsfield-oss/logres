@@ -6,6 +6,10 @@ import { Cloth } from '../render3d/knight/Cloth.js';
 import { drapeTex } from '../render3d/knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from '../render3d/knight/Looks.js';
 import { ENEMIES } from '../combat/enemies.js';
+import { loadQuaternius, buildSkinnedKnight } from '../render3d/knight/Skinned.js';
+import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
+
+const ASSETS = await loadQuaternius();
 
 // Animation lab: one knight at a time playing each move on a loop, at real or
 // slowed speed, from the game camera or orbiting. Uses exactly the same
@@ -17,6 +21,9 @@ const PLAYER_Z = -1.4;
 const FIGURES = [
   { id: 'gawain', name: 'Sir Gawain', player: true, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
   ...ENEMIES.map((d) => ({ id: d.id, name: d.name, look: lookFor(d), weapon: d.weapon, off: d.offhand, size: d.size || 1, guard: d.weapon === 'greataxe' ? GUARD.giant : GUARD.ss })),
+  // The CC0 rigged model (Quaternius), driven by our motion or playing its own clips.
+  { id: 'q-ours', name: 'CC0 model: our motion', skinned: true, look: lookFor(ENEMIES[1]), weapon: 'sword', off: 'heater', size: 1, guard: GUARD.ss },
+  { id: 'q-native', name: 'CC0 model: its own clips', native: true, size: 1, guard: GUARD.ss, look: {} },
 ];
 
 const ENEMY_MOVES = [
@@ -30,6 +37,10 @@ const PLAYER_MOVES = [
 
 // Each move: total loop length (ms) and a sampler giving the target pose at time t.
 function moveTimeline(fig, move) {
+  if (fig.native) {
+    const clip = ASSETS.knight.animations.find((a) => a.name === move) || ASSETS.knight.animations[0];
+    return { len: clip.duration * 1000, native: clip, sample: () => ({ pose: fig.guard, omega: 8, phase: clip.name.replace('HumanArmature|', '') }) };
+  }
   const g = fig.guard;
   const rest = { pose: g, omega: 8, phase: 'guard' };
   const at = (t) => ({ ...rest, t });
@@ -161,8 +172,29 @@ scene.add(floor);
 
 // ---------- figures ----------
 
+function makeNative(def) {
+  const model = SkeletonUtils.clone(ASSETS.knight);
+  model.scale.setScalar((1.85 * def.size) / 539);
+  model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  const root = new THREE.Group();
+  root.add(model);
+  scene.add(root);
+  const mixer = new THREE.AnimationMixer(model);
+  const head = model.getObjectByName('Head');
+  return {
+    def, native: true, mixer, k: { root, J: { head } }, cloths: [], updateSpheres() {}, anim: null,
+    play(clip, time) {
+      if (this.clip !== clip) { mixer.stopAllAction(); this.action = mixer.clipAction(clip); this.action.play(); this.clip = clip; }
+      this.action.time = time;
+      mixer.update(0);
+    },
+    dispose() { scene.remove(root); },
+  };
+}
+
 function makeFigure(def) {
-  const k = buildKnight(def.look, def.weapon, def.off, def.size);
+  if (def.native) return makeNative(def);
+  const k = def.skinned ? buildSkinnedKnight(ASSETS, def.look, def.weapon, def.off, def.size) : buildKnight(def.look, def.weapon, def.off, def.size);
   scene.add(k.root);
   const anim = new Animator(k, def.guard);
   const J = k.J;
@@ -215,7 +247,7 @@ function placeFigures() {
   subject?.dispose();
   partner?.dispose();
   subject = makeFigure(def);
-  const partnerDef = def.player ? FIGURES.find((f) => f.id === 'black') : FIGURES[0];
+  const partnerDef = def.player || def.native ? FIGURES.find((f) => f.id === 'black') : FIGURES[0];
   partner = makeFigure(partnerDef);
   const [me, them] = def.player ? [subject, partner] : [partner, subject];
   me.k.root.position.set(0, 0, PLAYER_Z);
@@ -233,7 +265,7 @@ function placeFigures() {
 const $ = (id) => document.getElementById(id);
 const figSel = $('figure');
 FIGURES.forEach((f, i) => figSel.append(new Option(f.name, i)));
-figSel.onchange = () => { figIndex = Number(figSel.value); buildMoves(); placeFigures(); setMove('guard'); };
+figSel.onchange = () => { figIndex = Number(figSel.value); buildMoves(); placeFigures(); setMove(movesFor(FIGURES[figIndex])[0][0]); };
 
 function button(parent, label, on, onClick) {
   const b = document.createElement('button');
@@ -244,10 +276,15 @@ function button(parent, label, on, onClick) {
   return b;
 }
 
+function movesFor(fig) {
+  if (fig.native) return ASSETS.knight.animations.map((a) => [a.name, a.name.replace('HumanArmature|', '')]);
+  return fig.player ? PLAYER_MOVES : ENEMY_MOVES;
+}
+
 function buildMoves() {
   const bar = $('moves');
   bar.innerHTML = '';
-  const list = FIGURES[figIndex].player ? PLAYER_MOVES : ENEMY_MOVES;
+  const list = movesFor(FIGURES[figIndex]);
   list.forEach(([id, label]) => button(bar, label, id === move, () => setMove(id)));
 }
 
@@ -256,7 +293,7 @@ function setMove(id) {
   timeline = moveTimeline(FIGURES[figIndex], id);
   t = 0;
   [...$('moves').children].forEach((b, i) => {
-    const list = FIGURES[figIndex].player ? PLAYER_MOVES : ENEMY_MOVES;
+    const list = movesFor(FIGURES[figIndex]);
     b.classList.toggle('on', list[i][0] === id);
   });
 }
@@ -319,6 +356,10 @@ function tick(now) {
 
   for (const fig of [subject, partner]) {
     const isSubject = fig === subject;
+    if (fig.native) {
+      fig.play(timeline.native, t / 1000);
+      continue;
+    }
     const smp = isSubject ? s : { pose: fig.def.guard, omega: 8 };
     fig.anim.set(smp.pose, smp.omega);
     if (!playing || fresh) fig.anim.snap(smp.pose);
@@ -329,6 +370,7 @@ function tick(now) {
     if (!fig.def.player && smp.rootZ) fig.k.root.position.z = home.z + smp.rootZ;
     const other = fig === subject ? partner : subject;
     fig.anim.apply(other.k.J.head.getWorldPosition(lookTmp), { breathe: 1, wobble: smp.wobble || 0, time: now });
+    if (fig.k.retarget) fig.k.retarget();
     fig.updateSpheres();
     fig.cloths.forEach((c) => (fresh ? c.reset() : c.update(dt / 1000)));
   }

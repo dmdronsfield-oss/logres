@@ -173,7 +173,7 @@ function antlers(bag, head, L) {
 
 // Built with the blade along -y from the grip; a holder turns it to leave the
 // fist along the hand's -z (see buildKnight).
-function weapon(kind, M, L) {
+export function weapon(kind, M, L) {
   const g = new THREE.Object3D();
   const bag = new PartBag(M);
   let len;
@@ -205,7 +205,7 @@ function weapon(kind, M, L) {
   return { g, len: 0.09 + blade };
 }
 
-function shield(kind, L, M) {
+export function shield(kind, L, M) {
   const g = new THREE.Object3D();
   if (!kind) return g;
   const bag = new PartBag(M);
@@ -247,28 +247,35 @@ function shield(kind, L, M) {
 
 // ---------- the knight ----------
 
-export function buildKnight(look, weaponKind, offhandKind, size = 1) {
-  const M = { ...figureMaterials(look), extra: [] };
-  const L = { plate: '#c4c9d1', skin: '#e0b090', ...look };
-  const P = L.plate;
+// The joint hierarchy alone (no meshes). `D` gives bone lengths; skinned
+// models get one built to their own proportions and drive their bones from it.
+export function buildSkeleton(D = DIM, size = 1) {
   const root = new THREE.Group();
   const fig = joint('fig', root, 0, 0, 0);
   fig.scale.setScalar(size);
   const J = {};
-  J.pelvis = joint('pelvis', fig, 0, DIM.pelvisY, 0);
-  J.spine = joint('spine', J.pelvis, 0, DIM.spine, 0);
-  J.chest = joint('chest', J.spine, 0, DIM.chest, 0);
-  J.neck = joint('neck', J.chest, 0, DIM.neck, 0);
-  J.head = joint('head', J.neck, 0, DIM.head, 0);
+  J.pelvis = joint('pelvis', fig, 0, D.pelvisY, 0);
+  J.spine = joint('spine', J.pelvis, 0, D.spine, 0);
+  J.chest = joint('chest', J.spine, 0, D.chest, 0);
+  J.neck = joint('neck', J.chest, 0, D.neck, 0);
+  J.head = joint('head', J.neck, 0, D.head, 0);
   for (const [side, s] of [['R', -1], ['L', 1]]) {
-    J[`sh${side}`] = joint(`sh${side}`, J.chest, s * DIM.shX, DIM.shY, 0);
-    J[`el${side}`] = joint(`el${side}`, J[`sh${side}`], 0, -DIM.upper, 0);
-    J[`ha${side}`] = joint(`ha${side}`, J[`el${side}`], 0, -DIM.fore, 0);
-    J[`grip${side}`] = joint(`grip${side}`, J[`ha${side}`], 0, -DIM.grip, 0);
-    J[`hip${side}`] = joint(`hip${side}`, J.pelvis, s * DIM.hipX, DIM.hipY, 0);
-    J[`kn${side}`] = joint(`kn${side}`, J[`hip${side}`], 0, -DIM.thigh, 0);
-    J[`ft${side}`] = joint(`ft${side}`, J[`kn${side}`], 0, -DIM.shin, 0);
+    J[`sh${side}`] = joint(`sh${side}`, J.chest, s * D.shX, D.shY, 0);
+    J[`el${side}`] = joint(`el${side}`, J[`sh${side}`], 0, -D.upper, 0);
+    J[`ha${side}`] = joint(`ha${side}`, J[`el${side}`], 0, -D.fore, 0);
+    J[`grip${side}`] = joint(`grip${side}`, J[`ha${side}`], 0, -D.grip, 0);
+    J[`hip${side}`] = joint(`hip${side}`, J.pelvis, s * D.hipX, D.hipY, 0);
+    J[`kn${side}`] = joint(`kn${side}`, J[`hip${side}`], 0, -D.thigh, 0);
+    J[`ft${side}`] = joint(`ft${side}`, J[`kn${side}`], 0, -D.shin, 0);
   }
+  return { root, fig, J };
+}
+
+export function buildKnight(look, weaponKind, offhandKind, size = 1) {
+  const M = { ...figureMaterials(look), extra: [] };
+  const L = { plate: '#c4c9d1', skin: '#e0b090', ...look };
+  const P = L.plate;
+  const { root, fig, J } = buildSkeleton(DIM, size);
   const bag = new PartBag(M);
   const tab = L.tabard;
 

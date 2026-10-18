@@ -11,6 +11,7 @@ import { PS } from '../combat/Player.js';
 import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
+import { loadQuaternius, buildSkinnedKnight } from './knight/Skinned.js';
 import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
@@ -154,6 +155,10 @@ export class HallView extends World3D {
     this.cheer = 0;
     this.time = 0;
     this.perf = { frames: 0, total: 0, last: 0 };
+    // ?model preview: knights use a rigged model from a 3D tool instead of code-built armour.
+    this.ready = window.LOGRES_MODEL === 'quaternius'
+      ? loadQuaternius().then((a) => { this.skinned = a; })
+      : Promise.resolve();
     this.fovKick = 0;
   }
 
@@ -599,11 +604,12 @@ export class HallView extends World3D {
 
   // Build a knight with its animator, cloth and collision spheres.
   _figure(look, weaponKind, offhandKind, size, guard, { front = true, back = true } = {}) {
-    const k = buildKnight(look, weaponKind, offhandKind, size);
+    const k = this.skinned ? buildSkinnedKnight(this.skinned, look, weaponKind, offhandKind, size) : buildKnight(look, weaponKind, offhandKind, size);
     this.content.add(k.root);
     const anim = new Animator(k, guard);
     const J = k.J;
-    const sp = (r) => ({ c: new THREE.Vector3(), r: r * size });
+    const bs = (k.bodyScale || 1) * size;
+    const sp = (r) => ({ c: new THREE.Vector3(), r: r * bs });
     const spheres = { pelvis: sp(0.21), chest: sp(0.22), thighL: sp(0.1), thighR: sp(0.1), kneeL: sp(0.08), kneeR: sp(0.08), shinL: sp(0.075), shinR: sp(0.075) };
     const list = Object.values(spheres);
     const tmp = new THREE.Vector3();
@@ -631,7 +637,8 @@ export class HallView extends World3D {
       k.mats.push(m);
       return m;
     };
-    const along = (jnt, x0, x1, y, z, cols) => (c, out) => jnt.localToWorld(out.set(x0 + ((x1 - x0) * c) / (cols - 1), y, z));
+    const kb = k.bodyScale || 1;
+    const along = (jnt, x0, x1, y, z, cols) => (c, out) => jnt.localToWorld(out.set((x0 + ((x1 - x0) * c) / (cols - 1)) * kb, y * kb, z * kb));
     if (look.leafy) {
       cloth({ cols: 9, rows: 12, width: 1.0, height: 1.55, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, 0.36, -0.36, 0.21, -0.12, 9) });
       // A second leafy layer over the shoulders and chest, like a mantle.
@@ -739,6 +746,7 @@ export class HallView extends World3D {
     v.hp = e.health;
     const look = this.player ? this.player.k.J.head.getWorldPosition(this.v2 || (this.v2 = new THREE.Vector3())) : null;
     anim.apply(look, { breathe: e.state === ES.DEFEATED ? 0 : 1, wobble, time: this.time });
+    if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
 
@@ -789,6 +797,7 @@ export class HallView extends World3D {
     v.hp = pl.health;
     const look = this.enemy ? this.enemy.k.J.head.getWorldPosition(this.v3 || (this.v3 = new THREE.Vector3())) : null;
     anim.apply(look, { breathe: pl.state === PS.DEAD ? 0 : 1, time: now });
+    if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
   }

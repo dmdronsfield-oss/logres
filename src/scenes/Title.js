@@ -53,7 +53,7 @@ export class Title extends Phaser.Scene {
       fontSize: '74px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 10,
     }).setShadow(0, 4, 'rgba(0,0,0,0.4)', 6);
     if (MODE === '3d') {
-      text(this, W / 2 + 150, 34, window.LOGRES_CAM === 'side' ? 'SIDE VIEW' : '3D TEST', {
+      text(this, W / 2 + 150, 34, window.LOGRES_MODEL ? 'MODEL PREVIEW' : window.LOGRES_CAM === 'side' ? 'SIDE VIEW' : '3D TEST', {
         fontSize: '16px', fontStyle: '700', color: '#ffffff', backgroundColor: PALETTE.vermilionCss, padding: { x: 8, y: 3 },
       }).setAngle(8);
     }

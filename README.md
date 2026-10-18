@@ -8,6 +8,8 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **3D third-person (main direction):** https://dmdronsfield-oss.github.io/logres/side/ (a voxel-style tourney in Camelot's great hall, seen over Sir Gawain's shoulder; five rounds, one challenger each; `?angle=NN` tries other camera angles)
 
+**Model preview:** https://dmdronsfield-oss.github.io/logres/preview/ (the same game with a rigged, skinned CC0 knight model by Quaternius standing in for the code-built knights, driven by our combat motion through a retargeting layer; files and licence in `assets/models/quaternius-knight/`)
+
 **Animation lab:** https://dmdronsfield-oss.github.io/logres/lab/ (every move for every knight on a loop, at ¼ or ⅒ speed, with a scrubber and front, side, back and in-game views; tell me what to fix by move name and time)
 
 Open it on your phone and turn the phone sideways. To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.

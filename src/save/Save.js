@@ -1,7 +1,7 @@
 import { CONFIG, MODE } from '../config.js';
 
 // The 3D test keeps its own progress so it doesn't disturb the 2D game.
-const CAM = typeof window !== 'undefined' && window.LOGRES_CAM === 'side' ? 'side' : '';
+const CAM = typeof window !== 'undefined' && window.LOGRES_CAM === 'side' ? `side${window.LOGRES_MODEL ? `-${window.LOGRES_MODEL}` : ''}` : '';
 const KEY = MODE === '3d' ? `logres.save.3d${CAM}.v1` : 'logres.save.v1';
 
 const DEFAULTS = {

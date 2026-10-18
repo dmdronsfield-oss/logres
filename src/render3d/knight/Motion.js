@@ -317,7 +317,9 @@ export class Animator {
   // FK for the trunk, IK for legs and arms, wrist and shield, look at `lookAt`.
   apply(lookAt, { breathe = 0, wobble = 0, time = 0 } = {}) {
     const { J, fig, size } = this.k;
-    const c = this.cur;
+    const D = this.k.dims || DIM;
+    // Figures with other proportions remap the authored pose onto their own body.
+    const c = this.k.mapPose ? this.k.mapPose(this.cur) : this.cur;
     const b = breathe;
     J.pelvis.position.set(c.pelvis[0] + Math.sin(time * 0.0016) * 0.01 * b, c.pelvis[1] + Math.sin(time * 0.0031) * 0.006 * b, c.pelvis[2]);
     J.pelvis.rotation.set(c.pelvisRot[0], c.pelvisRot[1], c.pelvisRot[2] + wobble * Math.sin(time * 0.009) * 0.08, 'YXZ');
@@ -332,8 +334,8 @@ export class Animator {
     // Shoulders shrug as the hands rise above them.
     for (const [s, side] of [['R', -1], ['L', 1]]) {
       const hand = c[`hand${s}`];
-      const rise = Math.max(0, Math.min(1, (hand[1] - (c.pelvis[1] + 0.48)) / 0.42));
-      J[`sh${s}`].position.set(side * (DIM.shX + rise * 0.015), DIM.shY + rise * 0.05, 0);
+      const rise = Math.max(0, Math.min(1, (hand[1] - (c.pelvis[1] + (D.spine + D.chest + D.shY) - 0.01)) / 0.42));
+      J[`sh${s}`].position.set(side * (D.shX + rise * 0.015), D.shY + rise * 0.05, 0);
     }
     fig.updateMatrixWorld(true);
 
@@ -352,16 +354,16 @@ export class Animator {
     fig.getWorldQuaternion(qa);
     for (const [s, sign] of [['L', 1], ['R', -1]]) {
       const f = c[`foot${s}`];
-      const target = fig.localToWorld(tmp.set(f[0], DIM.ankle + this.lift[s], f[1]));
+      const target = fig.localToWorld(tmp.set(f[0], D.ankle + this.lift[s], f[1]));
       const pole = tmp2.set(Math.sin(f[2]) + sign * 0.15, 0, Math.cos(f[2])).applyQuaternion(qa);
-      solveTwoBone(J[`hip${s}`], J[`kn${s}`], DIM.thigh * size, DIM.shin * size, target, pole);
+      solveTwoBone(J[`hip${s}`], J[`kn${s}`], D.thigh * size, D.shin * size, target, pole);
       qb.setFromEuler(euler.set(0, f[2], 0)).premultiply(qa);
       setWorldQuat(J[`ft${s}`], qb);
     }
 
     // Sword arm. The elbow points away from the blade (down, out and back),
     // so the forearm stays square to the sword and the wrist stays natural.
-    const reachB = (DIM.fore + DIM.grip) * size;
+    const reachB = (D.fore + D.grip) * size;
     let target = fig.localToWorld(tmp.fromArray(c.handR));
     ax.fromArray(c.bladeR).normalize().applyQuaternion(qa);
     // The elbow goes opposite the part of the blade that crosses the arm line,
@@ -375,13 +377,13 @@ export class Animator {
     fallback.addScaledVector(ay, -fallback.dot(ay)).normalize();
     if (across > 0.3) az.normalize().negate().lerp(fallback, 0.3).normalize();
     else az.copy(fallback).lerp(az.normalize().negate(), across / 0.3 * 0.5).normalize();
-    solveTwoBone(J.shR, J.elR, DIM.upper * size, reachB, target, az);
+    solveTwoBone(J.shR, J.elR, D.upper * size, reachB, target, az);
     bendWrist(J.haR, ax, 1.35);
 
     // Shield arm: hand to its mark, shield face turned toward `faceL`, top kept up.
     target = fig.localToWorld(tmp.fromArray(c.handL));
     const pole = tmp2.fromArray(c.poleL).normalize().applyQuaternion(qa);
-    solveTwoBone(J.shL, J.elL, DIM.upper * size, reachB, target, pole);
+    solveTwoBone(J.shL, J.elL, D.upper * size, reachB, target, pole);
     az.fromArray(c.faceL).normalize().applyQuaternion(qa);
     ay.copy(UP).addScaledVector(az, -az.y).normalize();
     ax.crossVectors(ay, az).normalize();

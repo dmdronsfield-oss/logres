@@ -19,7 +19,7 @@ export class Boot extends Phaser.Scene {
     const side = window.LOGRES_CAM === 'side';
     const three = MODE === '3d'
       ? import(side ? '../render3d/Hall3D.js' : '../render3d/View3D.js')
-        .then((m) => { VIEW.world3d = side ? new m.HallView(this.game) : new m.World3D(this.game); })
+        .then((m) => { VIEW.world3d = side ? new m.HallView(this.game) : new m.World3D(this.game); return VIEW.world3d.ready; })
         .catch((e) => { console.warn('3D unavailable, falling back to 2D', e); })
       : Promise.resolve();
     Promise.all([Promise.race([fontReady, timeout]).catch(() => {}), three]).then(() => {

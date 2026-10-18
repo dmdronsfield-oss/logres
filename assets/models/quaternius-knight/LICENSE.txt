@@ -1,0 +1,6 @@
+Lowpoly Animated Knight by Quaternius
+Source: https://opengameart.org/content/lowpoly-animated-knight
+License: CC0 1.0 Universal (public domain dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Used in Logres as a stand-in character for the third-person preview.

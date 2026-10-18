@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v8';
+const VERSION = 'logres-v9';
 
 const CORE = [
   './',
@@ -42,6 +42,9 @@ const CORE = [
   './src/render3d/knight/Motion.js',
   './src/render3d/knight/Cloth.js',
   './src/render3d/knight/Looks.js',
+  './src/render3d/knight/Skinned.js',
+  './preview/',
+  './preview/index.html',
   './lab/',
   './lab/index.html',
   './src/lab/Lab.js',
