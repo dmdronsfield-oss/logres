@@ -4,6 +4,8 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **Play:** https://dmdronsfield-oss.github.io/logres/
 
+**3D test:** https://dmdronsfield-oss.github.io/logres/3d/ (same game rendered in 3D with Three.js; keeps its own save so it doesn't touch your 2D progress)
+
 Open it on your phone and turn the phone sideways. To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.
 
 ## How to play
@@ -52,7 +54,7 @@ Then open http://localhost:8000 (or the port `serve` prints). The service worker
 - `src/audio/Sfx.js`: every sound, generated with the Web Audio API.
 - `src/scenes/`: Boot, Title, Duel, Victory and Death (bloodline succession).
 
-There's no build step: it's plain ES modules plus Phaser 3.80.1 from cdnjs. All art and sound are generated in code; the only external asset is the Cinzel font from Google Fonts.
+There's no build step: it's plain ES modules plus Phaser 3.80.1 from cdnjs. The `/3d/` page also loads Three.js 0.160.0 from jsDelivr (only on that page); `src/render3d/View3D.js` maps the same pose data onto toon-shaded 3D figures. All art and sound are generated in code; the only external asset is the Cinzel font from Google Fonts.
 
 ## Releasing
 

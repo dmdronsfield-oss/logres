@@ -279,6 +279,13 @@ const SCENES = {
   },
 };
 
+// Paint a scene straight onto a 2D canvas context (used as the 3D horizon).
+export function paintScene(ctx, kind, w, h) {
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  (SCENES[kind] || SCENES.forest)(ctx, w, h);
+}
+
 export function backgroundKey(scene, kind) {
   const w = VIEW.W + BG_MARGIN * 2;
   const h = VIEW.H;

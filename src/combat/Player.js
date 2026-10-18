@@ -29,7 +29,7 @@ export class Player extends Fighter {
     this.regenT = 0;
     this.dodgeSide = null;
 
-    this.rig = buildPlayerRig(scene, sword, shield, leftHanded);
+    this.rig = (scene.rigFactory?.player || buildPlayerRig)(scene, sword, shield, leftHanded);
     this.rig.swordArm.setDepth(30);
     this.rig.shield.setDepth(31);
   }

@@ -77,6 +77,10 @@ export class Juice {
 
   // Tint every image in a container white for a moment.
   flash(container) {
+    if (container.flash) {
+      container.flash(CONFIG.juice.flashMs);
+      return;
+    }
     const imgs = [];
     const walk = (c) => c.list.forEach((o) => (o.list ? walk(o) : o.setTintFill && imgs.push(o)));
     walk(container);

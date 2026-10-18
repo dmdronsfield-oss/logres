@@ -1,5 +1,8 @@
 // Every tunable number in the game lives here.
 
+// '3d' when loaded from the /3d/ test page (it sets window.LOGRES_MODE first).
+export const MODE = (typeof window !== 'undefined' && window.LOGRES_MODE) || '2d';
+
 // View dimensions are decided once at boot from the device (see main.js).
 export const VIEW = {
   H: 540,        // logical height; all layout is in these units

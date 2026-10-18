@@ -1,4 +1,4 @@
-import { CONFIG, VIEW, PALETTE } from '../config.js';
+import { CONFIG, VIEW, PALETTE, MODE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { ENEMIES } from '../combat/enemies.js';
@@ -52,6 +52,11 @@ export class Title extends Phaser.Scene {
     text(this, W / 2, 62, 'LOGRES', {
       fontSize: '74px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 10,
     }).setShadow(0, 4, 'rgba(0,0,0,0.4)', 6);
+    if (MODE === '3d') {
+      text(this, W / 2 + 150, 34, '3D TEST', {
+        fontSize: '16px', fontStyle: '700', color: '#ffffff', backgroundColor: PALETTE.vermilionCss, padding: { x: 8, y: 3 },
+      }).setAngle(8);
+    }
     text(this, W / 2, 112, 'Duels in the Matter of Britain', {
       fontSize: '19px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4,
     });

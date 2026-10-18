@@ -56,7 +56,8 @@ export class Enemy extends Fighter {
     this.baseX = x;
     this.baseY = y;
     this.size = (def.size || 1) * 0.9;
-    this.rig = buildEnemyRig(scene, def);
+    // The scene may supply a different rig builder (the 3D view does).
+    this.rig = (scene.rigFactory?.enemy || buildEnemyRig)(scene, def);
     this.rig.root.setPosition(x, y).setScale(this.size);
 
     canvasTex(scene, 'glint_gold', 64, 64, (ctx) => {
@@ -356,15 +357,13 @@ export class Enemy extends Fighter {
     this.pose('windup', Math.min(this.telegraphTotal * 0.55, 380), this.attack);
     const red = !this.attack.parryable;
     this.glint.setTexture(red ? 'glint_red' : 'glint_gold').setVisible(true).setAlpha(0);
-    const wImg = this.rig.weapon.list[0];
-    if (red) wImg.setTint(0xff7a6a);
-    else wImg.clearTint();
+    this.rig.setWeaponTint(red ? 0xff7a6a : null);
     Sfx.glint(red);
     this.director.onTelegraph?.(this.attack);
   }
 
   _tip() {
-    return localToWorld(this.rig.weapon, 0, this.rig.weaponLen);
+    return this.rig.tip ? this.rig.tip(1) : localToWorld(this.rig.weapon, 0, this.rig.weaponLen);
   }
 
   _updateGlint(rem) {
@@ -382,7 +381,7 @@ export class Enemy extends Fighter {
 
   impact() {
     this.glint.setVisible(false);
-    this.rig.weapon.list[0].clearTint();
+    this.rig.setWeaponTint(null);
     this.setState(ES.STRIKE);
     this.pose('strike', CONFIG.enemy.strikeMs, this.attack);
     this.lastOutcome = this.director.resolveImpact(this.attack);
@@ -408,7 +407,7 @@ export class Enemy extends Fighter {
   doFeint() {
     this.feintAt = null;
     this.glint.setVisible(false);
-    this.rig.weapon.list[0].clearTint();
+    this.rig.setWeaponTint(null);
     this.setState(ES.FEINT);
     this.pose('guard', 200);
     const p = this.rig.root;
@@ -428,7 +427,7 @@ export class Enemy extends Fighter {
 
   parried() {
     this.glint.setVisible(false);
-    this.rig.weapon.list[0].clearTint();
+    this.rig.setWeaponTint(null);
     this.setState(ES.PARRIED);
     this.openDur = CONFIG.parriedOpenMs;
     this.pose('recoil', 160);
@@ -437,7 +436,7 @@ export class Enemy extends Fighter {
 
   forceStagger(ms, superFlag) {
     this.glint.setVisible(false);
-    this.rig.weapon.list[0].clearTint();
+    this.rig.setWeaponTint(null);
     this.setState(ES.STAGGERED);
     this.openDur = ms;
     this.superStagger = superFlag;
@@ -448,7 +447,7 @@ export class Enemy extends Fighter {
   }
 
   _updateDaze() {
-    const head = localToWorld(this.rig.head, 0, -60);
+    const head = this.rig.headPoint ? this.rig.headPoint() : localToWorld(this.rig.head, 0, -60);
     this.dazeStars.forEach((s, i) => {
       const a = this.t / 220 + (i * Math.PI * 2) / 3;
       s.setPosition(head.x + Math.cos(a) * 46, head.y + Math.sin(a) * 12);
@@ -464,7 +463,7 @@ export class Enemy extends Fighter {
         if (this.state === ES.IDLE) this.pose('guard', 160);
       });
     }
-    return localToWorld(this.rig.weapon, 0, this.rig.weaponLen * 0.5);
+    return this.rig.tip ? this.rig.tip(0.5) : localToWorld(this.rig.weapon, 0, this.rig.weaponLen * 0.5);
   }
 
   takeHit(amount, dir) {

@@ -1,4 +1,4 @@
-import { CONFIG, VIEW, PALETTE } from '../config.js';
+import { CONFIG, VIEW, PALETTE, MODE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { ENEMIES } from '../combat/enemies.js';
@@ -31,10 +31,23 @@ export class Duel extends Phaser.Scene {
     const def = ENEMIES[s.runStage] || ENEMIES[0];
     this.def = def;
 
-    // World layer slides on dodges.
+    // World layer slides on dodges (in 3D the camera follows it instead).
     this.world = this.add.container(0, 0).setDepth(10);
-    this.bgKey = backgroundKey(this, def.scene);
-    this.world.add(img(this, W / 2, H / 2, this.bgKey));
+    this.w3 = MODE === '3d' ? VIEW.world3d : null;
+    if (this.w3) {
+      this.w3.clear();
+      this.w3.buildEnv(def.scene);
+      this.rigFactory = {
+        enemy: (scene, d) => this.w3.buildEnemy(d),
+        player: (scene, sword, shield, leftHanded) => this.w3.buildPlayer(sword, shield, leftHanded),
+      };
+      this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+      this.w3.show(true);
+    } else {
+      this.rigFactory = null;
+      this.bgKey = backgroundKey(this, def.scene);
+      this.world.add(img(this, W / 2, H / 2, this.bgKey));
+    }
     img(this, W / 2, H / 2, borderKey(this)).setDepth(38);
 
     this.juice = new Juice(this);
@@ -44,7 +57,7 @@ export class Duel extends Phaser.Scene {
     this.hud = new Hud(this, { enemyName: def.name, leftHanded: s.leftHanded });
     this.director = new CombatDirector(this, { player: this.player, juice: this.juice, hud: this.hud });
     this.enemy = new Enemy(this, def, { cycle: s.cycle, x: W / 2, y: 318, director: this.director });
-    this.world.add([this.enemy.aura, this.enemy.rig.root]);
+    this.world.add(this.w3 ? [this.enemy.aura] : [this.enemy.aura, this.enemy.rig.root]);
     this.director.enemy = this.enemy;
 
     this.tutorial = !s.tutorialDone && s.runStage === 0 ? new Tutorial(this.director, this.hud) : null;
@@ -58,7 +71,11 @@ export class Duel extends Phaser.Scene {
       document.removeEventListener('visibilitychange', this._onVis);
       if (this.input.keyboard) this.input.keyboard.removeAllListeners();
       this.tweens.timeScale = 1;
-      if (this.textures.exists(this.bgKey)) this.textures.remove(this.bgKey);
+      if (this.bgKey && this.textures.exists(this.bgKey)) this.textures.remove(this.bgKey);
+      if (this.w3) {
+        this.w3.show(false);
+        this.w3.clear();
+      }
     });
 
     this.cameras.main.fadeIn(300, 26, 20, 16);
@@ -161,6 +178,7 @@ export class Duel extends Phaser.Scene {
     if (!this.paused && isPortrait()) this.pause();
     if (this.paused) {
       this.swipe.update();
+      if (this.w3) this.w3.render(this, 0);
       return;
     }
     this.juice.update(dReal);
@@ -173,6 +191,7 @@ export class Duel extends Phaser.Scene {
     if (this.tutorial) this.tutorial.update(dReal);
     this.swipe.update();
     this.hud.update(dReal, () => this._debugInfo());
+    if (this.w3) this.w3.render(this, dt);
   }
 
   // ---------- pause menu ----------

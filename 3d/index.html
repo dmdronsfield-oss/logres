@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Logres 3D</title>
+  <meta name="description" content="A swipe-duel sword-fighting game set in Arthurian Britain. Plays in your phone's browser.">
+  <meta name="theme-color" content="#1b2c63">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Logres">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" type="image/png" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1410;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+      position: fixed;
+      inset: 0;
+    }
+    #game {
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+    }
+    canvas { display: block; touch-action: none; }
+    #safe-probe {
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f6dc8a;
+      font: 700 34px "Cinzel", Georgia, serif;
+      letter-spacing: 0.2em;
+    }
+    #rotate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: #1b2c63;
+      color: #f1e3c4;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      font: 700 24px "Cinzel", Georgia, serif;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    #rotate svg { width: 120px; height: 120px; animation: turn 2.4s ease-in-out infinite; }
+    #rotate small { font-weight: 400; font-size: 15px; opacity: 0.8; }
+    @keyframes turn {
+      0%, 20% { transform: rotate(0deg); }
+      50%, 70% { transform: rotate(-90deg); }
+      100% { transform: rotate(0deg); }
+    }
+    @media (orientation: portrait) {
+      #rotate { display: flex; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="safe-probe"></div>
+  <div id="loading">LOGRES</div>
+  <div id="rotate" aria-live="polite">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <rect x="30" y="8" width="40" height="84" rx="7" fill="#f1e3c4" stroke="#d9a933" stroke-width="4"/>
+      <rect x="35" y="18" width="30" height="62" rx="2" fill="#2b4a9b"/>
+      <circle cx="50" cy="86" r="3" fill="#2a1d14"/>
+      <path d="M44 40 L56 52 M56 40 L44 52" stroke="#d9a933" stroke-width="3"/>
+    </svg>
+    <div>Turn your phone<br><small>Logres is played in landscape</small></div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+  <script>window.LOGRES_MODE = "3d";</script>
+  <script type="module" src="../src/main.js"></script>
+  <script>
+    // Offline support. Skipped on localhost so development always sees fresh files.
+    const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    if ('serviceWorker' in navigator && (!isLocal || location.search.includes('sw=1'))) {
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // A new release took over: reload once so the page and cache match.
+        if (reloaded || !window.__swHadController) return;
+        reloaded = true;
+        location.reload();
+      });
+      window.__swHadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.register('../service-worker.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

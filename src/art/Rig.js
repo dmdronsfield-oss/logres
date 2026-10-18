@@ -74,7 +74,7 @@ function drawTorso(ctx, p, w, h) {
   ctx.restore();
 }
 
-function drawDevice(ctx, p) {
+export function drawDevice(ctx, p) {
   ctx.fillStyle = p.trim;
   ctx.strokeStyle = PALETTE.inkCss;
   ctx.lineWidth = 2;
@@ -419,7 +419,9 @@ export function buildEnemyRig(scene, def) {
   // Keep the weapon arm in front of the body.
   root.add([legs, body]);
 
-  return { root, body, head, armL, armR, weapon, weaponLen: wl - 16 };
+  const weaponImg = weapon.list[0];
+  const setWeaponTint = (c) => (c === null ? weaponImg.clearTint() : weaponImg.setTint(c));
+  return { root, body, head, armL, armR, weapon, weaponLen: wl - 16, setWeaponTint };
 }
 
 // ---------- Player first-person rig ----------

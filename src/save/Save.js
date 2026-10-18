@@ -1,6 +1,7 @@
-import { CONFIG } from '../config.js';
+import { CONFIG, MODE } from '../config.js';
 
-const KEY = 'logres.save.v1';
+// The 3D test keeps its own progress so it doesn't disturb the 2D game.
+const KEY = MODE === '3d' ? 'logres.save.3d.v1' : 'logres.save.v1';
 
 const DEFAULTS = {
   generation: 1,

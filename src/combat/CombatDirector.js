@@ -117,8 +117,11 @@ export class CombatDirector {
     this.stats.hits += 1;
 
     const [dx, dy] = DIR_VEC[dir];
-    const hx = e.rig.root.x + (e.rig.root.parentContainer?.x || 0) + dx * 20;
-    const hy = e.rig.root.y - 120 * e.size + dy * 30;
+    const chest = e.rig.chestPoint
+      ? e.rig.chestPoint()
+      : { x: e.rig.root.x + (e.rig.root.parentContainer?.x || 0), y: e.rig.root.y - 120 * e.size };
+    const hx = chest.x + dx * 20;
+    const hy = chest.y + dy * 30;
     this.juice.flash(e.rig.root);
     this.juice.hitStop(CONFIG.juice.hitStopMs);
     this.juice.shake(CONFIG.juice.shakeHit);

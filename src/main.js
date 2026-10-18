@@ -1,4 +1,4 @@
-import { VIEW } from './config.js';
+import { VIEW, MODE } from './config.js';
 import { Sfx } from './audio/Sfx.js';
 import { Boot } from './scenes/Boot.js';
 import { Title } from './scenes/Title.js';
@@ -28,6 +28,7 @@ const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#1a1410',
+  transparent: MODE === '3d', // the 3D scene is drawn on a canvas underneath
   width: Math.round(VIEW.W * VIEW.RES),
   height: Math.round(VIEW.H * VIEW.RES),
   scale: {
