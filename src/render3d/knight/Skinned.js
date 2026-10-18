@@ -259,7 +259,7 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
     s.scale.setScalar(unit);   // blade already runs down -y from the grip
     weaponObj = new THREE.Object3D();
     weaponObj.add(s);
-    weaponLen = 0.86 * unit;
+    weaponLen = -new THREE.Box3().setFromObject(s).min.y;   // grip to point
   } else if (weaponKind === 'sword') {
     const s = assets.sword.clone();
     mats.push(...dress(s, { metal: ['#dfe4ea', 0.9, 0.22], gold: ['#d4a13a', 1, 0.3], red: ['#8a1c1c', 0, 0.6], brown: ['#4a2f1a', 0, 0.8], default: ['#cccccc', 0.5, 0.4] }));
