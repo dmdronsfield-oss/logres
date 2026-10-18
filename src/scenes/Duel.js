@@ -54,7 +54,9 @@ export class Duel extends Phaser.Scene {
     this.player = new Player(this, {
       level: s.level, sword: Save.sword(), shield: Save.shield(), leftHanded: s.leftHanded,
     });
-    this.hud = new Hud(this, { enemyName: def.name, leftHanded: s.leftHanded });
+    // In the side view the fighters fill the upper screen, so prompts go lower.
+    const bannerY = this.w3 && this.w3.cam === 'side' ? 322 : 236;
+    this.hud = new Hud(this, { enemyName: def.name, leftHanded: s.leftHanded, bannerY });
     this.director = new CombatDirector(this, { player: this.player, juice: this.juice, hud: this.hud });
     this.enemy = new Enemy(this, def, { cycle: s.cycle, x: W / 2, y: 318, director: this.director });
     this.world.add(this.w3 ? [this.enemy.aura] : [this.enemy.aura, this.enemy.rig.root]);

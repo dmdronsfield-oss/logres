@@ -6,6 +6,8 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **3D test:** https://dmdronsfield-oss.github.io/logres/3d/ (same game rendered in 3D with Three.js; keeps its own save so it doesn't touch your 2D progress)
 
+**3D side view:** https://dmdronsfield-oss.github.io/logres/side/ (three-quarter side camera showing both knights; add `?angle=58` to view from the sword side instead, or any angle between -89 and 89)
+
 Open it on your phone and turn the phone sideways. To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.
 
 ## How to play

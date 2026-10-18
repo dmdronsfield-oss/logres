@@ -89,7 +89,7 @@ function makeButtonTextures(scene) {
 }
 
 export class Hud {
-  constructor(scene, { enemyName, leftHanded }) {
+  constructor(scene, { enemyName, leftHanded, bannerY = 236 }) {
     this.scene = scene;
     makeButtonTextures(scene);
     const W = VIEW.W;
@@ -140,11 +140,14 @@ export class Hud {
     }).setDepth(DEPTH).setAlpha(0);
 
     // Banner / prompts
-    this.bannerBg = img(scene, W / 2, 236, 'banner').setDepth(DEPTH + 5).setAlpha(0);
-    this.bannerText = text(scene, W / 2, 236, '', {
+    this.bannerY = bannerY;
+    // The tutorial arrow sits below the banner, or above it when the banner is low.
+    this.arrowY = bannerY > 280 ? bannerY - 105 : bannerY + 94;
+    this.bannerBg = img(scene, W / 2, bannerY, 'banner').setDepth(DEPTH + 5).setAlpha(0);
+    this.bannerText = text(scene, W / 2, bannerY, '', {
       fontSize: '21px', fontStyle: '700', color: PALETTE.inkCss, wordWrap: { width: 560 }, lineSpacing: 2,
     }).setDepth(DEPTH + 6).setAlpha(0);
-    this.promptArrow = text(scene, W / 2, 330, '', {
+    this.promptArrow = text(scene, W / 2, this.arrowY, '', {
       fontSize: '92px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
     }).setDepth(DEPTH + 6).setAlpha(0);
     this.pulsing = new Set();
@@ -297,7 +300,7 @@ export class Hud {
       this.btn.super.setScale(this.btn.super.baseScale * (1 + Math.sin(this.realT / 160) * 0.06));
     }
     if (this.promptArrow.alpha > 0) {
-      this.promptArrow.y = 330 + Math.sin(this.realT / 120) * 10;
+      this.promptArrow.y = this.arrowY + Math.sin(this.realT / 120) * 10;
     }
     if (this.debugOn && debugInfo) this.debugText.setText(debugInfo());
   }

@@ -114,6 +114,14 @@ export function drawDevice(ctx, p) {
       ctx.fill();
       ctx.stroke();
       break;
+    case 'crowns':
+      [[-18, -14], [18, -14], [0, 16]].forEach(([x, y]) => {
+        crown(ctx, x, y, 12);
+        ctx.fillStyle = p.trim;
+        ctx.fill();
+        ctx.stroke();
+      });
+      break;
     case 'studs':
       for (let y = -24; y <= 24; y += 16) {
         for (let x = -30; x <= 30; x += 15) {

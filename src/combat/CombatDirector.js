@@ -199,7 +199,8 @@ export class CombatDirector {
       this.juice.shake(attack.heavy ? CONFIG.juice.shakeHeavy : CONFIG.juice.shakeTaken);
       this.juice.screenFlash('red', attack.heavy ? 0.5 : 0.35, 260);
       this.juice.vibrate(CONFIG.juice.vibrateHitMs * (attack.heavy ? 2 : 1));
-      this.juice.damageNumber(VIEW.W / 2, VIEW.H - 200, dmg, { color: '#ff9a85', size: 34 });
+      const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
+      this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
       this.hitCount = 0;
       if (dead) this.playerDefeated();
     }

@@ -84,6 +84,8 @@ export class Player extends Fighter {
 
   swing(dir) {
     this.setState(PS.ATTACKING);
+    this.swingDir = dir;
+    this.swingAt = performance.now();
     const [dx, dy] = DIR_VEC[dir];
     const arm = this.rig.swordArm;
     const home = this.rig.swordHome;

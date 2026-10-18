@@ -1,8 +1,11 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
-import { VIEW, PALETTE } from '../config.js';
+import { VIEW, PALETTE, CONFIG } from '../config.js';
 import { paintScene, BG_MARGIN } from '../art/Backgrounds.js';
 import { drawShieldShape, drawDevice } from '../art/Rig.js';
 import { ES } from '../combat/Enemy.js';
+import { PS } from '../combat/Player.js';
+import { DIR_VEC } from '../input/SwipeInput.js';
+import { angFor } from '../art/Tex.js';
 
 // 3D view for the duel. The combat code still animates "proxy" objects with the
 // same 2D pose data (x, y, angle, scale, alpha); each frame those proxies are
@@ -11,11 +14,17 @@ import { ES } from '../combat/Enemy.js';
 const FOV = 42;
 const EYE = 1.6;
 const ENEMY_Z = -3.4;
+const PLAYER_Z = -1.0;          // side view: where your knight stands
+const MID_Z = (ENEMY_Z + PLAYER_Z) / 2;
 const HIP = 0.95;
 const K = 0.0048;            // metres per logical pixel at the enemy's distance
 const SWORD_DEPTH = 0.62;
 const SHIELD_DEPTH = 0.55;
 const MAX_PIXEL_RATIO = 1.75;
+const SIDE_FOV = 34;
+const SIDE_DIST = 4.6;
+const SIDE_HEIGHT = 1.55;
+const SIDE_ANGLE = -58;         // degrees round from behind your knight (negative = shield side); ?angle=NN overrides
 const INK_COLOR = 0x2a1d14;
 const DEG = Math.PI / 180;
 
@@ -97,6 +106,13 @@ export class World3D {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+
+    // 'pov' = first person (the /3d/ page), 'side' = three-quarter side view.
+    this.cam = window.LOGRES_CAM === 'side' ? 'side' : 'pov';
+    const q = Number(new URLSearchParams(location.search).get('angle'));
+    this.sideAngle = q !== 0 && Math.abs(q) < 90 ? q : SIDE_ANGLE;  // negative = the other side
 
     this.gradient = new THREE.DataTexture(new Uint8Array([70, 150, 215, 255]), 4, 1, THREE.RedFormat);
     this.gradient.minFilter = THREE.NearestFilter;
@@ -105,7 +121,15 @@ export class World3D {
     this.inkMat = new THREE.MeshBasicMaterial({ color: INK_COLOR, side: THREE.BackSide });
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(FOV, VIEW.W / VIEW.H, 0.05, 60);
+    this.camera = new THREE.PerspectiveCamera(this.cam === 'side' ? SIDE_FOV : FOV, VIEW.W / VIEW.H, 0.05, 60);
+    if (this.cam === 'side') {
+      const a = this.sideAngle * DEG;
+      this.camTarget = new THREE.Vector3(0, 1.08, MID_Z);
+      this.camHome = new THREE.Vector3(Math.sin(a) * SIDE_DIST, SIDE_HEIGHT, MID_Z + Math.cos(a) * SIDE_DIST);
+    } else {
+      this.camTarget = new THREE.Vector3(0, 1.28, ENEMY_Z);
+      this.camHome = new THREE.Vector3(0, EYE, 0);
+    }
     this.scene.add(this.camera);
     this.fp = new THREE.Group();
     this.camera.add(this.fp);
@@ -113,8 +137,13 @@ export class World3D {
     this.hemi = new THREE.HemisphereLight(0xfff4dc, 0x6b5a3a, 1.5);
     this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xfff0d0, 2.2);
-    this.sun.position.set(-4, 7, 3);
-    this.sun.target.position.set(0, 1, ENEMY_Z);
+    if (this.cam === 'side') this.sun.position.set(5 * Math.sign(this.sideAngle), 8, 3);
+    else this.sun.position.set(-4, 7, 3);
+    this.sun.target.position.set(0, 0, this.cam === 'side' ? MID_Z : ENEMY_Z);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(1024, 1024);
+    Object.assign(this.sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 25 });
+    this.sun.shadow.bias = -0.002;
     this.scene.add(this.sun, this.sun.target);
     const fill = new THREE.DirectionalLight(0xd8e2ff, 0.6);
     fill.position.set(0, 2, 2);
@@ -232,8 +261,9 @@ export class World3D {
       paintScene(ctx, kind, pw, VIEW.H);
     });
     tex.wrapS = THREE.RepeatWrapping;
-    tex.repeat.x = -1;
-    const arc = 2.4;
+    const side = this.cam === 'side';
+    tex.repeat.x = side ? -3 : -1;
+    const arc = side ? Math.PI * 2 : 2.4;
     const back = new THREE.Mesh(
       new THREE.CylinderGeometry(19, 19, 12, 48, 1, true, Math.PI - arc / 2, arc),
       new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false }),
@@ -260,20 +290,21 @@ export class World3D {
     }
     const ground = new THREE.Mesh(new THREE.CircleGeometry(18.5, 48), groundMat);
     ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
     g.add(ground);
     const ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 2.38, 48), new THREE.MeshBasicMaterial({ color: INK_COLOR, transparent: true, opacity: 0.35 }));
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(0, 0.01, ENEMY_Z + 0.6);
+    ring.position.set(0, 0.01, side ? MID_Z : ENEMY_Z + 0.6);
     g.add(ring);
 
     // Props around the edge of the arena (kept out of the line of sight).
     const around = (n, rMin, rMax, fn) => {
       for (let i = 0; i < n; i++) {
-        const a = -Math.PI / 2 + (rand() - 0.5) * 2.6;
+        const a = side ? rand() * Math.PI * 2 : -Math.PI / 2 + (rand() - 0.5) * 2.6;
         const r = rMin + rand() * (rMax - rMin);
         const x = Math.cos(a) * r;
-        const z = Math.sin(a) * r;
-        if (z > -5 || (Math.abs(x) < 3 && z > -9)) continue;
+        const z = Math.sin(a) * r + (side ? MID_Z : 0);
+        if (side ? this._blocksView(x, z) : (z > -5 || (Math.abs(x) < 3 && z > -9))) continue;
         fn(x, z, 0.8 + rand() * 0.5);
       }
     };
@@ -339,6 +370,7 @@ export class World3D {
         for (let i = 0; i < 4; i++) {
           const z = -1 - i * 3.2;
           const x = sx * (3.6 + (i % 2) * 0.2);
+          if (side && this._blocksView(x, z)) continue;
           const col = this.part(new THREE.CylinderGeometry(0.35, 0.42, 6, 12), '#b6a283', 0.03);
           col.position.set(x, 3, z);
           g.add(col);
@@ -544,7 +576,8 @@ export class World3D {
     return head;
   }
 
-  buildEnemy(def) {
+  // A full figure built from primitives, facing +z, hips at HIP.
+  _figure(def) {
     const p = def.palette;
     const root = new THREE.Group();
     root.position.set(0, 0, ENEMY_Z);
@@ -624,14 +657,25 @@ export class World3D {
     weapon.position.y = -0.6;
     weapon.add(w.g);
     armR.add(weapon);
+    let off = null;
     if (def.offhand) {
-      const off = this._offhand(def.offhand, p);
+      off = this._offhand(def.offhand, p);
       off.position.set(0, -0.6, def.offhand === 'holly' ? 0.05 : 0.1);
       armL.add(off);
     }
 
     const mats = [];
-    root.traverse((o) => { if (o.material && !o.userData.outline && o.material.emissive) mats.push(o.material); });
+    root.traverse((o) => {
+      if (o.material && !o.userData.outline && o.material.emissive) mats.push(o.material);
+      if (o.isMesh && !o.userData.outline) o.castShadow = true;
+    });
+    shadow.material.opacity = 0.12;
+    return { root, sizeG, body, head, armR, armL, weapon, off, shadow, len: w.len, mats, weaponMats };
+  }
+
+  buildEnemy(def) {
+    const { root, sizeG, body, head, armR, armL, weapon, shadow, len, mats, weaponMats } = this._figure(def);
+    const w = { len };
 
     const prox = { root: new P(), body: new P(), head: new P(), armL: new P(), armR: new P(), weapon: new P() };
     const view = this;
@@ -695,7 +739,7 @@ export class World3D {
           o.material.opacity = a;
         }
       });
-      v.shadow.material.opacity = 0.25 * a;
+      v.shadow.material.opacity = 0.12 * a;
       if (a >= 0.999) v.faded = false;
     }
   }
@@ -713,6 +757,7 @@ export class World3D {
   }
 
   buildPlayer(sword, shield, leftHanded) {
+    if (this.cam === 'side') return this._buildPlayerBody(sword, shield);
     const W = VIEW.W;
     const H = VIEW.H;
     const side = leftHanded ? -1 : 1;
@@ -770,7 +815,7 @@ export class World3D {
 
   _syncPlayer() {
     const v = this.player;
-    if (!v) return;
+    if (!v || v.body3d) return;
     const a = v.swordArm;
     const ms = this._mpp(SWORD_DEPTH);
     this._fpPos(a.x, a.y, SWORD_DEPTH, v.sg.position);
@@ -785,24 +830,155 @@ export class World3D {
     v.shg.rotation.set(-0.15, v.side * 0.55 * (1 - raised), -s.angle * DEG, 'YXZ');
   }
 
+  // ---------- side view: your knight ----------
+
+  // True if a prop at (x, z) would stand between the side camera and the fighters.
+  _blocksView(x, z) {
+    const ax = this.camHome.x;
+    const az = this.camHome.z;
+    const bx = 0;
+    const bz = MID_Z;
+    const t = Math.max(0, Math.min(1.4, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2)));
+    const px = ax + (bx - ax) * t;
+    const pz = az + (bz - az) * t;
+    return Math.hypot(x - px, z - pz) < 3.2 || Math.hypot(x - ax, z - az) < 3;
+  }
+
+  _buildPlayerBody(sword, shield) {
+    const def = {
+      size: 1,
+      weapon: 'sword',
+      offhand: shield.id === 'targe' ? 'round' : 'heater',
+      palette: {
+        body: PALETTE.lapisCss, trim: PALETTE.goldCss, belt: '#3b2716', legs: '#9aa1ad', boots: '#3b2716',
+        sleeve: '#9aa1ad', hand: '#b7bcc6', skin: '#e2b48a', helm: 'greathelm', helmColor: '#aab1bc', crest: PALETTE.vermilionCss,
+        blade: sword.color, hilt: sword.hilt, shield: shield.field, shieldCharge: shield.charge, device: 'crowns',
+      },
+    };
+    const f = this._figure(def);
+    f.root.position.set(0, 0, PLAYER_Z);
+    f.root.rotation.y = Math.PI;    // face the enemy
+    f.shadow.position.set(0, 0.012, PLAYER_Z);
+    this.player = {
+      body3d: true, f, hp: null, flashUntil: 0,
+      pose: { armR: 28, armRx: 0, weapon: -168, armL: -14, armLx: 0, bodyA: 0, bodyRx: 0, bodyY: 0, rootX: 0 },
+    };
+    const W = VIEW.W;
+    const H = VIEW.H;
+    const swordHome = { x: W / 2 + W * 0.3, y: H + 20, angle: 8 };
+    const shieldHome = { x: W / 2 - W * 0.31, y: H + 40, angle: 6 };
+    const view = this;
+    return {
+      swordArm: new P(swordHome.x, swordHome.y), shield: new P(shieldHome.x, shieldHome.y), swordHome, shieldHome, side: 1,
+      chestPoint() { return view.project(f.body.localToWorld(view.v.set(0, 0.5, 0))); },
+    };
+  }
+
+  // Your knight is animated from the player's state rather than from tweens.
+  _syncPlayerSide(pl, dt) {
+    const v = this.player;
+    if (!v || !v.body3d || !pl) return;
+    const f = v.f;
+    const now = performance.now();
+    const T = { armR: 28, armRx: 0, weapon: -168, armL: -14, armLx: 0, bodyA: 0, bodyRx: 0, bodyY: 0, rootX: 0 };
+    let speed = 110;
+    switch (pl.state) {
+      case PS.DODGING: {
+        const s = Math.sin(Math.PI * Math.min(1, pl.stateT / CONFIG.dodge.durationMs));
+        const dir = pl.dodgeSide === 'left' ? -1 : 1;
+        T.rootX = dir * 0.9 * s;
+        T.bodyA = -dir * 12 * s;
+        T.bodyY = -0.08 * s;
+        speed = 1;
+        break;
+      }
+      case PS.BLOCKING:
+        // Shield arm comes forward and across the chest; the shield turns to face the enemy.
+        Object.assign(T, { armLx: -1.35, armL: 38, bodyRx: 0.1, armR: 15, weapon: -25 });
+        speed = 45;
+        break;
+      case PS.STUNNED:
+        Object.assign(T, { bodyRx: -0.3, armR: 45, weapon: -40, armL: 20 });
+        speed = 40;
+        break;
+      case PS.DEAD:
+        Object.assign(T, { bodyRx: -1.45, bodyY: -0.3, armR: 110, armL: -110, weapon: 0 });
+        speed = 260;
+        break;
+      default:
+        break;
+    }
+    // Sword swing: wind up, cut along the swipe, recover.
+    const sp = (now - (pl.swingAt || -1e9)) / 280;
+    if (sp >= 0 && sp < 1 && pl.state !== PS.DEAD && pl.state !== PS.STUNNED && pl.swingDir) {
+      // Seen from behind, screen-right is your knight's right: mirror x into the figure's own frame.
+      const [dx0, dy] = DIR_VEC[pl.swingDir];
+      const dx = -dx0;
+      if (sp < 0.22) {
+        const COCKED = { S: [135, 135], SW: [125, 110], SE: [-160, 70] };
+        const c = COCKED[pl.swingDir];
+        T.armR = c ? c[0] : angFor(-dx, -dy - 0.4 * (1 - Math.abs(dy)));
+        T.weapon = c ? c[1] : -dx * 25;
+        T.armRx = 0.25;
+        T.bodyA = -dx * 6;
+      } else if (sp < 0.7) {
+        T.armR = angFor(dx, dy + 0.35);
+        T.weapon = 0;
+        T.armRx = -0.9;
+        T.bodyA = dx * 8;
+        T.bodyRx = 0.15;
+      }
+      speed = 18;
+    }
+    const k = speed <= 1 ? 1 : Math.min(1, dt / speed);
+    const P0 = v.pose;
+    for (const key of Object.keys(T)) P0[key] += (T[key] - P0[key]) * k;
+
+    f.root.position.x = P0.rootX;
+    f.body.position.y = HIP + P0.bodyY + Math.sin(now / 650) * 0.008;
+    f.body.rotation.set(P0.bodyRx, 0, -P0.bodyA * DEG);
+    f.armR.rotation.set(P0.armRx, 0, -P0.armR * DEG);
+    f.weapon.rotation.z = -P0.weapon * DEG;
+    f.armL.rotation.set(P0.armLx, 0, -P0.armL * DEG);
+    if (f.off) f.off.rotation.x = -P0.armLx;
+    f.shadow.position.x = P0.rootX;
+
+    // Red flash when you're hit.
+    if (v.hp !== null && pl.health < v.hp) v.flashUntil = now + 120;
+    v.hp = pl.health;
+    const on = now < v.flashUntil;
+    if (on !== v.flashing) {
+      v.flashing = on;
+      f.mats.forEach((m) => (on ? m.emissive.setRGB(0.8, 0.1, 0.05) : m.emissive.setRGB(0, 0, 0)));
+    }
+  }
+
   // ---------- per-frame ----------
 
   render(duel, dt) {
     this.syncCanvas();
     const cam = this.camera;
-    const wx = duel.world ? duel.world.x : 0;
-    const roll = duel.world ? duel.world.angle * DEG : 0;
-    cam.position.set(-wx * 0.0045, EYE, 0);
+    const side = this.cam === 'side';
+    const wx = duel.world && !side ? duel.world.x : 0;
+    const roll = duel.world && !side ? duel.world.angle * DEG : 0;
+    cam.position.copy(this.camHome);
+    cam.position.x -= wx * 0.0045;
     const sh = duel.cameras.main.shakeEffect;
     if (sh && sh.isRunning) {
       cam.position.x += (sh._offsetX || 0) * 0.004;
       cam.position.y += (sh._offsetY || 0) * 0.004;
     }
     cam.up.set(Math.sin(roll), Math.cos(roll), 0);
-    cam.lookAt(-wx * 0.0012, 1.28, ENEMY_Z);
+    cam.lookAt(this.camTarget.x - wx * 0.0012, this.camTarget.y, this.camTarget.z);
+    cam.updateMatrixWorld();
 
-    if (duel.enemy) this._syncEnemy(duel.enemy, dt);
-    this._syncPlayer();
+    if (duel.enemy) {
+      this._syncEnemy(duel.enemy, dt);
+      const c = duel.enemy.rig.chestPoint();
+      duel.enemy.aura.setPosition(c.x - (duel.world ? duel.world.x : 0), c.y - 20);
+    }
+    if (side) this._syncPlayerSide(duel.player, dt);
+    else this._syncPlayer();
 
     if (this.snow && dt > 0) {
       const pos = this.snow.geometry.attributes.position;

@@ -1,11 +1,13 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v2';
+const VERSION = 'logres-v3';
 
 const CORE = [
   './',
   './index.html',
   './3d/',
   './3d/index.html',
+  './side/',
+  './side/index.html',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',
