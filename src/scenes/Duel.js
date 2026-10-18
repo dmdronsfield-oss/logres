@@ -11,6 +11,7 @@ import { SwipeInput } from '../input/SwipeInput.js';
 import { Hud } from '../ui/Hud.js';
 import { menuButton } from '../ui/Button.js';
 import { img, text } from '../art/Tex.js';
+import { PLAYER_CREST, playerName } from '../art/Heraldry.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { setupCamera, fadeTo, isPortrait } from './common.js';
 
@@ -56,7 +57,17 @@ export class Duel extends Phaser.Scene {
     });
     // In the side view the fighters fill the upper screen, so prompts go lower.
     const bannerY = this.w3 && this.w3.cam === 'side' ? 322 : 236;
-    this.hud = new Hud(this, { enemyName: def.name, leftHanded: s.leftHanded, bannerY });
+    const tourney = this.w3 && this.w3.tourney ? {
+      playerName: playerName(s.generation),
+      round: s.runStage + 1,
+      rounds: ENEMIES.length,
+      playerCrest: PLAYER_CREST,
+      enemyCrest: def.crest || { field: def.palette.body, charge: null },
+      enemyId: def.id,
+    } : null;
+    this.hud = new Hud(this, {
+      enemyName: def.name, leftHanded: s.leftHanded, bannerY, style: tourney ? 'tourney' : 'classic', tourney,
+    });
     this.director = new CombatDirector(this, { player: this.player, juice: this.juice, hud: this.hud });
     this.enemy = new Enemy(this, def, { cycle: s.cycle, x: W / 2, y: 318, director: this.director });
     this.world.add(this.w3 ? [this.enemy.aura] : [this.enemy.aura, this.enemy.rig.root]);

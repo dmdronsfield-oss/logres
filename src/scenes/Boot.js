@@ -16,9 +16,10 @@ export class Boot extends Phaser.Scene {
       : Promise.resolve();
     const timeout = new Promise((r) => setTimeout(r, 2500));
     // The 3D test loads Three.js only when it's needed.
+    const side = window.LOGRES_CAM === 'side';
     const three = MODE === '3d'
-      ? import('../render3d/View3D.js')
-        .then((m) => { VIEW.world3d = new m.World3D(this.game); })
+      ? import(side ? '../render3d/Hall3D.js' : '../render3d/View3D.js')
+        .then((m) => { VIEW.world3d = side ? new m.HallView(this.game) : new m.World3D(this.game); })
         .catch((e) => { console.warn('3D unavailable, falling back to 2D', e); })
       : Promise.resolve();
     Promise.all([Promise.race([fontReady, timeout]).catch(() => {}), three]).then(() => {

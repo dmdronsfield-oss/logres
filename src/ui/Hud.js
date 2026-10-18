@@ -1,6 +1,7 @@
 import { CONFIG, VIEW, PALETTE } from '../config.js';
 import { canvasTex, img, text, roundel, ink, star, roundRect } from '../art/Tex.js';
 import { drawShieldShape } from '../art/Rig.js';
+import { drawCrest } from '../art/Heraldry.js';
 
 const DEPTH = 40;
 
@@ -89,7 +90,8 @@ function makeButtonTextures(scene) {
 }
 
 export class Hud {
-  constructor(scene, { enemyName, leftHanded, bannerY = 236 }) {
+  // style 'tourney' = the third-person top bar: named crests, segmented health, round plaque.
+  constructor(scene, { enemyName, leftHanded, bannerY = 236, style = 'classic', tourney = null }) {
     this.scene = scene;
     makeButtonTextures(scene);
     const W = VIEW.W;
@@ -101,6 +103,7 @@ export class Hud {
     const superX = leftHanded ? W - padR - 54 : padL + 54;
     const pauseX = leftHanded ? padL + 40 : W - padR - 74;
 
+    this.tourney = style === 'tourney';
     this.pos = {
       dodgeL: { x: padL + 66, y: H - 70 - padB, r: 54 },
       dodgeR: { x: W - padR - 66, y: H - 70 - padB, r: 54 },
@@ -108,6 +111,11 @@ export class Hud {
       super: { x: superX, y: 62, r: 44 },
       pause: { x: pauseX, y: 44, r: 28 },
     };
+    if (this.tourney) {
+      // The top of the screen belongs to the tourney bar.
+      this.pos.super = { x: leftHanded ? W / 2 + 150 : W / 2 - 150, y: H - 66 - padB, r: 44 };
+      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 134, r: 28 };
+    }
 
     this.btn = {};
     for (const id of ['dodgeL', 'dodgeR', 'block', 'super', 'pause']) {
@@ -129,9 +137,12 @@ export class Hud {
     this.bars = scene.add.graphics().setDepth(DEPTH);
     this.enemyBar = { x: W / 2 - 220, y: 40, w: 440, h: 16 };
     this.playerBar = { x: W / 2 - 150, y: H - 22 - padB, w: 300, h: 12 };
-    this.enemyName = text(scene, W / 2, 20, enemyName, {
-      fontSize: '19px', fontStyle: '700', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
-    }).setDepth(DEPTH);
+    if (this.tourney) this._buildTourneyBar(scene, enemyName, tourney);
+    else {
+      this.enemyName = text(scene, W / 2, 20, enemyName, {
+        fontSize: '19px', fontStyle: '700', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
+      }).setDepth(DEPTH);
+    }
     this.vals = { enemy: 1, player: 1, stagger: 0, open: 0, superF: 0 };
 
     // Hit counter
@@ -160,6 +171,84 @@ export class Hud {
     }).setDepth(60).setVisible(false);
 
     this.realT = 0;
+  }
+
+  _buildTourneyBar(scene, enemyName, t) {
+    const W = VIEW.W;
+    const plaqueW = 112;
+    const panelW = Math.min(440, (W - 40 - plaqueW - 16) / 2);
+    const panelH = 70;
+    const top = 10;
+    const crestW = 58;
+    const crestH = 70;
+    const leftX = W / 2 - plaqueW / 2 - 8 - panelW;
+    const rightX = W / 2 + plaqueW / 2 + 8;
+    const panel = (key, field, crest, crestLeft) => canvasTex(scene, key, panelW, panelH + 16, (ctx, w) => {
+      roundRect(ctx, 3, 3, w - 6, panelH - 6, 6);
+      const g = ctx.createLinearGradient(0, 0, 0, panelH);
+      g.addColorStop(0, field);
+      g.addColorStop(1, '#0e0f18');
+      ctx.fillStyle = g;
+      ctx.globalAlpha = 0.92;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = PALETTE.goldCss;
+      ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = PALETTE.inkCss;
+      ctx.stroke();
+      const cx = crestLeft ? 6 : w - crestW - 6;
+      drawCrest(ctx, cx, 2, crestW, crestH + 10, crest.field, crest.charge, crest.color);
+    });
+    const pKey = panel(`tb_p_${W}`, '#22346e', t.playerCrest, true);
+    const eKey = panel(`tb_e_${t.enemyId}_${W}`, t.enemyCrest.field, t.enemyCrest, false);
+    img(scene, leftX, top, pKey, 0, 0).setDepth(DEPTH);
+    img(scene, rightX, top, eKey, 0, 0).setDepth(DEPTH);
+    const nameStyle = { fontSize: '22px', fontStyle: '700', color: '#f3ead2', stroke: PALETTE.inkCss, strokeThickness: 4 };
+    text(scene, leftX + crestW + 22, top + 22, t.playerName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
+    text(scene, rightX + panelW - crestW - 22, top + 22, enemyName, { ...nameStyle, originX: 1 }).setDepth(DEPTH + 1);
+    canvasTex(scene, 'tb_plaque', plaqueW, 84, (ctx, w, h) => {
+      roundRect(ctx, 3, 3, w - 6, h - 6, 5);
+      ctx.fillStyle = '#efe2c0';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = PALETTE.goldCss;
+      ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = PALETTE.inkCss;
+      ctx.stroke();
+      ctx.fillStyle = PALETTE.vermilionCss;
+      ctx.fillRect(w / 2 - 14, h - 14, 28, 2);
+      ctx.fillRect(w / 2 - 2, h - 18, 4, 10);
+    });
+    img(scene, W / 2, top, 'tb_plaque', 0.5, 0).setDepth(DEPTH);
+    text(scene, W / 2, top + 22, 'Round', { fontSize: '18px', fontStyle: '700' }).setDepth(DEPTH + 1);
+    text(scene, W / 2, top + 48, `${t.round}/${t.rounds}`, { fontSize: '26px', fontStyle: '700' }).setDepth(DEPTH + 1);
+    const segX = (x0) => x0 + crestW + 20;
+    const segW = panelW - crestW - 40;
+    this.bars.setDepth(DEPTH + 1);   // segments draw over the panels
+    this.tb = { top, panelW, panelH, leftSeg: segX(leftX), rightSeg: rightX + 20, segW, segY: top + 42 };
+  }
+
+  _drawSegments(g, x, y, w, frac, fill) {
+    const n = 10;
+    const gap = 3;
+    const sw = (w - gap * (n - 1)) / n;
+    for (let i = 0; i < n; i++) {
+      const sx = x + i * (sw + gap);
+      g.fillStyle(0x140c0a, 0.9);
+      g.fillRect(sx - 1, y - 1, sw + 2, 16);
+      g.fillStyle(0x3a1a16, 1);
+      g.fillRect(sx, y, sw, 14);
+      const f = Math.max(0, Math.min(1, frac * n - i));
+      if (f > 0) {
+        g.fillStyle(fill, 1);
+        g.fillRect(sx, y, sw * f, 14);
+        g.fillStyle(0xffffff, 0.22);
+        g.fillRect(sx, y, sw * f, 4);
+      }
+    }
   }
 
   setPips(n, max) {
@@ -195,6 +284,23 @@ export class Hud {
     const g = this.bars;
     g.clear();
     const v = this.vals;
+    if (this.tourney) {
+      const t = this.tb;
+      this._drawSegments(g, t.leftSeg, t.segY, t.segW, v.player, 0xd23a2a);
+      this._drawSegments(g, t.rightSeg, t.segY, t.segW, v.enemy, 0xd23a2a);
+      // Stagger meter and open window under the enemy's panel.
+      const sy = t.top + t.panelH + 2;
+      g.fillStyle(PALETTE.ink, 0.75);
+      g.fillRect(t.rightSeg, sy, t.segW, 6);
+      g.fillStyle(0xf6d061, 1);
+      g.fillRect(t.rightSeg, sy, t.segW * v.stagger, 6);
+      if (v.open > 0) {
+        g.fillStyle(0xfff6cf, 0.95);
+        g.fillRect(t.rightSeg, sy + 9, t.segW * v.open, 4);
+      }
+      this._drawSuperRing();
+      return;
+    }
     // Enemy health
     const e = this.enemyBar;
     g.fillStyle(PALETTE.ink, 0.85);
@@ -228,7 +334,11 @@ export class Hud {
     g.fillStyle(0xffffff, 0.25);
     g.fillRect(p.x, p.y, p.w * v.player, 3);
 
-    // Super ring
+    this._drawSuperRing();
+  }
+
+  _drawSuperRing() {
+    const v = this.vals;
     const r = this.superRing;
     r.clear();
     const sp = this.pos.super;

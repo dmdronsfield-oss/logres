@@ -221,10 +221,11 @@ export class World3D {
     const kill = (root) => {
       root.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
-        if (o.material && o.material !== this.inkMat) {
-          if (o.material.map) o.material.map.dispose();
-          o.material.dispose();
-        }
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+          if (!m || m === this.inkMat) return;
+          if (m.map && !m.map.userData.keep) m.map.dispose();
+          m.dispose();
+        });
       });
       while (root.children.length) root.remove(root.children[0]);
     };
