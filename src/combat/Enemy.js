@@ -502,6 +502,7 @@ export class Enemy extends Fighter {
     this.feintAt = null;
     this.telegraphTotal = this.t + newRemaining;
     this.windowOpened = false;
+    this.released = false;
   }
 
   parried() {
