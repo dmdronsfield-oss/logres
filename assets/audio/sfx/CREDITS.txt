@@ -9,3 +9,37 @@ hit_plate_*, hit_mail_*, hit_leather_*, block_shield_*, step_*, clatter_*, shiel
 
 cloth_*, draw_*, book_*
   "RPG Audio" by Kenney (www.kenney.nl)  -  CC0 1.0
+
+swing_* (Katana Swing takes)
+  "Medieval sound effects - Weapon Textures" by Ben Jaszczak & Brian Nelson (Still North Media)
+  https://opengameart.org/content/medieval-sound-effects-weapon-textures  -  CC0 1.0
+
+whoosh_*, whoosh_heavy_*, scrape_*, draw_3, draw_4, dodge_*
+  "Fantasy Sound Effects (Tinysized SFX)" by Vehicle
+  https://opengameart.org/content/fantasy-sound-effects-tinysized-sfx  -  CC0 1.0
+
+cry_*, cry_heavy_*, grunt_*
+  "Male Grunt/Yelling sounds" by HaelDB
+  https://opengameart.org/content/male-gruntyelling-sounds  -  CC0 1.0 (also offered as OGA-BY 3.0)
+
+pain_*, death_*
+  "grunts of male death and pain" by thebardofblasphemy
+  https://opengameart.org/content/grunts-male-death-and-pain  -  CC0 1.0
+
+cheer_*, roar, crowd_loop
+  "Free Crowd Cheering Sounds" by Gregor Quendel (www.gregorquendel.com)
+  https://opengameart.org/content/free-crowd-cheering-sounds  -  CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Excerpted, mixed to mono, normalised; the murmur loop crossfaded.
+
+jeer_*, gasp
+  "Crowd Shouting/Speaking Ambience" by StarNinjas (https://opengameart.org/users/starninjas)
+  https://opengameart.org/content/crowd-shoutingspeaking-ambience  -  CC0 1.0
+
+heartbeat
+  "Heartbeat sounds" by bart  -  https://opengameart.org/content/heartbeat-sounds  -  CC0 1.0
+
+laugh
+  "Evil laughter" by qubodup  -  https://opengameart.org/content/evil-laughter  -  CC0 1.0
+
+chime_*, bell, click
+  Kenney "Impact Sounds" and "RPG Audio" (www.kenney.nl)  -  CC0 1.0

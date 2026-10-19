@@ -111,9 +111,14 @@ export class Codex extends Phaser.Scene {
     [
       'Knight armour: "Medieval Knight Armor (Low-poly / Rigged)" by INKXO, CC BY 4.0 (sketchfab.com).',
       'Menu music: "Wendale Abbey" by Yubatake, CC BY 4.0 (OpenGameArt.org).',
-      'Steel on steel: "Medieval sound effects - Weapon impacts" by Ben Jaszczak & Brian Nelson, CC0 (OpenGameArt.org).',
-      'Armour, shield, footsteps, cloth and pages: Impact Sounds and RPG Audio by Kenney (kenney.nl), CC0.',
-      'Everything else (art, motion, voices, crowd and music) is made in code for Logres.',
+      'Duel music: "Heroic Demise (updated)" by Matthew Pablo, CC BY 3.0 (OpenGameArt.org).',
+      'Boss music: "Epic Boss Battle" by Juhani Junkala, CC0 (OpenGameArt.org).',
+      'Steel on steel and sword swings: "Medieval sound effects" (Weapon impacts, Weapon textures) by Ben Jaszczak & Brian Nelson, CC0 (OpenGameArt.org).',
+      'Crowd cheering: "Free Crowd Cheering Sounds" by Gregor Quendel, CC BY 4.0 (OpenGameArt.org). Crowd shouts: StarNinjas, CC0.',
+      'Voices: "Male Grunt/Yelling sounds" by HaelDB and "grunts of male death and pain" by thebardofblasphemy, CC0 (OpenGameArt.org).',
+      'Whooshes, scrapes and boots: "Tinysized SFX" by Vehicle, CC0. Heartbeat: bart, CC0. The Green Knight\'s laugh: "Evil laughter" by qubodup, CC0 (OpenGameArt.org).',
+      'Armour, shield, footsteps, cloth, chimes, bell and pages: Impact Sounds and RPG Audio by Kenney (kenney.nl), CC0.',
+      'The art and motion are made in code for Logres.',
     ].forEach((line) => {
       const t = text(this, x0, y, line, { fontSize: '14px', color: PALETTE.inkCss, wordWrap: { width: wrap }, originX: 0, originY: 0, align: 'left' });
       col.add(t);

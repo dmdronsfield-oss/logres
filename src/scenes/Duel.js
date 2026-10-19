@@ -104,7 +104,7 @@ export class Duel extends Phaser.Scene {
       }
     });
 
-    Music.play('duel');
+    Music.play(def.id === 'green' ? 'boss' : 'duel');
     // Steel drawn as the duel begins.
     this.time.delayedCall(700, () => Sfx.draw());
     Sfx.crowd(true);

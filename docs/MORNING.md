@@ -476,3 +476,20 @@ keyboard only. Then I fixed what got in the way:
   "sounds 34/34" (or how many failed, and why).
 - Clip loading starts on any tap and can't be stopped by older Safari's audio quirks.
 - Turning **Sound** on in camp plays a sword clash: a quick test of the recorded sounds.
+
+## Every sound recorded; real music (v57)
+
+- **Music:**
+  - Normal duels play "Heroic Demise" by Matthew Pablo.
+  - The Green Knight, and any foe's last stand or a blade lock, play "Epic Boss Battle" by Juhani
+    Junkala. The two crossfade.
+  - The menus keep the chant.
+  - The tracks stream rather than load into memory, so they're light on phones.
+- **Every other sound is now a recording:**
+  - Sword swings (real katana takes, pitched lower for weight); his blade's whoosh.
+  - Battle cries, heavy cries, pain and stagger grunts, pitched per foe (the Green Knight deepest,
+    the Black Knight muffled by his helm). Gawain's pain. The Green Knight's laugh.
+  - The crowd: a murmur under the duel, cheers, a roar, jeers and a gasp.
+  - A heartbeat at low health; a steel grind in the blade lock; chimes for the glint, openings and
+    known strikes; a bell for victory; a click on the menus.
+- 90 clips, 0.9 MB, plus the music (5.3 MB, streamed). All credited in the Book of Arms.

@@ -1,4 +1,4 @@
-import { Sfx, decodeAudio } from './Sfx.js';
+import { Sfx } from './Sfx.js';
 
 // Music for the hall, synthesised like everything else: a bourdon drone (as on a
 // hurdy-gurdy), a plucked harp improvising in D Dorian, and a tabor that drives
@@ -11,10 +11,18 @@ const MOTIFS = [
   [0, 2, 4, 2, 1, 0], [4, 5, 4, 2, 3, 1], [7, 6, 4, 5, 4, 2], [0, 4, 7, 6, 4, 2],
   [2, 1, 0, -1, 0, 2], [4, 4, 5, 7, 5, 4], [9, 7, 6, 4, 2, 4], [0, 0, 2, 4, 3, 2],
 ];
-// The menus' music: "Wendale Abbey", plainsong by Yubatake (CC-BY 4.0, OpenGameArt.org),
-// looped quietly. Fetched the first time it's wanted.
-const CHANT_URL = new URL('../../assets/audio/wendale-abbey.mp3', import.meta.url).href;
-const CHANT_LEVEL = 0.5;
+// Recorded music, streamed (not decoded into memory) and routed through the master volume:
+//   abbey  "Wendale Abbey", plainsong by Yubatake (CC-BY 4.0, OpenGameArt.org): the menus
+//   heroic "Heroic Demise (updated)" by Matthew Pablo (CC-BY 3.0, OpenGameArt.org): duels
+//   boss   "Epic Boss Battle" by Juhani Junkala (CC0, OpenGameArt.org): the Green Knight,
+//          and any foe's last stand or a blade lock
+// The synthesised music below plays only if a track can't be loaded.
+const TRACKS = {
+  abbey: { url: new URL('../../assets/audio/wendale-abbey.mp3', import.meta.url).href, level: 0.5 },
+  heroic: { url: new URL('../../assets/audio/music-heroic.mp3', import.meta.url).href, level: 0.36 },
+  boss: { url: new URL('../../assets/audio/music-boss.mp3', import.meta.url).href, level: 0.42 },
+};
+const MOOD_TRACK = { abbey: 'abbey', duel: 'heroic', boss: 'boss', stand: 'boss', victory: 'heroic', camp: null, silence: null };
 
 const semis = (i) => DORIAN[((i % 7) + 7) % 7] + 12 * Math.floor(i / 7);
 
@@ -44,50 +52,78 @@ class MusicEngine {
 
   setEnabled(on) {
     this.on = on;
-    if (!on) { this._fadeTo(0, 0.4); this._chant(false); }
-    else if (this.mood) this.play(this.mood, true);
+    this._apply();
   }
 
-  // Fade the chant in (looping) or out. Waits for the audio to be unlocked by a tap or key.
-  _chant(want) {
-    this.chantWanted = want && this.on;
+  // Make the track elements and start each one inside the first tap (iPhones only let an
+  // audio element play later if it has played once from a tap), then pause them again.
+  prime() {
+    if (this.primed || !Sfx.ctx) return;
+    this.primed = true;
+    for (const name of Object.keys(TRACKS)) {
+      const t = this._track(name);
+      if (!t) continue;
+      const p = t.el.play();
+      if (p && p.then) p.then(() => { if (this._wantTrack() !== name) t.el.pause(); }).catch(() => {});
+    }
+  }
+
+  _track(name) {
+    this.tracks = this.tracks || {};
+    if (this.tracks[name]) return this.tracks[name];
+    if (!Sfx.ctx || typeof Audio === 'undefined') return null;
+    const el = new Audio();
+    el.src = TRACKS[name].url;
+    el.loop = true;
+    el.preload = 'auto';
+    el.setAttribute('playsinline', '');
+    let node;
+    try { node = Sfx.ctx.createMediaElementSource(el); } catch (e) { return null; }
+    const g = Sfx.ctx.createGain();
+    g.gain.value = 0;
+    node.connect(g);
+    g.connect(Sfx.master);
+    const t = { el, g, failed: false };
+    el.addEventListener('error', () => { t.failed = true; this._apply(); });
+    this.tracks[name] = t;
+    return t;
+  }
+
+  _wantTrack() {
+    return this.on ? MOOD_TRACK[this.mood] || null : null;
+  }
+
+  // Crossfade to the mood's track; the synthesised music covers only for a track that failed.
+  _apply() {
     if (!this._ready()) return;
-    const ctx = Sfx.ctx;
-    if (!this.chantGain) {
-      this.chantGain = ctx.createGain();
-      this.chantGain.gain.value = 0;
-      this.chantGain.connect(Sfx.master);
+    const want = this._wantTrack();
+    const now = Sfx.ctx.currentTime;
+    for (const name of Object.keys(TRACKS)) {
+      const t = name === want || (this.tracks && this.tracks[name]) ? this._track(name) : null;
+      if (!t) continue;
+      const on = name === want && !t.failed;
+      t.g.gain.cancelScheduledValues(now);
+      t.g.gain.setValueAtTime(t.g.gain.value, now);
+      t.g.gain.linearRampToValueAtTime(on ? TRACKS[name].level : 0, now + (on ? 2.0 : 1.2));
+      if (on && t.el.paused) { const p = t.el.play(); if (p && p.catch) p.catch(() => {}); }
+      if (!on && !t.el.paused) {
+        clearTimeout(t.pauseTimer);
+        t.pauseTimer = setTimeout(() => { if (this._wantTrack() !== name) t.el.pause(); }, 1400);
+      }
     }
-    const g = this.chantGain.gain;
-    const t = ctx.currentTime;
-    g.cancelScheduledValues(t);
-    g.setValueAtTime(g.value, t);
-    g.linearRampToValueAtTime(this.chantWanted ? CHANT_LEVEL : 0, t + (this.chantWanted ? 2.5 : 1.0));
-    if (!this.chantWanted || this.chantSrc) return;
-    if (!this.chantBuf) {
-      if (this.chantLoading) return;
-      this.chantLoading = fetch(CHANT_URL).then((r) => r.arrayBuffer()).then((b) => decodeAudio(ctx, b))
-        .then((buf) => { this.chantBuf = buf; this.chantLoading = null; this._chant(this.mood === 'abbey'); })
-        .catch(() => { this.chantLoading = null; });
-      return;
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = this.chantBuf;
-    src.loop = true;
-    src.connect(this.chantGain);
-    src.start();
-    this.chantSrc = src;
+    const fallback = want && this.tracks && this.tracks[want] && this.tracks[want].failed;
+    const synth = this.on && this.mood !== 'silence' && this.mood !== 'abbey' && (!want || fallback) && this.mood !== 'victory';
+    this._fadeTo(synth ? (this.mood === 'camp' ? 0.5 : 0.62) : 0, 1.2);
   }
 
-  // abbey (the menus' chant) | camp | duel | stand (last stand / blade lock) | victory | silence
+  // abbey (the menus' chant) | duel | boss (the Green Knight) | stand (last stand / blade lock)
+  // | victory | camp | silence
   play(mood, force = false) {
     if (this.mood === mood && !force) return;
     this.mood = mood;
-    this.target = { camp: 0.15, duel: 0.55, stand: 1, victory: 0.4, silence: 0, abbey: 0 }[mood] ?? 0.5;
+    this.target = { camp: 0.15, duel: 0.55, boss: 0.8, stand: 1, victory: 0.4, silence: 0, abbey: 0 }[mood] ?? 0.5;
     if (!this.timer) this.timer = setInterval(() => this._tick(), 90);
-    if (this._ready()) this._fadeTo(this.on && mood !== 'silence' && mood !== 'abbey' ? (mood === 'camp' ? 0.5 : 0.62) : 0, 1.2);
-    this._chant(mood === 'abbey');
-    if (mood === 'victory' && this._ready() && this.on) this._fanfare();
+    this._apply();
   }
 
   _fadeTo(v, s) {
@@ -101,9 +137,8 @@ class MusicEngine {
 
   _tick() {
     if (!this._ready()) return;
-    // The chant waits for the audio to be unlocked; start it once it is.
-    if (this.mood === 'abbey' && this.on && !this.chantSrc && !this.chantLoading) this._chant(true);
-    if (this.out.gain.value === 0 && this.mood && this.on && this.mood !== 'silence' && this.mood !== 'abbey') this._fadeTo(this.mood === 'camp' ? 0.5 : 0.62, 1.2);
+    // Music waits for the audio to be unlocked by a tap; start the mood's track once it is.
+    if (!this.applied) { this.applied = true; this._apply(); }
     this.intensity += (this.target - this.intensity) * 0.08;
     const ctx = Sfx.ctx;
     const bpm = this.bpm + this.intensity * 26;
@@ -253,3 +288,5 @@ class MusicEngine {
 }
 
 export const Music = new MusicEngine();
+// Prime the music's audio elements inside the first tap.
+Sfx.onUnlock = [...(Sfx.onUnlock || []), () => Music.prime()];

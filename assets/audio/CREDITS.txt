@@ -3,3 +3,13 @@ wendale-abbey.mp3
 https://opengameart.org/content/wendale-abbey
 Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 Converted from the original WendaleAbbey.ogg to MP3 (112 kbps, 44.1 kHz); otherwise unchanged.
+
+music-heroic.mp3
+"Heroic Demise (Updated Version)" by Matthew Pablo (www.matthewpablo.com)
+https://opengameart.org/content/heroic-demise-updated-version
+Licence: CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Re-encoded to 96 kbps MP3.
+
+music-boss.mp3
+"Epic Boss Battle [Seamlessly Looping]" by Juhani Junkala
+https://opengameart.org/content/boss-battle-music
+Licence: CC0 1.0. Encoded from the original WAV to 112 kbps MP3.

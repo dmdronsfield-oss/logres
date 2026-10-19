@@ -178,6 +178,7 @@ export class CombatDirector {
     L.v = Math.min(1, L.v + CONFIG.lock.tapPush);
     L.taps = (L.taps || 0) + 1;
     Sfx.clang();
+    if (L.taps % 4 === 1) Sfx.scrape();
     const tip = this.enemy._tip();
     this.juice.sparksAt(tip.x, tip.y, 6);
     this.hud.pulseLock();
@@ -200,7 +201,7 @@ export class CombatDirector {
     this.lock = null;
     this.hud.showLock(false);
     const e = this.enemy;
-    Music.play(e.phaseIdx > 0 ? 'stand' : 'duel');
+    Music.play(e.phaseIdx > 0 ? 'stand' : e.def.id === 'green' ? 'boss' : 'duel');
     if (won) Sfx.cheer();
     const p = this.player;
     if (won) {
