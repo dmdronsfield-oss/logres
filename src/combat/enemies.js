@@ -10,6 +10,9 @@
 //   damage       damage before level/cycle scaling
 //   recoverMs    how long the enemy is Open after a combo ending with this attack
 //   heavy        bigger shake when it lands
+//   unblockable  goes through the shield: only a dodge works (the Saxon's shield bash)
+//   bash         drawn as a shield charge rather than a weapon blow
+//   hesitate     [fraction, ms]: the wind-up stops at that point for ms before falling
 //
 // Horizontal slashes are dodged against the blade's travel (an E slash is dodged left).
 
@@ -73,11 +76,17 @@ export const ENEMIES = [
       overhead: overhead(950, 14, 1500),
       slashE: slash('E', 1000, 12, 1400),
       slashW: slash('W', 1000, 12, 1400),
+      // Signature: he drives his round shield at you. Dodge it.
+      bash: {
+        telegraphMs: 1050, direction: 'T', dodge: ['left', 'right'], parryable: false, unblockable: true, bash: true,
+        damage: 15, recoverMs: 1500, heavy: true,
+      },
     },
     combos: [
       { seq: ['overhead'], weight: 2 },
       { seq: ['slashE'], weight: 1 },
       { seq: ['slashW'], weight: 1 },
+      { seq: ['bash'], weight: 1 },
     ],
   },
   {
@@ -108,12 +117,16 @@ export const ENEMIES = [
       slashE: slash('E', 680, 14, 950),
       slashW: slash('W', 680, 14, 950),
       crusher: overhead(1150, 28, 1300, { parryable: false, heavy: true }),
+      // Signature: the blow stops at the top of the wind-up before it falls.
+      hesitate: overhead(1150, 18, 1100, { hesitate: [0.5, 420] }),
     },
     combos: [
       { seq: ['slashE', 'slashW'], weight: 2 },
       { seq: ['slashW', 'overhead'], weight: 2 },
       { seq: ['overhead', 'slashE'], weight: 1 },
       { seq: ['crusher'], weight: 1 },
+      { seq: ['hesitate'], weight: 1 },
+      { seq: ['slashE', 'hesitate'], weight: 1 },
     ],
   },
   {

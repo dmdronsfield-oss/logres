@@ -238,6 +238,22 @@ export function recoverPose(guard, dir, ms) {
   return sampleClip([[0, m.follow], [380, open, 'inout'], [800, open, 'linear']], ms, 800);
 }
 
+// Shield bash: the shield drawn back and low, then driven forward with the whole body.
+export function bashPose(guard, phase, u) {
+  const back = pose(guard, {
+    pelvis: add(guard.pelvis, [0, -0.08, -0.12]), pelvisRot: [0.12, 0.35, 0], chest: [0.3, 0.45, 0],
+    handL: [0.34, 1.05, -0.05], faceL: [0.4, 0, 1], poleL: [1, -0.6, -0.3],
+    handR: [-0.38, 1.0, -0.2], bladeR: [-0.2, -0.6, -0.7],
+  });
+  const drive = pose(guard, {
+    pelvis: add(guard.pelvis, [0, -0.1, 0.22]), pelvisRot: [0.2, -0.15, 0], chest: [0.42, -0.2, 0],
+    handL: [0.05, 1.28, 0.82], faceL: [0, 0.1, 1], poleL: [1, -0.4, -0.3],
+    handR: [-0.42, 1.05, -0.1], bladeR: [-0.3, -0.5, -0.7], footL: [0.17, 0.62, 0.2],
+  });
+  if (phase === 'wind') return sampleClip([[0, guard], [0.5, back, 'out'], [1, back, 'linear']], u, 1);
+  return sampleClip([[0, back], [110, drive, 'snap'], [420, drive, 'linear']], u, 420);
+}
+
 // Your knight's swing (dir already mirrored into his frame). Null when finished.
 export function playerSwingPose(guard, dir, ms) {
   if (ms > 360) return null;

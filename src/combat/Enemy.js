@@ -236,6 +236,21 @@ export class Enemy extends Fighter {
     return this.state !== ES.STAGGERED && this.state !== ES.DEFEATED && this.state !== ES.INTERLUDE && this.state !== ES.INTRO;
   }
 
+  // Wind-up progress in ms with any hesitation removed (the ring and the pose pause together).
+  visualT() {
+    const h = this.attack && this.attack.hesitate;
+    if (!h || this.state !== ES.TELEGRAPH) return this.t;
+    const at = (this.telegraphTotal - h[1]) * h[0];
+    if (this.t < at) return this.t;
+    if (this.t < at + h[1]) return at;
+    return this.t - h[1];
+  }
+
+  visualTotal() {
+    const h = this.attack && this.attack.hesitate;
+    return this.telegraphTotal - (h ? h[1] : 0);
+  }
+
   telegraphRemaining() {
     return this.state === ES.TELEGRAPH ? this.telegraphTotal - this.t : Infinity;
   }
@@ -357,7 +372,7 @@ export class Enemy extends Fighter {
   telegraph(i) {
     this.comboIdx = i;
     this.attack = this.combo[i];
-    this.telegraphTotal = this.attack.telegraphMs * this.cfg.telegraphMult;
+    this.telegraphTotal = this.attack.telegraphMs * this.cfg.telegraphMult + (this.attack.hesitate ? this.attack.hesitate[1] : 0);
     this.setState(ES.TELEGRAPH);
     this.windowOpened = false;
     this.released = false;
@@ -398,9 +413,11 @@ export class Enemy extends Fighter {
     const r = this.ring;
     r.clear();
     const a = this.attack;
-    const total = this.telegraphTotal;
+    const total = this.visualTotal();
     const win = CONFIG.parry.windowMs;
-    const k = Math.max(0, Math.min(1, rem / total));
+    const k = Math.max(0, Math.min(1, 1 - this.visualT() / total));
+    // While he hesitates the ring stalls and flickers.
+    if (this.visualT() !== this.t && a.hesitate && this.t < this.visualT() + a.hesitate[1]) intro *= 0.45 + 0.55 * Math.abs(Math.sin(this.t / 70));
     const red = !a.parryable;
     const inWin = rem <= win && !this.feintAt && a.parryable;
     const col = red ? 0xe0503a : inWin ? 0xffffff : 0xf6d061;
@@ -416,6 +433,16 @@ export class Enemy extends Fighter {
     r.strokeCircle(p.x, p.y, R);
     // Path of the blow.
     const [dx, dy] = a.direction === 'T' ? [0, 0] : DIR_VEC[a.direction];
+    // Tags for blows with a rule of their own.
+    const tag = a.unblockable ? 'DODGE!' : a.direction === 'T' ? 'NO DODGE' : '';
+    if (tag) {
+      if (!this.tagText) {
+        this.tagText = text(this.scene, 0, 0, '', {
+          fontSize: '15px', fontStyle: '700', color: '#ffffff', stroke: '#2a1d14', strokeThickness: 4,
+        }).setDepth(24);
+      }
+      this.tagText.setText(tag).setColor(a.unblockable ? '#ff8a70' : '#fff3c4').setPosition(p.x, p.y + R + 26).setAlpha(intro).setVisible(true);
+    } else if (this.tagText) this.tagText.setVisible(false);
     if (a.direction === 'T') {
       for (let i = 0; i < 4; i++) {
         const ang = i * Math.PI / 2 + Math.PI / 4;
@@ -446,8 +473,13 @@ export class Enemy extends Fighter {
     r.fillTriangle(ex + dx * 16, ey + dy * 16, ex + px * 11, ey + py * 11, ex - px * 11, ey - py * 11);
   }
 
-  impact() {
+  _clearRing() {
     this.ring.clear();
+    if (this.tagText) this.tagText.setVisible(false);
+  }
+
+  impact() {
+    this._clearRing();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.STRIKE);
@@ -484,7 +516,7 @@ export class Enemy extends Fighter {
 
   doFeint() {
     this.feintAt = null;
-    this.ring.clear();
+    this._clearRing();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.FEINT);
@@ -494,6 +526,17 @@ export class Enemy extends Fighter {
       fontSize: '24px', fontStyle: '700', color: '#f6dc8a', stroke: '#2a1d14', strokeThickness: 5,
     }).setDepth(41);
     this.scene.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+  }
+
+  counterCut() {
+    // His quickest dodgeable, parryable blow, sped up.
+    const opts = Object.entries(this.def.attacks).filter(([, a]) => a.parryable && a.dodge.length && !a.hesitate);
+    const [id, a] = opts.sort((x, y) => x[1].telegraphMs - y[1].telegraphMs)[0] || Object.entries(this.def.attacks)[0];
+    this.combo = [{ id, ...a, telegraphMs: Math.min(a.telegraphMs, 460) / this.cfg.telegraphMult, counter: true }];
+    this.scripted = false;
+    this.afterFeint = true;   // no feint on a counter
+    this.telegraph(0);
+    this.director.onEnemyCounter?.();
   }
 
   // Red Knight: wait out an early dodge, then strike.
@@ -507,7 +550,7 @@ export class Enemy extends Fighter {
 
   parried() {
     this.countered = false;
-    this.ring.clear();
+    this._clearRing();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.PARRIED);
@@ -517,7 +560,7 @@ export class Enemy extends Fighter {
   }
 
   forceStagger(ms, superFlag) {
-    this.ring.clear();
+    this._clearRing();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.STAGGERED);
@@ -538,8 +581,17 @@ export class Enemy extends Fighter {
     });
   }
 
-  // Blocked your blow: weapon snaps into guard.
+  // Blocked your blow: weapon snaps into guard. Two clangs in quick succession
+  // and he answers with a fast counter-cut.
   guardFlinch() {
+    const now = performance.now();
+    this.clangs = (this.clangs || []).filter((t) => now - t < 1200);
+    this.clangs.push(now);
+    if (this.clangs.length >= 2 && (this.state === ES.IDLE || this.state === ES.GAP || this.state === ES.FEINT) && !this.hold) {
+      this.clangs = [];
+      this.counterCut();
+      return this.rig.tip ? this.rig.tip(0.5) : localToWorld(this.rig.weapon, 0, this.rig.weaponLen * 0.5);
+    }
     if (this.state === ES.IDLE || this.state === ES.GAP || this.state === ES.FEINT) {
       this._apply({ armR: 40, weapon: -150 }, 60, 'Quad.easeOut');
       this.scene.time.delayedCall(120, () => {
@@ -586,7 +638,7 @@ export class Enemy extends Fighter {
 
   defeat() {
     this.setState(ES.DEFEATED);
-    this.ring.clear();
+    this._clearRing();
     this.glint.setVisible(false);
     this.dazeStars.forEach((s) => s.setVisible(false));
     this.scene.tweens.add({ targets: this.aura, alpha: 0, duration: 400 });

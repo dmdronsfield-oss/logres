@@ -73,3 +73,21 @@ turn the phone sideways.
 - **Portrait framing** on your actual phone.
 
 Not done: in-game credits for INKXO's armour (still credited in the README), and new enemy models.
+
+---
+
+## Since then: brief 2, smarter foes (v18)
+
+`docs/BRIEF-02-smarter-foes.md`
+
+- **No more mashing:** swipe twice at his guard and he answers at once with a quick counter-cut
+  ("His counter!"). It can still be parried or dodged.
+- **Saxon raider: shield bash.** He draws his shield back and charges. It can't be parried, and it
+  goes straight through a raised shield ("Guard broken!"). Only a dodge works. The ring is red and
+  tagged **DODGE!**
+- **Black Knight: hesitation strike.** He stops at the top of his wind-up. The approach ring stalls
+  and flickers too, so a patient eye still reads it.
+- Thrusts are tagged **NO DODGE** under the ring.
+- Your own blade trail is fainter (it was flaring across the screen), and the landscape banners sit
+  lower so they don't cover his blows.
+- Bot check: all five duels completed by a deliberately imperfect bot, no errors.

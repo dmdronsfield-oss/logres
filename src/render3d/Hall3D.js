@@ -12,7 +12,7 @@ import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
 import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.js';
-import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose } from './knight/Motion.js';
+import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
 import { BladeTrail } from './Trail.js';
@@ -694,7 +694,8 @@ export class HallView extends World3D {
     f.k.root.position.set(0, 0, PLAYER_Z);
     f.k.root.rotation.y = Math.PI;
     this.player = { body3d: true, ...f, hp: null, zoff: 0, zvel: 0 };
-    this.player.trail = new BladeTrail(this.content, { color: 0xcfe2ff, minSpeed: 3 });
+    // Your own blade is close to the lens: a fainter, shorter trail.
+    this.player.trail = new BladeTrail(this.content, { color: 0x6f86b8, minSpeed: 4, life: 110 });
     const W = VIEW.W;
     const H = VIEW.H;
     const swordHome = { x: W / 2 + W * 0.3, y: H + 20, angle: 8 };
@@ -733,11 +734,19 @@ export class HallView extends World3D {
       case ES.TELEGRAPH: {
         const rem = e.telegraphTotal - e.t;
         // The blow is released just before impact, so the blade meets your parry on screen.
-        if (rem < RELEASE_MS && !e.feintAt) { target = strikePose(guard, dir, ((RELEASE_MS - rem) / RELEASE_MS) * 110); omega = 48; zWant = 0.4; zRate = 22; }
-        else { target = windupPose(guard, dir, Math.min(1, e.t / Math.max(1, e.telegraphTotal - RELEASE_MS))); omega = 24; zWant = -0.14; zRate = 3; }
+        const bash = e.attack && e.attack.bash;
+        if (rem < RELEASE_MS && !e.feintAt) {
+          const ms = ((RELEASE_MS - rem) / RELEASE_MS) * 110;
+          target = bash ? bashPose(guard, 'drive', ms) : strikePose(guard, dir, ms); omega = 48; zWant = bash ? 0.5 : 0.4; zRate = 22;
+        } else {
+          const u = Math.min(1, e.visualT() / Math.max(1, e.visualTotal() - RELEASE_MS));
+          target = bash ? bashPose(guard, 'wind', u) : windupPose(guard, dir, u); omega = 24; zWant = bash ? -0.25 : -0.14; zRate = 3;
+        }
         break;
       }
-      case ES.STRIKE: target = strikePose(guard, dir, 110 + e.t); omega = 40; zWant = 0.45; zRate = 22; break;
+      case ES.STRIKE:
+        target = e.attack && e.attack.bash ? bashPose(guard, 'drive', 110 + e.t) : strikePose(guard, dir, 110 + e.t);
+        omega = 40; zWant = e.attack && e.attack.bash ? 0.52 : 0.45; zRate = 22; break;
       case ES.GAP: target = strikePose(guard, dir, 380 + e.t); omega = 14; zWant = 0.25; break;
       case ES.FEINT: omega = 16; zWant = -0.1; break;
       case ES.RECOVER: target = recoverPose(guard, dir, e.t); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
@@ -768,6 +777,8 @@ export class HallView extends World3D {
     anim.update(dt / 1000);
     // Wind-up tremble while holding at the top of the blow.
     if (e.state === ES.TELEGRAPH && e.t > e.telegraphTotal * 0.6) anim.jolt((Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, 0);
+    // A hesitation is held dead still, which is what makes it readable.
+    if (e.state === ES.TELEGRAPH && e.attack && e.attack.hesitate && e.visualT() !== e.t && e.visualT() === (e.telegraphTotal - e.attack.hesitate[1]) * e.attack.hesitate[0]) anim.set(anim.target, 60);
     if (v.hp !== null && e.health < v.hp) {
       // Knocked the way your blade travelled (his +x is your screen-right).
       const pl = this.playerState;
@@ -858,7 +869,7 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
-    this._trail(v, pl.state === PS.DEAD ? null : 0xcfe2ff);
+    this._trail(v, pl.state === PS.DEAD ? null : 0x6f86b8);
   }
 
   _trail(v, color) {

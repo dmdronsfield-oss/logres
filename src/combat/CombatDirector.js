@@ -216,6 +216,22 @@ export class CombatDirector {
         this.addStagger(CONFIG.stagger.fromDodge);
         this.addSuper(CONFIG.super.fromDodge);
       }
+    } else if (p.state === PS.BLOCKING && attack.unblockable) {
+      // A shield bash goes straight through a raised shield.
+      outcome = 'hit';
+      const dmg = Math.round(attack.damage * e.dmgMult);
+      this.stats.taken += dmg;
+      const dead = p.takeHit(dmg);
+      Sfx.shieldBreak();
+      Sfx.hurt();
+      this.juice.hitStop(CONFIG.juice.takenStopMs);
+      this.juice.shake(CONFIG.juice.shakeHeavy);
+      this.juice.screenFlash('red', 0.45, 260);
+      this.hud.bigText('Guard broken!', PALETTE.vermilionCss, 200, 38);
+      const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
+      this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
+      this.hitCount = 0;
+      if (dead) this.playerDefeated();
     } else if (p.state === PS.BLOCKING && p.blockElapsed <= CONFIG.block.perfectMs) {
       // Shield raised at the last moment: turned aside cleanly, no pip spent.
       outcome = 'perfectBlock';
@@ -312,11 +328,18 @@ export class CombatDirector {
     this._showComboHint();
   }
 
+  onEnemyCounter() {
+    this.hud.bigText('His counter!', PALETTE.vermilionCss, 170, 36);
+    this._teach('spamHint', 'Swiping at his guard only clangs, and he answers. Strike when he is OPEN.');
+  }
+
   onTelegraph(attack) {
     this.tutorial?.onTelegraph?.(attack);
     if (this.tutorial && this.tutorial.step !== 'free') return;
+    if (attack.bash) this._teach('bashHint', 'SHIELD BASH! It cannot be parried or blocked. DODGE it!');
+    if (attack.hesitate) this._teach('hesitateHint', 'He HESITATES at the top. Wait for the ring to move again.');
     // One-time explanations for attack types the tutorial doesn't cover.
-    if (!attack.parryable && !Save.data.redHintShown) {
+    if (!attack.parryable && !attack.unblockable && !Save.data.redHintShown) {
       Save.set({ redHintShown: true });
       this.hud.banner('A RED glint cannot be parried. Dodge it or block it!', 3200);
     } else if (attack.direction === 'T' && !Save.data.thrustHintShown) {

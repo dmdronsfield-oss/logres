@@ -57,7 +57,7 @@ export class Duel extends Phaser.Scene {
       level: s.level, sword: Save.sword(), shield: Save.shield(), leftHanded: s.leftHanded,
     });
     // In the side view the fighters fill the upper screen, so prompts go lower.
-    const bannerY = VIEW.portrait ? Math.round(H * 0.6) : this.w3 && this.w3.cam === 'side' ? 322 : 236;
+    const bannerY = VIEW.portrait ? Math.round(H * 0.6) : this.w3 && this.w3.cam === 'side' ? 372 : 236;
     const tourney = this.w3 && this.w3.tourney ? {
       playerName: playerName(s.generation),
       round: s.runStage + 1,
