@@ -284,6 +284,10 @@ export class Enemy extends Fighter {
           if (this.attack.parryable) Sfx.windowOpen();
         }
         this._updateGlint(rem);
+        if (!this.released && rem <= 90 && !this.feintAt) {
+          this.released = true;
+          Sfx.whoosh(!!this.attack.heavy);
+        }
         if (rem <= 0) this.impact();
         break;
       }
@@ -356,6 +360,7 @@ export class Enemy extends Fighter {
     this.telegraphTotal = this.attack.telegraphMs * this.cfg.telegraphMult;
     this.setState(ES.TELEGRAPH);
     this.windowOpened = false;
+    this.released = false;
     this.feintAt = null;
     if (!this.scripted && !this.afterFeint && i === 0 && Math.random() < this.cfg.feintChance) {
       const latest = this.telegraphTotal - CONFIG.parry.windowMs - 90;

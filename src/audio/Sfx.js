@@ -186,6 +186,11 @@ class SfxEngine {
     this.tone(1200, 0.04, { gain: 0.08, type: 'triangle' });
   }
 
+  // His blade leaving the wind-up: an audible 'now'.
+  whoosh(heavy = false) {
+    this.noise(heavy ? 0.26 : 0.18, { gain: heavy ? 0.3 : 0.22, attack: 0.03, filter: 'bandpass', freq: heavy ? 260 : 420, freqEnd: heavy ? 900 : 1500, q: 1.4 });
+  }
+
   // The crowd in the galleries: a swelling roar.
   roar() {
     this.noise(2.6, { gain: 0.22, attack: 0.35, filter: 'bandpass', freq: 520, freqEnd: 700, q: 0.6 });
