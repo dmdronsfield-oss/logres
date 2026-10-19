@@ -47,6 +47,7 @@ export class CombatDirector {
       this.doHit(dir);
     } else if (e.state !== ES.DEFEATED) {
       const at = e.guardFlinch();
+      p.clangAt = performance.now();
       Sfx.clang();
       this.juice.sparksAt(at.x, at.y, 8);
       this.tutorial?.onClang?.(dir);

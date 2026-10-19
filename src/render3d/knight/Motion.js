@@ -90,7 +90,7 @@ export const STATES = {
   open: { handR: [-0.4, 0.95, 0.32], bladeR: [0.1, -0.8, 0.6], chest: [0.26, 0, 0], pelvis: [0, 0.89, 0], handL: [0.32, 1.0, 0.24], faceL: [0.3, -0.3, 1] },
   parried: { handR: [-0.56, 1.86, -0.34], bladeR: [-0.4, 0.6, -0.7], chest: [-0.36, -0.3, 0.1], pelvis: [0, 0.96, -0.16], handL: [0.4, 1.3, 0.1] },
   staggered: {
-    pelvis: [0, 0.8, -0.12], pelvisRot: [0.12, 0.22, 0.16], chest: [-0.36, 0.32, 0.26],
+    pelvis: [0, 0.74, -0.12], pelvisRot: [0.12, 0.22, 0.16], chest: [-0.42, 0.36, 0.3],
     handR: [-0.62, 0.95, 0.05], bladeR: [-0.4, -0.8, 0.3], handL: [0.56, 1.05, -0.05], faceL: [0.6, -0.4, 0.6],
     footL: [0.26, 0.05, 0.4], footR: [-0.25, -0.26, -0.3],
   },
@@ -206,20 +206,23 @@ export function swingMarks(guard, dir) {
   const [w, s] = SWINGS[dir] || SWINGS.S;
   const wind = pose(guard, w);
   wind.pelvis = add(wind.pelvis, [0, 0.015, -0.09]);
-  const coil = extend(wind, guard, 0.08);
+  const coil = extend(wind, guard, 0.2);
+  coil.pelvis = add(coil.pelvis, [0, 0.01, -0.05]);
   const anticip = pose(guard, { pelvis: add(guard.pelvis, [0, -0.025, 0.03]), chest: add(guard.chest, [0.07, 0, 0]) });
   const hit = pose(guard, s);
   hit.pelvis = add(hit.pelvis, [0, -0.05, 0.13]);
   hit.pelvisRot = add(hit.pelvisRot, [0.08, 0, 0]);
-  const follow = extend(hit, wind, 0.22);
+  const follow = extend(hit, wind, 0.3);
   follow.pelvis = add(hit.pelvis, [0, -0.01, 0.03]);
   return { anticip, wind, coil, hit, follow };
 }
 
 // Enemy wind-up across its telegraph (u: 0..1).
+// The wind-up is quick to its mark, then coils further and holds: a readable silhouette
+// and a beat of stillness before the release.
 export function windupPose(guard, dir, u) {
   const m = swingMarks(guard, dir);
-  return sampleClip([[0, guard], [0.14, m.anticip, 'inout'], [0.58, m.wind, 'out'], [1, m.coil, 'inout']], u, 1);
+  return sampleClip([[0, guard], [0.12, m.anticip, 'inout'], [0.45, m.wind, 'out'], [0.8, m.coil, 'inout'], [1, m.coil, 'linear']], u, 1);
 }
 
 // Enemy blow, `ms` after the moment of impact (it was released ~110 ms earlier on screen).

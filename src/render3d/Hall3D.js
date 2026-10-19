@@ -15,6 +15,7 @@ import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.
 import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
+import { BladeTrail } from './Trail.js';
 import { drapeTex } from './knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from './knight/Looks.js';
 
@@ -33,6 +34,7 @@ const FOV = 42;
 // Over the right shoulder, aimed at the challenger's chest (Infinity Blade framing).
 const CAM = { x: 2.2, y: 1.65, back: 2.0, lookX: -0.75, lookY: 1.32 };
 const ENEMY_TURN = 0.12;
+const RELEASE_MS = 90;             // the blow leaves the wind-up this long before impact
 const REFLECT = 1;                // render layer seen by the floor's reflection
 const QUALITY_KEY = 'logres.quality';
 
@@ -660,10 +662,12 @@ export class HallView extends World3D {
     f.k.root.position.set(0, 0, ENEMY_Z);
     f.k.root.rotation.y = ENEMY_TURN;
     const prox = { root: new P(), body: new P(), head: new P(), armL: new P(), armR: new P(), weapon: new P() };
-    this.enemy = { ...f, prox, hp: null, walkPhase: 0, lastZ: null, fade: 1 };
+    this.enemy = { ...f, prox, hp: null, walkPhase: 0, lastZ: null, fade: 1, zoff: 0, zvel: 0, flashUntil: 0, glow: 0 };
+    this.enemy.trail = new BladeTrail(this.content, { color: 0xffe7a0 });
     const view = this;
     const { k } = f;
     prox.root.flash = (ms) => {
+      view.enemy.flashUntil = performance.now() + ms + 25;
       k.mats.forEach((m) => m.emissive && m.emissive.setRGB(0.6, 0.6, 0.55));
       setTimeout(() => k.mats.forEach((m) => m.emissive && m.emissive.setRGB(0, 0, 0)), ms + 25);
     };
@@ -684,7 +688,8 @@ export class HallView extends World3D {
     const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false, assets: this.hero || this.skinned });
     f.k.root.position.set(0, 0, PLAYER_Z);
     f.k.root.rotation.y = Math.PI;
-    this.player = { body3d: true, ...f, hp: null };
+    this.player = { body3d: true, ...f, hp: null, zoff: 0, zvel: 0 };
+    this.player.trail = new BladeTrail(this.content, { color: 0xcfe2ff, minSpeed: 3 });
     const W = VIEW.W;
     const H = VIEW.H;
     const swordHome = { x: W / 2 + W * 0.3, y: H + 20, angle: 8 };
@@ -716,14 +721,23 @@ export class HallView extends World3D {
     let omega = 7;
     let wobble = 0;
     const dir = e.attack ? e.attack.direction : 'S';
+    // Weight and distance: he sinks back to load, lunges in to strike, is driven back when hurt.
+    let zWant = 0;
+    let zRate = 7;
     switch (e.state) {
-      case ES.TELEGRAPH: target = windupPose(guard, dir, Math.min(1, e.t / e.telegraphTotal)); omega = 24; break;
-      case ES.STRIKE: target = strikePose(guard, dir, e.t); omega = 32; break;
-      case ES.GAP: target = strikePose(guard, dir, 270 + e.t); omega = 14; break;
-      case ES.FEINT: omega = 16; break;
-      case ES.RECOVER: target = recoverPose(guard, dir, e.t); omega = 18; break;
-      case ES.PARRIED: target = pose(guard, STATES.parried); omega = 22; break;
-      case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; break;
+      case ES.TELEGRAPH: {
+        const rem = e.telegraphTotal - e.t;
+        // The blow is released just before impact, so the blade meets your parry on screen.
+        if (rem < RELEASE_MS && !e.feintAt) { target = strikePose(guard, dir, ((RELEASE_MS - rem) / RELEASE_MS) * 110); omega = 48; zWant = 0.4; zRate = 22; }
+        else { target = windupPose(guard, dir, Math.min(1, e.t / Math.max(1, e.telegraphTotal - RELEASE_MS))); omega = 24; zWant = -0.14; zRate = 3; }
+        break;
+      }
+      case ES.STRIKE: target = strikePose(guard, dir, 110 + e.t); omega = 40; zWant = 0.45; zRate = 22; break;
+      case ES.GAP: target = strikePose(guard, dir, 380 + e.t); omega = 14; zWant = 0.25; break;
+      case ES.FEINT: omega = 16; zWant = -0.1; break;
+      case ES.RECOVER: target = recoverPose(guard, dir, e.t); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
+      case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
+      case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
       case ES.DEFEATED: target = pose(guard, e.t < 800 ? STATES.kneel : STATES.collapse); omega = e.t < 800 ? 7 : 4; break;
       default: break;
@@ -734,6 +748,14 @@ export class HallView extends World3D {
       target.footL[1] += s * 0.28;
       target.footR[1] -= s * 0.28;
     }
+    // Critically damped step toward the wanted distance.
+    const sdt = dt / 1000;
+    const ez = Math.exp(-zRate * sdt);
+    const zy = v.zoff - zWant;
+    const ztv = v.zvel + zRate * zy;
+    v.zoff = zWant + (zy + ztv * sdt) * ez;
+    v.zvel = (v.zvel - zRate * ztv * sdt) * ez;
+    k.root.position.z += v.zoff;
     anim.set(target, omega);
     anim.update(dt / 1000);
     // Wind-up tremble while holding at the top of the blow.
@@ -742,7 +764,9 @@ export class HallView extends World3D {
       // Knocked the way your blade travelled (his +x is your screen-right).
       const pl = this.playerState;
       const [dx, dy] = (pl && DIR_VEC[pl.swingDir]) || [0, 0];
-      anim.jolt(-1.6 + dy * 2.4, dx * 3.2, -dx * 2.2);
+      anim.jolt(-2.4 + dy * 3, dx * 4.2, -dx * 2.8);
+      v.zvel -= 1.6;
+      this.camPunch = 1;
       this.cheer = 1;
     }
     if (e.state === ES.PARRIED && e.t < 30) anim.jolt(-3.5, 1.5, 0);
@@ -752,6 +776,16 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
+    this._trail(v, e.state === ES.DEFEATED ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
+    // Gold shimmer while he is open: the moment to strike.
+    const now = performance.now();
+    const openNow = e.isOpen() && e.state !== ES.DEFEATED;
+    v.glow += ((openNow ? 1 : 0) - v.glow) * Math.min(1, dt / 120);
+    if (now > v.flashUntil && (v.glow > 0.01 || v.glowWas)) {
+      const g = v.glow * (0.16 + Math.sin(now / 110) * 0.06);
+      k.mats.forEach((m) => m.emissive && m.emissive.setRGB(g, g * 0.75, g * 0.25));
+      v.glowWas = v.glow > 0.01;
+    }
 
     const a = r.root.alpha;
     if (Math.abs(a - v.fade) > 0.001) {
@@ -794,15 +828,41 @@ export class HallView extends World3D {
       if (sw) { target = sw; omega = 30; }
     }
     k.root.position.x = rootX;
+    // Step into your cut (toward him is -z); recoil off his guard on a clang.
+    let zWant = 0;
+    if (t >= 0 && t < 260 && pl.swingDir && pl.state !== PS.DEAD) zWant = t < 60 ? 0.06 : -0.22;
+    if (pl.state === PS.STUNNED) zWant = 0.25;
+    const sdt = dt / 1000;
+    v.zoff += (zWant - v.zoff) * Math.min(1, sdt * (zWant < v.zoff ? 18 : 7));
+    if (pl.clangAt && now - pl.clangAt < 40 && !v.clangDone) {
+      v.clangDone = true;
+      anim.jolt(2.6, (Math.random() - 0.5) * 3, 0);
+      v.zoff += 0.12;
+    }
+    if (pl.clangAt && now - pl.clangAt >= 40) v.clangDone = false;
+    k.root.position.z = PLAYER_Z + v.zoff;
     anim.set(target, omega);
     anim.update(dt / 1000);
-    if (v.hp !== null && pl.health < v.hp) anim.jolt(-3.5, (Math.random() - 0.5) * 2, 0);
+    if (v.hp !== null && pl.health < v.hp) { anim.jolt(-4.5, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2); this.camHurt = 1; }
     v.hp = pl.health;
     const look = this.enemy ? this.enemy.k.J.head.getWorldPosition(this.v3 || (this.v3 = new THREE.Vector3())) : null;
     anim.apply(look, { breathe: pl.state === PS.DEAD ? 0 : 1, time: now });
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
+    this._trail(v, pl.state === PS.DEAD ? null : 0xcfe2ff);
+  }
+
+  _trail(v, color) {
+    if (!v.trail) return;
+    if (color === null) { v.trail.hide(); return; }
+    const { k } = v;
+    if (!this._tb) { this._tb = new THREE.Vector3(); this._tt = new THREE.Vector3(); }
+    k.weaponObj.updateMatrixWorld(true);
+    const base = k.weaponObj.localToWorld(this._tb.set(0, 0, 0));
+    const tip = k.weaponObj.localToWorld(this._tt.set(0, -k.weaponLen, 0));
+    v.trail.setColor(color);
+    v.trail.update(base, tip, performance.now());
   }
 
   // ---------- per-frame ----------
@@ -817,6 +877,16 @@ export class HallView extends World3D {
     cam.position.copy(this.camHome);
     cam.position.x += px * 0.55;
     cam.position.y += Math.sin(now / 1900) * 0.012;
+    // Tension: creep in while he winds up; punch in on your hits; jolt when you're struck.
+    const ee = duel.enemy;
+    let push = 0;
+    if (ee && ee.state === ES.TELEGRAPH) push = Math.min(1, ee.t / ee.telegraphTotal) * 0.22;
+    this.camPush = (this.camPush || 0) + (push - (this.camPush || 0)) * Math.min(1, (dt || 16) / (push > (this.camPush || 0) ? 400 : 90));
+    this.camPunch = (this.camPunch || 0) * Math.exp(-(dt || 16) / 90);
+    this.camHurt = (this.camHurt || 0) * Math.exp(-(dt || 16) / 140);
+    cam.position.z -= this.camPush + this.camPunch * 0.12;
+    cam.position.x += this.camHurt * 0.08 * Math.sin(now / 17);
+    cam.position.y -= this.camHurt * 0.05;
     const sh = duel.cameras.main.shakeEffect;
     if (sh && sh.isRunning) {
       cam.position.x += (sh._offsetX || 0) * 0.004;
@@ -826,7 +896,7 @@ export class HallView extends World3D {
     cam.lookAt(this.camTarget.x + px * 0.25, this.camTarget.y, this.camTarget.z);
     // A short zoom punch on parries and staggers.
     const e = duel.enemy;
-    if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 4;
+    if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 7;
     this.fovKick *= Math.exp(-(dt || 16) / 180);
     cam.fov = FOV - this.fovKick;
     cam.updateProjectionMatrix();
