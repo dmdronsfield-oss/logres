@@ -1,5 +1,10 @@
 import { CONFIG } from '../config.js';
 import { ES } from './Enemy.js';
+import { desktopLikely } from '../input/Keys.js';
+
+// Prompts in touch and keyboard wording.
+const KEYS = desktopLikely();
+const say = (touch, keys) => (KEYS ? keys : touch);
 
 // Scripted first duel: the enemy attacks on cue and the game freezes at the
 // right moment until the player performs the prompted action.
@@ -58,16 +63,16 @@ export class Tutorial {
         this.froze = true;
         this.frozen = 'dodge';
         this.hud.pulse(['dodgeL', 'dodgeR'], true);
-        this.hud.banner('TAP A DODGE BUTTON to step aside!', 0);
+        this.hud.banner(say('TAP A DODGE BUTTON to step aside!', 'Press A or D to step aside!'), 0);
       } else if (this.step === 'block' && rem <= tc.blockFreezeAt) {
         this.froze = true;
         this.frozen = 'block';
         this.hud.pulse(['block'], true);
-        this.hud.banner('HOLD the shield button to block!', 0);
+        this.hud.banner(say('HOLD the shield button to block!', 'HOLD S (or Space) to block!'), 0);
       } else if (this.step === 'parry' && rem <= tc.parryFreezeAt) {
         this.froze = true;
         this.frozen = 'parry';
-        this.hud.banner('SWIPE UP, against his falling blow!', 0, '↑');
+        this.hud.banner(say('SWIPE UP, against his falling blow!', 'Press ↑, against his falling blow!'), 0, '↑');
       }
     }
 
@@ -78,7 +83,7 @@ export class Tutorial {
         this._go('block', 'Now a sideways slash. Get ready to BLOCK with your shield.', 0);
       } else if (this.step === 'strike2') {
         this._queue(['overhead'], CONFIG.tutorial.openHoldMs);
-        this._go('parry', 'Best of all is the PARRY: as the glint FLARES, swipe AGAINST his blow.', 0);
+        this._go('parry', say('Best of all is the PARRY: as the glint FLARES, swipe AGAINST his blow.', 'Best of all is the PARRY: as the glint FLARES, press the arrow AGAINST his blow.'), 0);
       } else if (this.step === 'strike3') {
         this._go('free', 'Now fight! Parry and perfect dodges fill his stagger meter (the gold bar). Strike when he is open.', 4200);
         e.hold = false;
@@ -95,7 +100,7 @@ export class Tutorial {
   }
 
   onClang() {
-    if (this.frozen === 'parry') this.hud.banner('Swipe UP: straight against the falling axe!', 0, '↑');
+    if (this.frozen === 'parry') this.hud.banner(say('Swipe UP: straight against the falling axe!', 'Press ↑: straight against the falling axe!'), 0, '↑');
   }
 
   onParry() {
@@ -115,11 +120,11 @@ export class Tutorial {
     if (this.step === 'dodge') {
       if (outcome === 'dodged' || outcome === 'perfect') {
         this.hits = 0;
-        this._go('strike', 'He is OPEN! SWIPE across him to strike!', 0);
+        this._go('strike', say('He is OPEN! SWIPE across him to strike!', 'He is OPEN! Press arrow keys to strike!'), 0);
       } else {
         this._unfreeze();
         this._queue(['overhead'], CONFIG.tutorial.openHoldMs);
-        this.hud.banner('Not quite. Tap a dodge button as the blow falls.', 0);
+        this.hud.banner(say('Not quite. Tap a dodge button as the blow falls.', 'Not quite. Press A or D as the blow falls.'), 0);
       }
     } else if (this.step === 'block') {
       if (outcome === 'blocked') {
@@ -128,7 +133,7 @@ export class Tutorial {
       } else {
         this._unfreeze();
         this._queue(['slashE']);
-        this.hud.banner('Hold the shield button down until the blow lands.', 0);
+        this.hud.banner(say('Hold the shield button down until the blow lands.', 'Hold S down until the blow lands.'), 0);
       }
     } else if (this.step === 'parry') {
       // An impact means the parry was missed.
@@ -139,7 +144,7 @@ export class Tutorial {
         this.e.hold = false;
       } else {
         this._queue(['overhead'], CONFIG.tutorial.openHoldMs);
-        this.hud.banner('Once more: as the glint flares, swipe UP against the blow.', 0);
+        this.hud.banner(say('Once more: as the glint flares, swipe UP against the blow.', 'Once more: as the glint flares, press ↑ against the blow.'), 0);
       }
     }
   }

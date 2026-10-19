@@ -171,6 +171,22 @@ export class SwipeInput {
     g.fillCircle(last.x, last.y, CONFIG.swipe.trailWidth * 0.7);
   }
 
+  // A swipe from the keyboard: draw its stroke across the middle of the screen.
+  keySwipe(dir) {
+    if (!this.enabled) return;
+    const [dx, dy] = DIR_VEC[dir];
+    const cx = VIEW.W / 2;
+    const cy = VIEW.H * 0.42;
+    const L = Math.min(VIEW.W, VIEW.H) * 0.22;
+    const now = performance.now();
+    const pts = [];
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8 - 0.5;
+      pts.push({ x: cx + dx * L * 2 * t, y: cy + dy * L * 2 * t, t: now });
+    }
+    this._fire({ dir, dx, dy }, pts);
+  }
+
   // Release everything (e.g. when pausing) so held buttons don't stick.
   releaseAll() {
     for (const a of this.active.values()) {

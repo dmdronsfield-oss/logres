@@ -180,6 +180,24 @@ export class Hud {
     this.realT = 0;
   }
 
+  // Small key labels under the roundels for keyboard players.
+  showKeyHints() {
+    if (this.keyHints) return;
+    const label = { dodgeL: 'A', dodgeR: 'D', block: 'S', super: 'W', pause: 'Esc' };
+    this.keyHints = Object.entries(label).map(([id, k]) => {
+      const p = this.pos[id];
+      const below = p.y < VIEW.H / 2;
+      return text(this.scene, p.x, below ? p.y + p.r + 10 : p.y - p.r - 10, k, {
+        fontSize: '13px', fontStyle: '700', color: '#f3ead2', backgroundColor: 'rgba(20,14,10,0.75)', padding: { x: 5, y: 1 },
+      }).setDepth(DEPTH + 2);
+    });
+    const tip = text(this.scene, VIEW.W / 2, this.pos.block.y - this.pos.block.r - 26, 'Arrow keys strike · two at once for diagonals', {
+      fontSize: '12px', color: '#f3ead2', backgroundColor: 'rgba(20,14,10,0.6)', padding: { x: 6, y: 2 },
+    }).setDepth(DEPTH + 2);
+    this.scene.tweens.add({ targets: tip, alpha: 0, delay: 6000, duration: 800, onComplete: () => tip.destroy() });
+    this.keyHints.push(tip);
+  }
+
   _buildTourneyBar(scene, enemyName, t) {
     const W = VIEW.W;
     const plaqueW = 112;

@@ -8,6 +8,7 @@ import { CombatDirector } from '../combat/CombatDirector.js';
 import { Tutorial } from '../combat/Tutorial.js';
 import { Juice } from '../fx/Juice.js';
 import { SwipeInput } from '../input/SwipeInput.js';
+import { bindDuelKeys, desktopLikely } from '../input/Keys.js';
 import { Hud } from '../ui/Hud.js';
 import { menuButton } from '../ui/Button.js';
 import { img, text, canvasTex } from '../art/Tex.js';
@@ -136,21 +137,27 @@ export class Duel extends Phaser.Scene {
     const debugX = Save.data.leftHanded ? cs / 2 : VIEW.W - cs / 2;
     this.swipe.addButton('debug', debugX, cs / 2, { w: cs, h: cs, pad: 0 });
 
-    // Desktop testing: arrows dodge, space blocks, Esc pauses. Mouse drag swipes.
-    const kb = this.input.keyboard;
-    if (kb) {
-      kb.on('keydown-LEFT', () => { Sfx.unlock(); d.onDodge('left'); });
-      kb.on('keydown-RIGHT', () => { Sfx.unlock(); d.onDodge('right'); });
-      kb.on('keydown-SPACE', (e) => {
-        if (e.repeat) return;
-        Sfx.unlock();
-        d.onBlock(true);
-        hud.press('block', true);
-      });
-      kb.on('keyup-SPACE', () => { d.onBlock(false); hud.press('block', false); });
-      kb.on('keydown-S', () => d.onSuper());
-      kb.on('keydown-ESC', () => (this.paused ? this.resume() : this.pause()));
-    }
+    // Desktop: arrows (or numpad) strike, A/D dodge, S/Space block, W/Enter super,
+    // Esc/P pause. Mouse drag still swipes.
+    const flashBtn = (id) => { hud.press(id, true); this.time.delayedCall(120, () => hud.press(id, false)); };
+    bindDuelKeys(this, {
+      used: () => { Sfx.unlock(); hud.showKeyHints(); },
+      swipe: (dir) => { if (!this.paused) this.swipe.keySwipe(dir); },
+      dodge: (side) => {
+        if (this.paused) return;
+        flashBtn(side === 'left' ? 'dodgeL' : 'dodgeR');
+        d.onDodge(side);
+      },
+      block: (held) => {
+        if (this.paused && held) return;
+        hud.press('block', held);
+        d.onBlock(held);
+      },
+      superMove: () => { if (!this.paused) { flashBtn('super'); d.onSuper(); } },
+      confirm: () => { if (this.paused) { this.resume(); return true; } return false; },
+      pause: () => (this.paused ? this.resume() : this.pause()),
+    });
+    if (desktopLikely()) hud.showKeyHints();
   }
 
   _debugTap() {

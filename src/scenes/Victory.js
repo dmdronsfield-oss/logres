@@ -5,6 +5,7 @@ import { ENEMIES } from '../combat/enemies.js';
 import { img, text } from '../art/Tex.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { menuButton } from '../ui/Button.js';
+import { bindMenuKeys } from '../input/Keys.js';
 import { setupCamera, fadeTo } from './common.js';
 
 export class Victory extends Phaser.Scene {
@@ -61,6 +62,7 @@ export class Victory extends Phaser.Scene {
 
     const next = ENEMIES[s.runStage] || ENEMIES[0];
     menuButton(this, W / 2 + 140, H - 70, 260, 62, `Onward`, () => fadeTo(this, 'Duel'), { size: 26, fill: '#f6dc8a' });
+    bindMenuKeys(this, { Enter: () => fadeTo(this, 'Duel'), Space: () => fadeTo(this, 'Duel'), Escape: () => fadeTo(this, 'Title') });
     text(this, W / 2 + 140, H - 28, `vs ${next.name}`, { fontSize: '15px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4 });
     menuButton(this, W / 2 - 140, H - 70, 220, 56, 'To camp', () => fadeTo(this, 'Title'), { size: 22 });
 

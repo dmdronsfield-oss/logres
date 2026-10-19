@@ -82,10 +82,11 @@ export class Death extends Phaser.Scene {
     this.tweens.add({ targets: tap, alpha: 0.4, delay: 2400, duration: 900, yoyo: true, repeat: -1 });
 
     this.time.delayedCall(1600, () => {
-      this.input.once('pointerup', () => {
-        Sfx.click();
-        fadeTo(this, 'Title');
-      });
+      const go = () => { Sfx.click(); fadeTo(this, 'Title'); };
+      this.input.once('pointerup', go);
+      const onKey = (e) => { if (['Enter', 'Space', 'Escape', 'NumpadEnter'].includes(e.code)) go(); };
+      window.addEventListener('keydown', onKey);
+      this.events.once('shutdown', () => window.removeEventListener('keydown', onKey));
     });
 
     this.cameras.main.fadeIn(600, 0, 0, 0);

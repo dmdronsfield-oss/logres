@@ -8,6 +8,7 @@ import { drawShieldShape } from '../art/Rig.js';
 import { DIR_ARROW } from '../input/SwipeInput.js';
 import { menuButton, arrowButton } from '../ui/Button.js';
 import { setupCamera, fadeTo } from './common.js';
+import { bindMenuKeys, desktopLikely } from '../input/Keys.js';
 
 function panel(scene, x, y, w, h) {
   const key = `panel_${w}x${h}`;
@@ -80,6 +81,11 @@ export class Title extends Phaser.Scene {
 
     this.swordText = this._selector(leftX, panelY - 12, CONFIG.swords, 'sword', colW);
     this.shieldText = this._selector(leftX, panelY + 70, CONFIG.shields, 'shield', colW);
+    bindMenuKeys(this, {
+      Enter: () => this._play(), Space: () => this._play(),
+      ArrowLeft: () => this.steps.sword(-1), ArrowRight: () => this.steps.sword(1),
+      ArrowUp: () => this.steps.shield(-1), ArrowDown: () => this.steps.shield(1),
+    });
 
     // ---------- centre: the shield and the call to arms ----------
     this._drawCrest(W / 2, 236);
@@ -110,7 +116,10 @@ export class Title extends Phaser.Scene {
     this._toggle(rightX + bw3 + 6, setY, bw3, 'Lefty', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
 
     // Small footer
-    text(this, W / 2, H - 30, 'Swipe to strike · Dodge and block with the roundels · Parry by swiping against a blow', {
+    const footer = desktopLikely()
+      ? 'Enter to ride out · ←→ sword · ↑↓ shield   |   In the duel: arrows strike · A/D dodge · S block · W super'
+      : 'Swipe to strike · Dodge and block with the roundels · Parry by swiping against a blow';
+    text(this, W / 2, H - 30, footer, {
       fontSize: '13px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 3,
     });
 
@@ -189,6 +198,7 @@ export class Title extends Phaser.Scene {
       refresh();
       this._drawCrest(VIEW.W / 2, 236);
     };
+    (this.steps || (this.steps = {}))[kind] = step;
     arrowButton(this, x - colW / 2 + 32, y + 6, -1, () => step(-1));
     arrowButton(this, x + colW / 2 - 32, y + 6, 1, () => step(1));
     refresh();
