@@ -144,6 +144,16 @@ export class Hud {
       this.pos.super = { x: leftHanded ? W / 2 + 120 : W / 2 - 120, y: H - 46 - padB, r: 44 * s };
       this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 118, r: 28 };
     }
+    if (VIEW.portrait) {
+      // Upright: a row of roundels along the bottom, the super above the left thumb.
+      const s = 0.95;
+      this.btnScale = s;
+      this.pos.dodgeL = { x: padL + 66, y: H - 84 - padB, r: 54 * s };
+      this.pos.dodgeR = { x: W - padR - 66, y: H - 84 - padB, r: 54 * s };
+      this.pos.block = { x: W / 2, y: H - 96 - padB, r: 54 * s };
+      this.pos.super = { x: leftHanded ? W - padR - 60 : padL + 60, y: H - 214 - padB, r: 44 * s };
+      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 176, r: 28 };
+    }
 
     this.btn = {};
     for (const id of ['dodgeL', 'dodgeR', 'block', 'super', 'pause']) {
@@ -175,7 +185,7 @@ export class Hud {
     this.vals = { enemy: 1, player: 1, stagger: 0, open: 0, superF: 0 };
 
     // Hit counter
-    this.counter = text(scene, W - padR - 130, 190, '', {
+    this.counter = text(scene, W - padR - (VIEW.portrait ? 80 : 130), VIEW.portrait ? Math.round(H * 0.3) : 190, '', {
       fontSize: '40px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 7,
     }).setDepth(DEPTH).setAlpha(0);
 
@@ -185,7 +195,7 @@ export class Hud {
     this.arrowY = bannerY > 280 ? bannerY - 105 : bannerY + 94;
     this.bannerBg = img(scene, W / 2, bannerY, 'banner').setDepth(DEPTH + 5).setAlpha(0);
     this.bannerText = text(scene, W / 2, bannerY, '', {
-      fontSize: '21px', fontStyle: '700', color: PALETTE.inkCss, wordWrap: { width: 560 }, lineSpacing: 2,
+      fontSize: '21px', fontStyle: '700', color: PALETTE.inkCss, wordWrap: { width: Math.min(560, W - 90) }, lineSpacing: 2,
     }).setDepth(DEPTH + 6).setAlpha(0);
     this.promptArrow = text(scene, W / 2, this.arrowY, '', {
       fontSize: '92px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
@@ -256,14 +266,18 @@ export class Hud {
 
   _buildTourneyBar(scene, enemyName, t) {
     const W = VIEW.W;
+    const P = VIEW.portrait;
     const plaqueW = 112;
-    const panelW = Math.min(440, (W - 40 - plaqueW - 16) / 2);
+    // Landscape: you on the left, him on the right, the round between. Portrait: two
+    // full-width rows, him on top, with the round plaque at the right.
+    const panelW = P ? W - 40 - plaqueW - 10 : Math.min(440, (W - 40 - plaqueW - 16) / 2);
     const panelH = 60;
     const top = 8;
     const crestW = 50;
     const crestH = 60;
-    const leftX = W / 2 - plaqueW / 2 - 8 - panelW;
-    const rightX = W / 2 + plaqueW / 2 + 8;
+    const leftX = P ? 20 : W / 2 - plaqueW / 2 - 8 - panelW;
+    const rightX = P ? 20 : W / 2 + plaqueW / 2 + 8;
+    const playerTop = P ? top + panelH + 20 : top;
     const panel = (key, field, crest, crestLeft) => canvasTex(scene, key, panelW, panelH + 16, (ctx, w) => {
       roundRect(ctx, 3, 3, w - 6, panelH - 6, 6);
       const g = ctx.createLinearGradient(0, 0, 0, panelH);
@@ -283,12 +297,13 @@ export class Hud {
       drawCrest(ctx, cx, 2, crestW, crestH + 10, crest.field, crest.charge, crest.color);
     });
     const pKey = panel(`tb_p_${W}`, '#22346e', t.playerCrest, true);
-    const eKey = panel(`tb_e_${t.enemyId}_${W}`, t.enemyCrest.field, t.enemyCrest, false);
-    img(scene, leftX, top, pKey, 0, 0).setDepth(DEPTH);
+    const eKey = panel(`tb_e_${t.enemyId}_${W}`, t.enemyCrest.field, t.enemyCrest, P);
+    img(scene, leftX, playerTop, pKey, 0, 0).setDepth(DEPTH);
     img(scene, rightX, top, eKey, 0, 0).setDepth(DEPTH);
     const nameStyle = { fontSize: '20px', fontStyle: '700', color: '#f3ead2', stroke: PALETTE.inkCss, strokeThickness: 4 };
-    text(scene, leftX + crestW + 22, top + 19, t.playerName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
-    text(scene, rightX + panelW - crestW - 22, top + 19, enemyName, { ...nameStyle, originX: 1 }).setDepth(DEPTH + 1);
+    text(scene, leftX + crestW + 22, playerTop + 19, t.playerName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
+    if (P) text(scene, rightX + crestW + 22, top + 19, enemyName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
+    else text(scene, rightX + panelW - crestW - 22, top + 19, enemyName, { ...nameStyle, originX: 1 }).setDepth(DEPTH + 1);
     canvasTex(scene, 'tb_plaque', plaqueW, 72, (ctx, w, h) => {
       roundRect(ctx, 3, 3, w - 6, h - 6, 5);
       ctx.fillStyle = '#efe2c0';
@@ -303,13 +318,18 @@ export class Hud {
       ctx.fillRect(w / 2 - 14, h - 14, 28, 2);
       ctx.fillRect(w / 2 - 2, h - 18, 4, 10);
     });
-    img(scene, W / 2, top, 'tb_plaque', 0.5, 0).setDepth(DEPTH);
-    text(scene, W / 2, top + 18, 'Round', { fontSize: '16px', fontStyle: '700' }).setDepth(DEPTH + 1);
-    text(scene, W / 2, top + 41, `${t.round}/${t.rounds}`, { fontSize: '23px', fontStyle: '700' }).setDepth(DEPTH + 1);
+    const plaqueX = P ? W - 20 - plaqueW / 2 : W / 2;
+    img(scene, plaqueX, top, 'tb_plaque', 0.5, 0).setDepth(DEPTH);
+    text(scene, plaqueX, top + 18, 'Round', { fontSize: '16px', fontStyle: '700' }).setDepth(DEPTH + 1);
+    text(scene, plaqueX, top + 41, `${t.round}/${t.rounds}`, { fontSize: '23px', fontStyle: '700' }).setDepth(DEPTH + 1);
     const segX = (x0) => x0 + crestW + 20;
     const segW = panelW - crestW - 40;
     this.bars.setDepth(DEPTH + 1);   // segments draw over the panels
-    this.tb = { top, panelW, panelH, leftSeg: segX(leftX), rightSeg: rightX + 20, segW, segY: top + 36 };
+    this.tb = {
+      top, panelW, panelH, segW,
+      pSeg: { x: segX(leftX), y: playerTop + 36 },
+      eSeg: { x: P ? segX(rightX) : rightX + 20, y: top + 36 },
+    };
   }
 
   _drawSegments(g, x, y, w, frac, fill) {
@@ -367,17 +387,17 @@ export class Hud {
     const v = this.vals;
     if (this.tourney) {
       const t = this.tb;
-      this._drawSegments(g, t.leftSeg, t.segY, t.segW, v.player, 0xd23a2a);
-      this._drawSegments(g, t.rightSeg, t.segY, t.segW, v.enemy, 0xd23a2a);
+      this._drawSegments(g, t.pSeg.x, t.pSeg.y, t.segW, v.player, 0xd23a2a);
+      this._drawSegments(g, t.eSeg.x, t.eSeg.y, t.segW, v.enemy, 0xd23a2a);
       // Stagger meter and open window under the enemy's panel.
       const sy = t.top + t.panelH + 2;
       g.fillStyle(PALETTE.ink, 0.75);
-      g.fillRect(t.rightSeg, sy, t.segW, 6);
+      g.fillRect(t.eSeg.x, sy, t.segW, 6);
       g.fillStyle(0xf6d061, 1);
-      g.fillRect(t.rightSeg, sy, t.segW * v.stagger, 6);
+      g.fillRect(t.eSeg.x, sy, t.segW * v.stagger, 6);
       if (v.open > 0) {
         g.fillStyle(0xfff6cf, 0.95);
-        g.fillRect(t.rightSeg, sy + 9, t.segW * v.open, 4);
+        g.fillRect(t.eSeg.x, sy + 9, t.segW * v.open, 4);
       }
       this._drawSuperRing();
       return;
@@ -448,6 +468,10 @@ export class Hud {
   }
 
   bigText(str, color = PALETTE.goldLight, y = 210, size = 54) {
+    if (VIEW.portrait) {
+      y = Math.round(VIEW.H * 0.24 + (y - 200) * 0.8);
+      size = Math.min(size, 46);
+    }
     const t = text(this.scene, VIEW.W / 2, y, str, {
       fontSize: `${size}px`, fontStyle: '700', color, stroke: PALETTE.inkCss, strokeThickness: 8,
     }).setDepth(DEPTH + 4).setScale(0.6).setAlpha(0);

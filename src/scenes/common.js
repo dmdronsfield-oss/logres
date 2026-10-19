@@ -34,6 +34,15 @@ export function fadeTo(scene, key, data) {
   scene.cameras.main.once('camerafadeoutcomplete', () => scene.scene.start(key, data));
 }
 
+// True when the screen needs turning: pages without a portrait layout held upright.
 export function isPortrait() {
+  if (window.LOGRES_CAM === 'side') return false;
   return window.innerHeight > window.innerWidth;
+}
+
+// Portrait layouts: map a y authored for the 540-high landscape screen onto the
+// tall screen, centred on `anchor` (a fraction of the height).
+export function py(y, anchor = 0.5) {
+  if (!VIEW.portrait) return y;
+  return Math.round(VIEW.H * anchor + (y - 270));
 }

@@ -14,7 +14,7 @@ import { menuButton } from '../ui/Button.js';
 import { img, text, canvasTex } from '../art/Tex.js';
 import { PLAYER_CREST, playerName } from '../art/Heraldry.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
-import { setupCamera, fadeTo, isPortrait } from './common.js';
+import { setupCamera, fadeTo, isPortrait, py } from './common.js';
 
 export class Duel extends Phaser.Scene {
   constructor() {
@@ -57,7 +57,7 @@ export class Duel extends Phaser.Scene {
       level: s.level, sword: Save.sword(), shield: Save.shield(), leftHanded: s.leftHanded,
     });
     // In the side view the fighters fill the upper screen, so prompts go lower.
-    const bannerY = this.w3 && this.w3.cam === 'side' ? 322 : 236;
+    const bannerY = VIEW.portrait ? Math.round(H * 0.6) : this.w3 && this.w3.cam === 'side' ? 322 : 236;
     const tourney = this.w3 && this.w3.tourney ? {
       playerName: playerName(s.generation),
       round: s.runStage + 1,
@@ -240,19 +240,19 @@ export class Duel extends Phaser.Scene {
     const H = VIEW.H;
     const c = this.add.container(0, 0).setDepth(70);
     c.add(this.add.rectangle(W / 2, H / 2, W + 400, H + 400, 0x120c08, 0.72).setInteractive());
-    c.add(text(this, W / 2, 92, 'Paused', {
+    c.add(text(this, W / 2, py(92), 'Paused', {
       fontSize: '46px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
     }));
     const toggle = (y, label, get, set) => {
-      const b = menuButton(this, W / 2, y, 320, 50, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: 19 });
+      const b = menuButton(this, W / 2, py(y), 320, 50, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: 19 });
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
       c.add(b);
     };
-    c.add(menuButton(this, W / 2, 170, 300, 58, 'Resume', () => this.resume(), { size: 26, fill: '#f6dc8a' }));
+    c.add(menuButton(this, W / 2, py(170), 300, 58, 'Resume', () => this.resume(), { size: 26, fill: '#f6dc8a' }));
     toggle(238, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
     toggle(296, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
     toggle(354, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
-    c.add(menuButton(this, W / 2, 430, 300, 54, 'Retreat to camp', () => {
+    c.add(menuButton(this, W / 2, py(430), 300, 54, 'Retreat to camp', () => {
       this.tweens.resumeAll();
       fadeTo(this, 'Title');
     }, { size: 20 }));

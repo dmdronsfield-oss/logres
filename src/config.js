@@ -11,6 +11,7 @@ export const VIEW = {
   maxRes: 2,
   minAspect: 1.4,
   maxAspect: 2.2,
+  portrait: false, // the side view also plays upright; layout is chosen at boot
   safeL: 0,      // safe-area insets in logical units
   safeR: 0,
   safeB: 0,

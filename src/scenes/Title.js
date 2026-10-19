@@ -50,22 +50,38 @@ export class Title extends Phaser.Scene {
     this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.25);
     img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
-    text(this, W / 2, 62, 'LOGRES', {
+    // Layout: three columns in landscape; stacked when the phone is upright.
+    const P = VIEW.portrait;
+    const L = { titleY: 62, subY: 112, crestY: 236, crestScale: 1, playY: 398, foeY: 446, footerY: H - 30 };
+    if (P) {
+      L.titleY = 72;
+      L.subY = 124;
+      L.footerY = H - 34;
+      L.strikesY = L.footerY - 40 - 125;
+      L.gearY = L.strikesY - 264;
+      L.foeY = L.gearY - 125 - 30;
+      L.playY = L.foeY - 50;
+      const room = L.playY - 40 - (L.subY + 24);
+      L.crestScale = Math.max(0, Math.min(1.25, room / 230));
+      L.crestY = (L.subY + 24 + L.playY - 40) / 2;
+    }
+    this.L = L;
+    text(this, W / 2, L.titleY, 'LOGRES', {
       fontSize: '74px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 10,
     }).setShadow(0, 4, 'rgba(0,0,0,0.4)', 6);
     if (MODE === '3d') {
-      text(this, W / 2 + 150, 34, window.LOGRES_MODEL ? 'MODEL PREVIEW' : window.LOGRES_CAM === 'side' ? 'SIDE VIEW' : '3D TEST', {
+      text(this, W / 2 + 150, L.titleY - 28, window.LOGRES_MODEL ? 'MODEL PREVIEW' : window.LOGRES_CAM === 'side' ? 'SIDE VIEW' : '3D TEST', {
         fontSize: '16px', fontStyle: '700', color: '#ffffff', backgroundColor: PALETTE.vermilionCss, padding: { x: 8, y: 3 },
       }).setAngle(8);
     }
-    text(this, W / 2, 112, 'Duels in the Matter of Britain', {
+    text(this, W / 2, L.subY, 'Duels in the Matter of Britain', {
       fontSize: '19px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4,
     });
 
-    const colW = Math.min(330, (W - 80) / 3);
-    const leftX = W / 2 - colW - 14;
-    const rightX = W / 2 + colW + 14;
-    const panelY = 280;
+    const colW = P ? W - 60 : Math.min(330, (W - 80) / 3);
+    const leftX = P ? W / 2 : W / 2 - colW - 14;
+    const rightX = P ? W / 2 : W / 2 + colW + 14;
+    let panelY = P ? L.gearY : 280;
     const panelH = 250;
 
     // ---------- left: the knight and his gear ----------
@@ -88,15 +104,16 @@ export class Title extends Phaser.Scene {
     });
 
     // ---------- centre: the shield and the call to arms ----------
-    this._drawCrest(W / 2, 236);
+    this._drawCrest(W / 2, L.crestY);
     const next = ENEMIES[s.runStage] || ENEMIES[0];
     const playLabel = s.runStage === 0 ? 'Ride Out' : 'Continue';
-    menuButton(this, W / 2, 398, 250, 66, playLabel, () => this._play(), { size: 30, fill: '#f6dc8a' });
-    text(this, W / 2, 446, `Next foe: ${next.name}`, {
+    menuButton(this, W / 2, L.playY, 250, 66, playLabel, () => this._play(), { size: 30, fill: '#f6dc8a' });
+    text(this, W / 2, L.foeY, `Next foe: ${next.name}`, {
       fontSize: '17px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4,
     });
 
     // ---------- right: known strikes and settings ----------
+    if (P) panelY = L.strikesY;
     panel(this, rightX, panelY, colW, panelH);
     text(this, rightX, panelY - 100, 'Known Strikes', { fontSize: '22px', fontStyle: '700' });
     text(this, rightX, panelY - 76, 'swipe in one opening', { fontSize: '13px', color: '#5a4630' });
@@ -119,12 +136,12 @@ export class Title extends Phaser.Scene {
     const footer = desktopLikely()
       ? 'Enter to ride out · ←→ sword · ↑↓ shield   |   In the duel: arrows strike · A/D dodge · S block · W super'
       : 'Swipe to strike · Dodge and block with the roundels · Parry by swiping against a blow';
-    text(this, W / 2, H - 30, footer, {
-      fontSize: '13px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 3,
+    text(this, W / 2, L.footerY, P ? 'Swipe to strike · Dodge and block with the roundels\nParry by swiping against a blow' : footer, {
+      fontSize: '13px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 3, align: 'center',
     });
 
     if (s.generation > 1 || s.wins > 0) {
-      const reset = text(this, W - 70, H - 30, 'Reset', {
+      const reset = text(this, W - 50, P ? 40 : H - 30, 'Reset', {
         fontSize: '12px', color: '#cdb98f', stroke: PALETTE.inkCss, strokeThickness: 3,
       }).setInteractive({ useHandCursor: true });
       let armed = false;
@@ -173,6 +190,8 @@ export class Title extends Phaser.Scene {
     });
     if (this.crest) this.crest.destroy();
     this.crest = img(this, x, y, key);
+    const k = this.L ? this.L.crestScale : 1;
+    this.crest.setScale(this.crest.scaleX * k).setVisible(k > 0.35);
   }
 
   _selector(x, y, list, kind, colW) {
@@ -196,7 +215,7 @@ export class Title extends Phaser.Scene {
         }
       }
       refresh();
-      this._drawCrest(VIEW.W / 2, 236);
+      this._drawCrest(VIEW.W / 2, this.L.crestY);
     };
     (this.steps || (this.steps = {}))[kind] = step;
     arrowButton(this, x - colW / 2 + 32, y + 6, -1, () => step(-1));

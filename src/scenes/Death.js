@@ -5,7 +5,7 @@ import { ENEMIES } from '../combat/enemies.js';
 import { img, text, canvasTex } from '../art/Tex.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { drawShieldShape } from '../art/Rig.js';
-import { setupCamera, fadeTo } from './common.js';
+import { setupCamera, fadeTo, py } from './common.js';
 
 // Bloodline succession: the fallen knight's shield hangs in the chapel.
 export class Death extends Phaser.Scene {
@@ -42,16 +42,16 @@ export class Death extends Phaser.Scene {
       ctx.fill();
       drawShieldShape(ctx, shield.id === 'targe' ? 'round' : 'heater', 100, 130, 68, shield.field, shield.charge);
     });
-    const hung = img(this, W / 2, 96, key, 0.5, 0.05);
+    const hung = img(this, W / 2, py(96, 0.45), key, 0.5, 0.05);
     hung.setAngle(-6);
     this.tweens.add({ targets: hung, angle: 4, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     // Candles
     const flames = [];
-    [-250, -170, 170, 250].forEach((dx) => {
+    (VIEW.portrait ? [-200, -150, 150, 200] : [-250, -170, 170, 250]).forEach((dx) => {
       const x = W / 2 + dx;
-      this.add.rectangle(x, 300, 16, 60, 0xf1e3c4).setStrokeStyle(2, PALETTE.ink);
-      const f = this.add.ellipse(x, 260, 12, 22, 0xf6d061).setBlendMode(Phaser.BlendModes.ADD);
+      this.add.rectangle(x, py(300, 0.45), 16, 60, 0xf1e3c4).setStrokeStyle(2, PALETTE.ink);
+      const f = this.add.ellipse(x, py(260, 0.45), 12, 22, 0xf6d061).setBlendMode(Phaser.BlendModes.ADD);
       flames.push(f);
     });
     this.time.addEvent({
@@ -60,10 +60,10 @@ export class Death extends Phaser.Scene {
       callback: () => flames.forEach((f) => f.setScale(0.85 + Math.random() * 0.3, 0.85 + Math.random() * 0.35)),
     });
 
-    text(this, W / 2, 50, `Generation ${data.fallenGen} fell before ${def.name}.`, {
-      fontSize: '22px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
+    text(this, W / 2, py(50, 0.45), `Generation ${data.fallenGen} fell before ${def.name}.`, {
+      fontSize: '22px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5, wordWrap: { width: W - 60 }, align: 'center',
     });
-    const oath = text(this, W / 2, 392, `The oath passes to his son.\nGeneration ${s.generation}.`, {
+    const oath = text(this, W / 2, py(392, 0.45), `The oath passes to his son.\nGeneration ${s.generation}.`, {
       fontSize: '32px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 7, lineSpacing: 6,
     }).setAlpha(0);
     this.tweens.add({ targets: oath, alpha: 1, delay: 900, duration: 900 });
@@ -71,8 +71,8 @@ export class Death extends Phaser.Scene {
     const extra = [`+${data.xp} experience carried in the blood`];
     if (data.levels > 0) extra.push(`Level ${s.level}`);
     (data.unlocks || []).forEach((u) => extra.push(`New gear: ${u}`));
-    text(this, W / 2, 468, extra.join(' · '), {
-      fontSize: '16px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4,
+    text(this, W / 2, py(468, 0.45), extra.join(' · '), {
+      fontSize: '16px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4, wordWrap: { width: W - 60 }, align: 'center',
     });
 
     const tap = text(this, W / 2, H - 30, 'Tap to take up the sword', {

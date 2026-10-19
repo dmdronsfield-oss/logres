@@ -6,7 +6,7 @@ import { img, text } from '../art/Tex.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { menuButton } from '../ui/Button.js';
 import { bindMenuKeys } from '../input/Keys.js';
-import { setupCamera, fadeTo } from './common.js';
+import { setupCamera, fadeTo, py } from './common.js';
 
 export class Victory extends Phaser.Scene {
   constructor() {
@@ -27,7 +27,7 @@ export class Victory extends Phaser.Scene {
     this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.35);
     img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
-    const title = text(this, W / 2, 80, data.final ? 'The Cycle Turns' : 'Victory', {
+    const title = text(this, W / 2, py(80, 0.4), data.final ? 'The Cycle Turns' : 'Victory', {
       fontSize: '64px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 10,
     }).setScale(0.6).setAlpha(0);
     this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 500, ease: 'Back.easeOut' });
@@ -45,18 +45,20 @@ export class Victory extends Phaser.Scene {
     if (data.levels > 0) lines.push(`Level up! You are now level ${s.level}: more health and a keener edge.`);
     (data.unlocks || []).forEach((u) => lines.push(`New gear: ${u}. Choose it in camp.`));
 
+    let ly = py(160, 0.4);
     lines.forEach((l, i) => {
-      const t = text(this, W / 2, 160 + i * 38, l, {
+      const t = text(this, W / 2, ly, l, {
         fontSize: i === 0 ? '24px' : '19px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
-        fontStyle: i === 0 ? '700' : '400', wordWrap: { width: W - 160 },
+        fontStyle: i === 0 ? '700' : '400', wordWrap: { width: W - (VIEW.portrait ? 70 : 160) }, align: 'center',
       }).setAlpha(0);
+      ly += Math.max(38, t.height + 12);
       this.tweens.add({ targets: t, alpha: 1, delay: 300 + i * 220, duration: 300 });
     });
 
     // XP bar
     const g = this.add.graphics();
     const bw = 360;
-    const by = 160 + lines.length * 38 + 10;
+    const by = ly - 10;
     g.fillStyle(PALETTE.ink, 0.85).fillRoundedRect(W / 2 - bw / 2 - 4, by - 4, bw + 8, 16, 5);
     g.fillStyle(PALETTE.lapis, 1).fillRect(W / 2 - bw / 2, by, bw * (s.xp / Save.xpToNext()), 8);
 

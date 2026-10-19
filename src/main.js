@@ -6,14 +6,33 @@ import { Duel } from './scenes/Duel.js';
 import { Victory } from './scenes/Victory.js';
 import { Death } from './scenes/Death.js';
 
-// Choose a logical width that matches the phone's landscape aspect, and a
-// render resolution so art stays sharp on high-DPI screens.
+// Choose a logical size that matches the screen's aspect, and a render
+// resolution so art stays sharp on high-DPI screens. The side view also plays
+// upright: a 600-wide portrait layout; other pages ask you to turn the phone.
 const long = Math.max(window.innerWidth, window.innerHeight);
 const short = Math.min(window.innerWidth, window.innerHeight) || 1;
 const aspect = Math.min(VIEW.maxAspect, Math.max(VIEW.minAspect, long / short));
-VIEW.W = Math.round(VIEW.H * aspect);
+const canPortrait = window.LOGRES_CAM === 'side';
+VIEW.portrait = canPortrait && window.innerHeight > window.innerWidth;
 const dpr = window.devicePixelRatio || 1;
-VIEW.RES = Math.min(VIEW.maxRes, Math.max(1, Math.round(((short * dpr) / VIEW.H) * 4) / 4));
+if (VIEW.portrait) {
+  VIEW.W = 600;
+  VIEW.H = Math.round(600 * aspect);
+  VIEW.RES = Math.min(VIEW.maxRes, Math.max(1, Math.round(((short * dpr) / VIEW.W) * 4) / 4));
+} else {
+  VIEW.W = Math.round(VIEW.H * aspect);
+  VIEW.RES = Math.min(VIEW.maxRes, Math.max(1, Math.round(((short * dpr) / VIEW.H) * 4) / 4));
+}
+// Turning the device rebuilds the game in the other layout (progress is saved between duels).
+if (canPortrait) {
+  let t = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      if ((window.innerHeight > window.innerWidth) !== VIEW.portrait && Math.abs(window.innerHeight - window.innerWidth) > 40) location.reload();
+    }, 300);
+  });
+}
 
 // Browsers only allow audio after a user gesture; unlock on the first touch.
 const unlock = () => Sfx.unlock();

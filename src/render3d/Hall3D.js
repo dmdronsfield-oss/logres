@@ -33,6 +33,9 @@ const K = 0.0048;                 // metres per logical pixel for enemy pose off
 const FOV = 42;
 // Over the right shoulder, aimed at the challenger's chest (Infinity Blade framing).
 const CAM = { x: 2.2, y: 1.65, back: 2.0, lookX: -0.75, lookY: 1.32 };
+// Upright phones: higher and further back, a taller lens, both knights in the middle band.
+const CAM_P = { x: 1.75, y: 2.1, back: 3.2, lookX: -0.05, lookY: 1.12 };
+const FOV_P = 58;
 const ENEMY_TURN = 0.12;
 const RELEASE_MS = 90;             // the blow leaves the wind-up this long before impact
 const REFLECT = 1;                // render layer seen by the floor's reflection
@@ -137,7 +140,8 @@ export class HallView extends World3D {
     this.tourney = true;
     this.scene.remove(this.hemi, this.sun, this.sun.target);
     this.camera.children.filter((c) => c.isLight).forEach((c) => this.camera.remove(c));
-    this.camera.fov = FOV;
+    this.fov = VIEW.portrait ? FOV_P : FOV;
+    this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.95;
@@ -152,8 +156,9 @@ export class HallView extends World3D {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.32, 0.35, 0.92);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
-    this.camTarget = new THREE.Vector3(CAM.lookX, CAM.lookY, ENEMY_Z);
-    this.camHome = new THREE.Vector3(CAM.x, CAM.y, PLAYER_Z + CAM.back);
+    const C = VIEW.portrait ? CAM_P : CAM;
+    this.camTarget = new THREE.Vector3(C.lookX, C.lookY, ENEMY_Z);
+    this.camHome = new THREE.Vector3(C.x, C.y, PLAYER_Z + C.back);
     this.cheer = 0;
     this.time = 0;
     this.perf = { frames: 0, total: 0, last: 0 };
@@ -898,7 +903,7 @@ export class HallView extends World3D {
     const e = duel.enemy;
     if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 7;
     this.fovKick *= Math.exp(-(dt || 16) / 180);
-    cam.fov = FOV - this.fovKick;
+    cam.fov = this.fov - this.fovKick;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
 
