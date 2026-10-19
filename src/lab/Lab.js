@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
 import { RoomEnvironment } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js';
 import { buildKnight } from '../render3d/knight/Knight.js';
-import { Animator, GUARD, STATES, pose, windupPose, strikePose, recoverPose, playerSwingPose, mirrorDir } from '../render3d/knight/Motion.js';
+import { Animator, GUARD, STATES, pose, windupPose, strikePose, recoverPose, playerSwingPose, mirrorDir, styleFor, bashPose, tauntPose } from '../render3d/knight/Motion.js';
 import { Cloth } from '../render3d/knight/Cloth.js';
 import { drapeTex } from '../render3d/knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from '../render3d/knight/Looks.js';
@@ -22,7 +22,11 @@ const FIGURES = [
   { id: 'gawain-inkxo', name: 'Sir Gawain (INKXO armour)', player: true, skinned: INKXO, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
   { id: 'gawain-blend', name: 'Sir Gawain (Blender model)', player: true, skinned: GAWAIN, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
   { id: 'gawain', name: 'Sir Gawain (code-built)', player: true, look: { ...PLAYER_LOOK, blade: '#dfe3ea', shield: '#2b4a9b', shieldCharge: 'lion' }, weapon: 'sword', off: 'heater', size: 1, guard: GUARD.hero },
-  ...ENEMIES.map((d) => ({ id: d.id, name: d.name, look: lookFor(d), weapon: d.weapon, off: d.offhand, size: d.size || 1, guard: d.weapon === 'greataxe' ? GUARD.giant : GUARD.ss })),
+  ...ENEMIES.map((d) => ({
+    id: d.id, name: d.name, look: lookFor(d), weapon: d.weapon, off: d.offhand, size: d.size || 1, guard: d.weapon === 'greataxe' ? GUARD.giant : GUARD.ss,
+    // As in the game: plate knights wear INKXO's harness; each weapon has its swing style.
+    skinned: d.look && d.look.model === 'inkxo' ? INKXO : undefined, style: styleFor(d.weapon), taunt: d.taunt,
+  })),
   // The CC0 rigged model (Quaternius), driven by our motion or playing its own clips.
   { id: 'q-ours', name: 'CC0 model: our motion', skinned: true, look: lookFor(ENEMIES[1]), weapon: 'sword', off: 'heater', size: 1, guard: GUARD.ss },
   { id: 'q-native', name: 'CC0 model: its own clips', native: true, size: 1, guard: GUARD.ss, look: {} },
@@ -31,10 +35,12 @@ const FIGURES = [
 const ENEMY_MOVES = [
   ['guard', 'Guard'], ['S', 'Overhead'], ['E', 'Forehand'], ['W', 'Backhand'], ['SE', 'Diag ↘'], ['SW', 'Diag ↙'], ['T', 'Thrust'],
   ['parried', 'Parried'], ['staggered', 'Stagger'], ['roar', 'Roar'], ['defeat', 'Defeat'], ['walk', 'Walk in'],
+  ['bash', 'Shield bash'], ['taunt', 'Challenge'], ['highGuard', 'High guard'], ['lowGuard', 'Low guard'], ['shieldBlock', 'Takes a cut'], ['lock', 'Blade lock'],
 ];
 const PLAYER_MOVES = [
   ['guard', 'Guard'], ['sw:E', 'Swipe →'], ['sw:W', 'Swipe ←'], ['sw:S', 'Swipe ↓'], ['sw:N', 'Swipe ↑'], ['sw:SE', 'Swipe ↘'], ['sw:SW', 'Swipe ↙'],
   ['sw:NE', 'Swipe ↗'], ['sw:NW', 'Swipe ↖'], ['block', 'Block'], ['dodgeL', 'Dodge ←'], ['dodgeR', 'Dodge →'], ['stun', 'Hit'], ['dead', 'Death'],
+  ['pendragon', 'Pendragon'], ['lock', 'Blade lock'],
 ];
 
 // Each move: total loop length (ms) and a sampler giving the target pose at time t.
@@ -48,13 +54,42 @@ function moveTimeline(fig, move) {
   const at = (t) => ({ ...rest, t });
   if (move === 'guard') return { len: 3000, sample: () => rest };
   if (['S', 'E', 'W', 'SE', 'SW', 'T'].includes(move)) {
+    // As in the game: wind-up, the release 90 ms before impact (1300 ms), strike, recover.
+    const st = fig.style;
     return {
-      len: 2900,
+      len: 3000,
       sample: (t) => {
         if (t < 400) return at(t);
-        if (t < 1300) return { pose: windupPose(g, move, (t - 400) / 900), omega: 24, phase: 'wind-up (telegraph 900 ms)' };
-        if (t < 1720) return { pose: strikePose(g, move, t - 1300), omega: 32, phase: 'strike' };
-        return { pose: recoverPose(g, move, t - 1720), omega: 18, phase: 'recover (open)' };
+        if (t < 1210) return { pose: windupPose(g, move, (t - 400) / 810, st), omega: 24, phase: 'wind-up (telegraph 900 ms)' };
+        if (t < 1300) return { pose: strikePose(g, move, ((t - 1210) / 90) * 110, st), omega: 48, phase: 'release' };
+        if (t < 1820) return { pose: strikePose(g, move, 110 + t - 1300, st), omega: 40, phase: 'strike' };
+        return { pose: recoverPose(g, move, t - 1820, st), omega: 18, phase: 'recover (open)' };
+      },
+    };
+  }
+  if (move === 'bash') {
+    return {
+      len: 2600,
+      sample: (t) => {
+        if (t < 300) return at(t);
+        if (t < 1260) return { pose: bashPose(g, 'wind', (t - 300) / 960), omega: 24, phase: 'bash wind-up' };
+        return { pose: bashPose(g, 'drive', t - 1260), omega: 44, phase: 'bash!' };
+      },
+    };
+  }
+  if (move === 'taunt') return { len: 2600, sample: (t) => (t < 300 || t > 2000 ? at(t) : { pose: tauntPose(g, fig.taunt, t - 300), omega: 12, phase: `challenge (${fig.taunt})` }) };
+  if (move === 'highGuard') return { len: 2000, sample: (t) => (t < 300 ? at(t) : { pose: pose(g, STATES.highGuard), omega: 9, phase: 'high guard: open to ← →' }) };
+  if (move === 'lowGuard') return { len: 2000, sample: (t) => (t < 300 ? at(t) : { pose: pose(g, STATES.lowGuard), omega: 9, phase: 'low guard: open to ↓ ↑' }) };
+  if (move === 'shieldBlock') return { len: 1600, sample: (t) => (t > 300 && t < 620 ? { pose: pose(g, fig.off && fig.off !== 'holly' ? STATES.shieldBlock : STATES.bladeBlock), omega: 30, phase: 'takes your cut' } : at(t)) };
+  if (move === 'lock') return { len: 2200, sample: (t) => (t < 300 ? at(t) : { pose: pose(g, STATES.lock), omega: 14, phase: 'blade lock', wobble: 0.4 }) };
+  if (move === 'pendragon') {
+    return {
+      len: 2000,
+      sample: (t) => {
+        if (t < 300) return at(t);
+        if (t < 860) return { pose: pose(g, STATES.pendragon), omega: 10, phase: 'Pendragon: raise' };
+        const p = playerSwingPose(g, 'S', Math.min(300, (t - 860) * 0.9));
+        return p ? { pose: p, omega: 34, phase: 'Pendragon: strike' } : at(t);
       },
     };
   }
@@ -114,7 +149,13 @@ function moveTimeline(fig, move) {
       sample: (t) => {
         if (t < 300 || t > 650) return at(t);
         const s = Math.sin((Math.PI * (t - 300)) / 350);
-        return { pose: pose(g, { pelvis: [0, 0.8, 0.05], chest: [0.2, 0.1, -dir * 0.25] }), omega: 18, rootX: dir * 0.85 * s, phase: 'dodge' };
+        return {
+          pose: pose(g, {
+            pelvis: [0, 0.74, 0.02], pelvisRot: [0.15, dir * 0.25, -dir * 0.12], chest: [0.32, dir * 0.4, -dir * 0.42],
+            handL: [0.1, 1.32, 0.36], faceL: [-dir * 0.3, 0.1, 1], handR: [-0.32, 0.98, 0.1], bladeR: [-0.2, 0.5, -0.8],
+          }),
+          omega: 20, rootX: dir * 0.85 * s, phase: 'dodge',
+        };
       },
     };
   }
@@ -451,4 +492,4 @@ function sheet(moveId, times, cam = { yaw: 0.6, pitch: 0.12, dist: 3.2, y: 1.05 
   img.src = out.toDataURL('image/jpeg', 0.85);
 }
 
-window.__lab = { sheet, setMove, get t() { return t; }, set t(v) { t = v; }, step: (ms) => tick(last + ms), FIGURES, select: (i) => { figIndex = i; figSel.value = i; buildMoves(); placeFigures(); setMove('guard'); }, setView: (v) => { view = v; orbit = { yaw: { front: 0, side: Math.PI / 2, back: Math.PI, game: 0.6 }[v], pitch: 0.12, dist: 3.4 }; partner.k.root.visible = v === 'game'; partner.cloths.forEach((c) => { c.mesh.visible = v === 'game'; }); }, pause: () => { playing = false; }, orbit: (yaw, pitch, dist, y) => { view = 'orbit'; orbit = { yaw, pitch, dist, y }; partner.k.root.visible = false; partner.cloths.forEach((c) => { c.mesh.visible = false; }); } };
+window.__lab = { get subject() { return subject; }, sheet, setMove, get t() { return t; }, set t(v) { t = v; }, step: (ms) => tick(last + ms), FIGURES, select: (i) => { figIndex = i; figSel.value = i; buildMoves(); placeFigures(); setMove('guard'); }, setView: (v) => { view = v; orbit = { yaw: { front: 0, side: Math.PI / 2, back: Math.PI, game: 0.6 }[v], pitch: 0.12, dist: 3.4 }; partner.k.root.visible = v === 'game'; partner.cloths.forEach((c) => { c.mesh.visible = v === 'game'; }); }, pause: () => { playing = false; }, orbit: (yaw, pitch, dist, y) => { view = 'orbit'; orbit = { yaw, pitch, dist, y }; partner.k.root.visible = false; partner.cloths.forEach((c) => { c.mesh.visible = false; }); } };

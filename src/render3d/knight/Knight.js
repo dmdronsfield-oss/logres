@@ -402,9 +402,10 @@ export function solveTwoBone(upper, lower, a, b, target, pole) {
   _w.normalize();
   _u.copy(_v).multiplyScalar(Math.cos(alpha)).addScaledVector(_w, Math.sin(alpha)).normalize();
   _y.copy(_u).negate();
-  _z.copy(pole).addScaledVector(_u, -pole.dot(_u));
-  if (_z.lengthSq() < 1e-6) _z.copy(_w);
-  _z.normalize();
+  // The bend axis frame comes from the chain's own plane (v, w), not from the pole:
+  // when the upper bone swings past the pole direction (a far, low target) the pole
+  // projection flips and the lower bone would fold the wrong way.
+  _z.copy(_v).multiplyScalar(-Math.sin(alpha)).addScaledVector(_w, Math.cos(alpha)).normalize();
   _x.crossVectors(_y, _z).normalize();
   _z.crossVectors(_x, _y).normalize();
   _m.makeBasis(_x, _y, _z);

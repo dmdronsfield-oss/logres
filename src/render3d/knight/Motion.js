@@ -50,7 +50,8 @@ export const GUARD = {
 export const SWINGS = {
   S: [
     { handR: [-0.1, 1.92, -0.12], bladeR: [0.05, 0.3, -1], chest: [-0.22, -0.1, 0] },
-    { handR: [0.02, 1.0, 0.62], bladeR: [0, -0.62, 0.78], chest: [0.42, 0.02, 0], footL: [0.17, 0.42, 0.25] },
+    // Down and across to his left, so the blade reads as a slash, not a point; shield kept forward.
+    { handR: [0.06, 1.0, 0.6], bladeR: [0.42, -0.68, 0.6], chest: [0.42, 0.08, 0], footL: [0.17, 0.42, 0.25], handL: [0.26, 0.98, 0.42] },
   ],
   E: [
     { handR: [-0.6, 1.48, -0.08], bladeR: [-0.85, 0.3, -0.45], chest: [0, -0.8, 0], pelvisRot: [0, -0.5, 0] },
@@ -245,11 +246,20 @@ export function swingMarks(guard, dir, style = 'formal') {
   coil.pelvis = add(coil.pelvis, [0, 0.01, -0.05 * S.lean]);
   const anticip = pose(guard, { pelvis: add(guard.pelvis, [0, -0.025, 0.03]), chest: add(guard.chest, [0.07, 0, 0]) });
   const hit = pose(guard, s);
+  // The shield comes down with the lean, rather than riding up over his head.
+  if (!s.handL) hit.handL = add(guard.handL, [0, -0.16 * S.lean, 0.08]);
   hit.pelvis = add(hit.pelvis, [0, -S.drop, 0.13 * S.lean]);
   hit.pelvisRot = add(hit.pelvisRot, [0.08 * S.lean, 0, 0]);
   hit.chest = hit.chest.map((v) => v * S.lean);
   const follow = extend(hit, wind, S.follow);
   follow.pelvis = add(hit.pelvis, [0, -0.01 * S.lean, 0.03 * S.lean]);
+  // A level or downward cut never rises again in its follow-through.
+  if (hit.bladeR[1] <= wind.bladeR[1] && follow.bladeR[1] > hit.bladeR[1]) {
+    const b = follow.bladeR;
+    b[1] = hit.bladeR[1];
+    const l = Math.hypot(b[0], b[1], b[2]) || 1;
+    follow.bladeR = b.map((x) => x / l);
+  }
   return { anticip, wind, coil, hit, follow };
 }
 

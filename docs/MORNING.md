@@ -229,3 +229,15 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **The arsenal shows:** Clarent is gilded and Excalibur's blade shines with a pale light (and leaves a
   brighter trail). The Kite of Logres is Gawain's lion heater, Pridwen a blue heater with gold crowns,
   and the Ash Targe a round wooden targe.
+
+## Brief 15, animation review (v31)
+
+`docs/BRIEF-15-animation-review.md`
+
+- The lab now matches the game exactly (plate knights in INKXO's harness, swing styles, release
+  timing) and has all the new moves.
+- **Fixed a long-standing arm and leg bug:** the joint solver could fold an elbow the wrong way when a
+  hand reached far and low. That's why shields flew up over heads during strikes. Hands now land
+  exactly where they're aimed. It's worth a second look at the arms you disliked early on.
+- Overhead blows now cut down and across, so the blade stays visible from Gawain's viewpoint;
+  follow-throughs no longer rise after level cuts; shields stay forward in strikes.

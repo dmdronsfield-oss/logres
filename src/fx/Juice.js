@@ -197,6 +197,8 @@ export class Juice {
 
   vibrate(pattern) {
     if (!Save.data.vibration) return;
+    // Browsers refuse (and log) vibration before the first tap; keyboard players never tap.
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
     try {
       if (navigator.vibrate) navigator.vibrate(pattern);
     } catch (e) { /* not supported */ }
