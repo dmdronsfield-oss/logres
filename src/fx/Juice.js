@@ -43,6 +43,22 @@ export class Juice {
     this.sparks = scene.add.particles(0, 0, 'spark', sparkCfg).setDepth(25);
     this.embers = scene.add.particles(0, 0, 'ember', { ...sparkCfg, speed: { min: 80, max: 300 } }).setDepth(25);
 
+    // Rose petals and gold leaf from the galleries (the finishing blow).
+    canvasTex(scene, 'petal', 16, 12, (ctx) => {
+      ctx.beginPath();
+      ctx.ellipse(8, 6, 7, 4.5, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = '#b8142a';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(6.5, 5, 3.5, 2, 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,120,130,0.55)';
+      ctx.fill();
+    });
+    canvasTex(scene, 'leaf', 8, 8, (ctx) => {
+      ctx.fillStyle = '#f6d061';
+      ctx.fillRect(1, 1, 6, 6);
+    });
+
     // Full-screen flash layers.
     this.redFlash = scene.add.rectangle(VIEW.W / 2, VIEW.H / 2, VIEW.W + 400, VIEW.H + 400, PALETTE.vermilion, 0)
       .setDepth(45);
@@ -106,6 +122,19 @@ export class Juice {
       targets: s, scale: 2.2 / VIEW.RES, alpha: 0, angle: 30, duration: 320, ease: 'Cubic.easeOut',
       onComplete: () => s.destroy(),
     });
+  }
+
+  petals(ms = 2200) {
+    const W = VIEW.W;
+    const mk = (key, scale, qty) => this.scene.add.particles(0, 0, key, {
+      x: { min: -20, max: W + 20 }, y: -20, lifespan: 5200,
+      speedY: { min: 70, max: 170 }, speedX: { min: -50, max: 50 }, accelerationX: { min: -30, max: 30 },
+      rotate: { start: 0, end: 540 }, scale: { min: scale * 0.7, max: scale * 1.3 }, alpha: { start: 1, end: 0.6 },
+      quantity: qty, frequency: 40,
+    }).setDepth(43);
+    const roses = mk('petal', 1.3 / VIEW.RES, 2);
+    const gold = mk('leaf', 1 / VIEW.RES, 1);
+    this.scene.time.delayedCall(ms, () => { roses.stop(); gold.stop(); });
   }
 
   damageNumber(x, y, amount, { color = PALETTE.goldLight, size = 34, label = null } = {}) {

@@ -580,6 +580,8 @@ export class Enemy extends Fighter {
     this.dazeStars.forEach((s) => s.setVisible(false));
     this.scene.tweens.add({ targets: this.aura, alpha: 0, duration: 400 });
     this.pose('fall', 1100);
-    this.scene.tweens.add({ targets: this.rig.root, alpha: 0.0, delay: 900, duration: 900 });
+    // The Green Knight gets up again, laughing, before he goes (Sir Gawain and the Green Knight).
+    this.rises = this.def.id === 'green';
+    this.scene.tweens.add({ targets: this.rig.root, alpha: 0.0, delay: this.rises ? 3600 : 1400, duration: 900 });
   }
 }

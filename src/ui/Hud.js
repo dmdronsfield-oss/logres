@@ -459,6 +459,14 @@ export class Hud {
     this.btn.super.setTexture(ready ? 'btn_super_lit' : 'btn_super').setAlpha(ready ? 1 : 0.8);
   }
 
+  // Clear the screen for a cinematic moment (the finishing blow).
+  cinematic(on) {
+    // A cut, not a tween: tweens run in slow motion during the finisher.
+    this.scene.children.list.filter((o) => o.depth >= DEPTH - 2 && o.depth <= DEPTH + 2).forEach((o) => o.setAlpha(on ? 0 : 1));
+    this.superRing.setVisible(!on);
+    this.bars.setVisible(!on);
+  }
+
   showCounter(n) {
     if (n < 2) return;
     this.counter.setText(`×${n}`).setAlpha(1).setScale(1.4);

@@ -29,7 +29,9 @@ if (canPortrait) {
   window.addEventListener('resize', () => {
     clearTimeout(t);
     t = setTimeout(() => {
-      if ((window.innerHeight > window.innerWidth) !== VIEW.portrait && Math.abs(window.innerHeight - window.innerWidth) > 40) location.reload();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w > 200 && h > 200 && (h > w) !== VIEW.portrait && Math.abs(h - w) > 40) location.reload();
     }, 300);
   });
 }

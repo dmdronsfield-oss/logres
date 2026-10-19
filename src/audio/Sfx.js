@@ -79,6 +79,7 @@ class SfxEngine {
     const t = this.ctx.currentTime + delay;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuf;
+    src.loop = true;   // long swells (the crowd) outlast the 1.5 s buffer
     const f = this.ctx.createBiquadFilter();
     f.type = filter;
     f.frequency.setValueAtTime(freq, t);
@@ -183,6 +184,13 @@ class SfxEngine {
 
   click() {
     this.tone(1200, 0.04, { gain: 0.08, type: 'triangle' });
+  }
+
+  // The crowd in the galleries: a swelling roar.
+  roar() {
+    this.noise(2.6, { gain: 0.22, attack: 0.35, filter: 'bandpass', freq: 520, freqEnd: 700, q: 0.6 });
+    this.noise(2.2, { gain: 0.14, attack: 0.5, filter: 'bandpass', freq: 1200, freqEnd: 1500, q: 0.8, delay: 0.15 });
+    [0.3, 0.55, 0.9, 1.2].forEach((d, i) => this.tone(520 + i * 90, 0.25, { gain: 0.04, type: 'triangle', freqEnd: 700 + i * 80, delay: d }));
   }
 
   laugh() {

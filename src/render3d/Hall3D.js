@@ -744,7 +744,10 @@ export class HallView extends World3D {
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
-      case ES.DEFEATED: target = pose(guard, e.t < 800 ? STATES.kneel : STATES.collapse); omega = e.t < 800 ? 7 : 4; break;
+      case ES.DEFEATED:
+        if (e.rises && e.t > 1500) { target = pose(guard, STATES.roar); omega = 5; zWant = -0.2; zRate = 2; }
+        else { target = pose(guard, e.t < 800 ? STATES.kneel : STATES.collapse); omega = e.t < 800 ? 7 : 4; zWant = -0.35; zRate = 4; }
+        break;
       default: break;
     }
     if (walking) {
@@ -898,7 +901,25 @@ export class HallView extends World3D {
       cam.position.y += (sh._offsetY || 0) * 0.004;
     }
     cam.up.set(0, 1, 0);
-    cam.lookAt(this.camTarget.x + px * 0.25, this.camTarget.y, this.camTarget.z);
+    const fin = duel.director && duel.director.finisher;
+    if (fin) {
+      // Kill cam: swing round to the side of the duel and drop a little, on him.
+      const u = Math.min(1, (now - fin.at) / 1700);
+      const s = u * u * (3 - 2 * u);
+      const piv = this._piv || (this._piv = new THREE.Vector3());
+      piv.set(-0.2, 0, MID_Z - 0.3);
+      const dx = cam.position.x - piv.x;
+      const dz = cam.position.z - piv.z;
+      const th = -s * 1.05;          // round to the right, into profile
+      const r = 1 - s * 0.12;
+      cam.position.x = piv.x + (dx * Math.cos(th) - dz * Math.sin(th)) * r;
+      cam.position.z = piv.z + (dx * Math.sin(th) + dz * Math.cos(th)) * r;
+      cam.position.y -= s * 0.45;
+      this.cheer = 1;
+      cam.lookAt(this.camTarget.x * (1 - s) - 0.3 * s, this.camTarget.y - s * 0.2, this.camTarget.z + s * 0.95);
+    } else {
+      cam.lookAt(this.camTarget.x + px * 0.25, this.camTarget.y, this.camTarget.z);
+    }
     // A short zoom punch on parries and staggers.
     const e = duel.enemy;
     if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 7;

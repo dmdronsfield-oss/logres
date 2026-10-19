@@ -335,15 +335,30 @@ export class CombatDirector {
     }
   }
 
+  // The finishing blow: slow motion while the camera swings round, the galleries
+  // roar and throw roses. The Green Knight, as in the poem, will not stay down.
   enemyDefeated() {
     if (this.over) return;
     this.over = true;
-    this.juice.slowMo();
-    this.juice.screenFlash('gold', 0.5, 600);
+    const green = this.enemy.def.id === 'green';
+    this.finisher = { at: performance.now(), green };
+    this.juice.hitStop(160);
+    this.juice.slowMo(0.22, 1700);
+    this.juice.screenFlash('gold', 0.55, 700);
     this.juice.shake(CONFIG.juice.shakeHeavy);
-    this.hud.bigText('Victory', PALETTE.goldLight, 200, 64);
+    this.hud.cinematic(true);
+    this.hud.hideHint();
+    this.hud.hideBanner();
     Sfx.defeat();
-    this.scene.time.delayedCall(1900, () => this.scene.endDuel(true));
+    const t = this.scene.time;
+    t.delayedCall(420, () => Sfx.roar());
+    t.delayedCall(650, () => this.juice.petals());
+    t.delayedCall(1500, () => this.hud.bigText(green ? 'The Green Knight rises…' : 'Victory', PALETTE.goldLight, 200, green ? 44 : 64));
+    if (green) {
+      t.delayedCall(2100, () => Sfx.laugh());
+      t.delayedCall(2400, () => this.hud.banner('“Seek me at the Green Chapel, Sir Gawain, a twelvemonth and a day from now!”', 2600));
+    }
+    t.delayedCall(green ? 5200 : 3400, () => this.scene.endDuel(true));
   }
 
   playerDefeated() {
