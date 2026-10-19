@@ -259,3 +259,12 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **Comfort mode** in the pause menu: no screen shake or camera kicks, the cinematic cameras hold
   still, and flashes are softened. It's on automatically for anyone whose phone is set to reduce
   motion. All the motion added overnight made this worth having.
+
+## Brief 18, the Book of Arms (v34)
+
+`docs/BRIEF-18-book-of-arms.md`
+
+- A **Book of Arms** button in camp (or press **B**) opens a parchment guide to all your arts and
+  your foes' tricks, with what each is, how to do or answer it (touch and keys), and why it matters.
+  Entries you haven't met yet stay sealed and open as you meet them in battle. It scrolls by drag,
+  wheel or arrow keys, and works upright too.

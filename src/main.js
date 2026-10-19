@@ -5,6 +5,7 @@ import { Title } from './scenes/Title.js';
 import { Duel } from './scenes/Duel.js';
 import { Victory } from './scenes/Victory.js';
 import { Death } from './scenes/Death.js';
+import { Codex } from './scenes/Codex.js';
 
 // Choose a logical size that matches the screen's aspect, and a render
 // resolution so art stays sharp on high-DPI screens. The side view also plays
@@ -59,7 +60,7 @@ const game = new Phaser.Game({
   input: { activePointers: 3 },
   render: { antialias: true, powerPreference: 'high-performance' },
   disableContextMenu: true,
-  scene: [Boot, Title, Duel, Victory, Death],
+  scene: [Boot, Title, Duel, Victory, Death, Codex],
 });
 
 window.__logres = game;

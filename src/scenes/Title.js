@@ -99,7 +99,7 @@ export class Title extends Phaser.Scene {
     this.swordText = this._selector(leftX, panelY - 12, CONFIG.swords, 'sword', colW);
     this.shieldText = this._selector(leftX, panelY + 70, CONFIG.shields, 'shield', colW);
     bindMenuKeys(this, {
-      Enter: () => this._play(), Space: () => this._play(),
+      Enter: () => this._play(), Space: () => this._play(), KeyB: () => fadeTo(this, 'Codex'),
       ArrowLeft: () => this.steps.sword(-1), ArrowRight: () => this.steps.sword(1),
       ArrowUp: () => this.steps.shield(-1), ArrowDown: () => this.steps.shield(1),
     });
@@ -112,6 +112,9 @@ export class Title extends Phaser.Scene {
     text(this, W / 2, L.foeY, `Next foe: ${next.name}`, {
       fontSize: '17px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4,
     });
+    // The Book of Arms: every technique and trick, filling in as you meet them.
+    const bookY = P ? L.subY + 46 : L.foeY + 36;
+    menuButton(this, W / 2, bookY, 190, 34, 'Book of Arms', () => fadeTo(this, 'Codex'), { size: 16 });
 
     // ---------- right: known strikes and settings ----------
     if (P) panelY = L.strikesY;

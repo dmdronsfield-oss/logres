@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v33';
+const VERSION = 'logres-v34';
 
 const CORE = [
   './',
@@ -37,6 +37,7 @@ const CORE = [
   './src/scenes/Duel.js',
   './src/scenes/Victory.js',
   './src/scenes/Death.js',
+  './src/scenes/Codex.js',
   './src/save/Save.js',
   './src/render3d/View3D.js',
   './src/render3d/Hall3D.js',

@@ -503,6 +503,7 @@ export class CombatDirector {
   }
 
   onPhase(ph) {
+    if (!Save.data.standSeen) Save.set({ standSeen: true });
     Music.play('stand');
     Sfx.cheer();
     this.hud.banner(ph.message, 1600);
