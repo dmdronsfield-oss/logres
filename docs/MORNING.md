@@ -351,3 +351,10 @@ keyboard only. Then I fixed what got in the way:
   floor beside him. "Disarmed!" and a cheer. He's open for about 2.6 seconds, and can't slip away or
   counter, until he reaches over and takes it up again. It works for swords, the falchion and the
   Green Knight's axe. It's in the Book of Arms.
+
+## Brief 27, clear sight of him (v43)
+
+`docs/BRIEF-27-clear-sight.md`
+
+- The gold strike arrow no longer hides the foe during openings. It's slimmer and slightly
+  see-through, and its label ("Pendragon Cross 1/3") moved off his body to the side.

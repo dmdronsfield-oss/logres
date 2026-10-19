@@ -224,8 +224,11 @@ export class Hud {
     const ang = { E: 0, SE: 45, S: 90, SW: 135, W: 180, NW: -135, N: -90, NE: -45 }[dir] ?? 0;
     this.hintDir = dir;
     this.hintArrow.setAngle(ang).setTint(kind === 'riposte' ? 0xffffff : 0xf6d061);
-    this.hintBase = (kind === 'riposte' ? 1.15 : 0.85) / VIEW.RES;
-    this.hintLabel.setText(label).setColor(kind === 'riposte' ? '#ffffff' : '#fff3c4').setPosition(0, 58);
+    // Slim and a little see-through, so he and his open glow read through it; the
+    // label sits off to the side, clear of his body and the callouts.
+    this.hintBase = (kind === 'riposte' ? 1.0 : 0.72) / VIEW.RES;
+    this.hintArrow.setAlpha(kind === 'riposte' ? 0.9 : 0.78);
+    this.hintLabel.setText(label).setColor(kind === 'riposte' ? '#ffffff' : '#fff3c4').setOrigin(0, 0.5).setPosition(VIEW.portrait ? 58 : 72, 34);
     this.scene.tweens.killTweensOf(this.hint);
     this.hint.setAlpha(1);
     this.hintArrow.setScale(this.hintBase * 1.5);
@@ -238,6 +241,10 @@ export class Hud {
     const v = { E: [1, 0], SE: [0.7, 0.7], S: [0, 1], SW: [-0.7, 0.7], W: [-1, 0], NW: [-0.7, -0.7], N: [0, -1], NE: [0.7, -0.7] }[this.hintDir] || [0, 0];
     const k = ((this.realT % 600) / 600) * 26 - 13;
     this.hint.setPosition(x + v[0] * k, y - 10 + v[1] * k);
+    // Keep the label on screen: flip it to his other side near the right edge.
+    const off = VIEW.portrait ? 58 : 72;
+    const flip = x + off + this.hintLabel.width > VIEW.W - 24;
+    this.hintLabel.setOrigin(flip ? 1 : 0, 0.5).setX(flip ? -off : off);
   }
 
   hideHint() {
