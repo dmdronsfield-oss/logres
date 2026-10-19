@@ -127,7 +127,7 @@ export class Tutorial {
         this.hud.banner(say('Not quite. Tap a dodge button as the blow falls.', 'Not quite. Press A or D as the blow falls.'), 0);
       }
     } else if (this.step === 'block') {
-      if (outcome === 'blocked') {
+      if (outcome === 'blocked' || outcome === 'perfectBlock') {
         this.hits = 0;
         this._go('strike2', 'Blocked! Each block costs a shield pip. Now strike back!', 0);
       } else {

@@ -78,6 +78,10 @@ export class Player extends Fighter {
     return this.state === PS.READY || (this.state === PS.ATTACKING && this.stateT >= CONFIG.player.attackMs * 0.75);
   }
 
+  get blockElapsed() {
+    return this.state === PS.BLOCKING ? this.stateT : Infinity;
+  }
+
   get dodgeElapsed() {
     return this.state === PS.DODGING ? this.stateT : Infinity;
   }
@@ -160,9 +164,11 @@ export class Player extends Fighter {
     this.scene.tweens.add({ targets: s, x: h.x, y: h.y, angle: h.angle, scale: 1, duration: 120, ease: 'Sine.easeOut' });
   }
 
-  blockImpact() {
-    this.pips = Math.max(0, this.pips - 1);
-    this.regenT = 0;
+  blockImpact(spend = true) {
+    if (spend) {
+      this.pips = Math.max(0, this.pips - 1);
+      this.regenT = 0;
+    }
     const s = this.rig.shield;
     this.scene.tweens.add({ targets: s, y: s.y + 26, duration: 60, yoyo: true, ease: 'Quad.easeOut' });
   }

@@ -73,6 +73,28 @@ function makeButtonTextures(scene) {
     ctx.lineWidth = 2;
     ctx.stroke();
   });
+  // Chevron pointing right (rotated to the swipe direction): combo and riposte hints.
+  canvasTex(scene, 'chev', 96, 96, (ctx) => {
+    const draw = (ox, a) => {
+      ctx.beginPath();
+      ctx.moveTo(ox - 16, 18);
+      ctx.lineTo(ox + 14, 48);
+      ctx.lineTo(ox - 16, 78);
+      ctx.lineTo(ox - 2, 78);
+      ctx.lineTo(ox + 28, 48);
+      ctx.lineTo(ox - 2, 18);
+      ctx.closePath();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#fff3c4';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#2a1d14';
+      ctx.stroke();
+    };
+    draw(30, 0.55);
+    draw(58, 1);
+    ctx.globalAlpha = 1;
+  });
   canvasTex(scene, 'banner', 620, 92, (ctx, w, h) => {
     roundRect(ctx, 4, 4, w - 8, h - 8, 12);
     ctx.fillStyle = 'rgba(241,227,196,0.94)';
@@ -177,7 +199,41 @@ export class Hud {
       originX: 0, originY: 0, padding: { x: 6, y: 4 },
     }).setDepth(60).setVisible(false);
 
+    // Strike hint: a chevron over the foe showing which way to swipe.
+    this.hint = scene.add.container(0, 0).setDepth(DEPTH - 2).setAlpha(0);
+    this.hintArrow = img(scene, 0, 0, 'chev');
+    this.hintLabel = text(scene, 0, 0, '', {
+      fontSize: '15px', fontStyle: '700', color: '#fff3c4', stroke: PALETTE.inkCss, strokeThickness: 4,
+    });
+    this.hint.add([this.hintArrow, this.hintLabel]);
+
     this.realT = 0;
+  }
+
+  showHint(dir, label, kind = 'combo') {
+    const ang = { E: 0, SE: 45, S: 90, SW: 135, W: 180, NW: -135, N: -90, NE: -45 }[dir] ?? 0;
+    this.hintDir = dir;
+    this.hintArrow.setAngle(ang).setTint(kind === 'riposte' ? 0xffffff : 0xf6d061);
+    this.hintBase = (kind === 'riposte' ? 1.15 : 0.85) / VIEW.RES;
+    this.hintLabel.setText(label).setColor(kind === 'riposte' ? '#ffffff' : '#fff3c4').setPosition(0, 58);
+    this.scene.tweens.killTweensOf(this.hint);
+    this.hint.setAlpha(1);
+    this.hintArrow.setScale(this.hintBase * 1.5);
+    this.scene.tweens.add({ targets: this.hintArrow, scale: this.hintBase, duration: 160, ease: 'Back.easeOut' });
+  }
+
+  placeHint(x, y) {
+    if (this.hint.alpha <= 0) return;
+    // Bob along the swipe direction so it reads as motion.
+    const v = { E: [1, 0], SE: [0.7, 0.7], S: [0, 1], SW: [-0.7, 0.7], W: [-1, 0], NW: [-0.7, -0.7], N: [0, -1], NE: [0.7, -0.7] }[this.hintDir] || [0, 0];
+    const k = ((this.realT % 600) / 600) * 26 - 13;
+    this.hint.setPosition(x + v[0] * k, y - 10 + v[1] * k);
+  }
+
+  hideHint() {
+    if (this.hint.alpha <= 0) return;
+    this.scene.tweens.killTweensOf(this.hint);
+    this.scene.tweens.add({ targets: this.hint, alpha: 0, duration: 140 });
   }
 
   // Small key labels under the roundels for keyboard players.

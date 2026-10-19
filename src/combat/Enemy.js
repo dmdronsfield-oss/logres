@@ -101,6 +101,8 @@ export class Enemy extends Fighter {
     this.aura = scene.add.image(x, y - 80, 'aura').setScale(3.4 / VIEW.RES, 4.2 / VIEW.RES)
       .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(9);
     this.glint = scene.add.image(0, 0, 'glint_gold').setBlendMode(Phaser.BlendModes.ADD).setDepth(24).setVisible(false);
+    // Approach ring and path arrow: when and which way the blow will come.
+    this.ring = scene.add.graphics().setDepth(24);
     this.dazeStars = [0, 1, 2].map(() => scene.add.image(0, 0, 'daze').setScale(1 / VIEW.RES).setDepth(23).setVisible(false));
 
     this.state = ES.INTRO;
@@ -377,9 +379,65 @@ export class Enemy extends Fighter {
     g.setAlpha(intro);
     g.setScale((s * 1.3) / VIEW.RES);
     g.angle += 4;
+    this._drawRing(p, rem, intro);
+  }
+
+  // A ring closes on the glint and lands on it at the moment of impact; it turns
+  // white while the parry window is open. An arrow shows the blade's path.
+  _drawRing(p, rem, intro) {
+    const r = this.ring;
+    r.clear();
+    const a = this.attack;
+    const total = this.telegraphTotal;
+    const win = CONFIG.parry.windowMs;
+    const k = Math.max(0, Math.min(1, rem / total));
+    const red = !a.parryable;
+    const inWin = rem <= win && !this.feintAt && a.parryable;
+    const col = red ? 0xe0503a : inWin ? 0xffffff : 0xf6d061;
+    const R0 = 18;
+    const R = R0 + 92 * k;
+    if (a.parryable) {
+      r.lineStyle(2, 0xffffff, 0.3 * intro);
+      r.strokeCircle(p.x, p.y, R0 + 92 * (win / total));
+    }
+    r.lineStyle(inWin ? 6 : 3, 0x1a1008, 0.35 * intro);
+    r.strokeCircle(p.x, p.y, R + 1);
+    r.lineStyle(inWin ? 5 : 3, col, 0.95 * intro);
+    r.strokeCircle(p.x, p.y, R);
+    // Path of the blow.
+    const [dx, dy] = a.direction === 'T' ? [0, 0] : DIR_VEC[a.direction];
+    if (a.direction === 'T') {
+      for (let i = 0; i < 4; i++) {
+        const ang = i * Math.PI / 2 + Math.PI / 4;
+        const c = Math.cos(ang);
+        const s = Math.sin(ang);
+        r.lineStyle(4, col, 0.9 * intro);
+        r.lineBetween(p.x + c * (R + 18), p.y + s * (R + 18), p.x + c * (R + 4), p.y + s * (R + 4));
+      }
+      return;
+    }
+    const L = 150;
+    const al = (inWin ? 0.95 : 0.55) * intro;
+    const sx = p.x + dx * (R0 + 8);
+    const sy = p.y + dy * (R0 + 8);
+    const ex = p.x + dx * (R0 + L);
+    const ey = p.y + dy * (R0 + L);
+    for (let i = 0; i < 6; i++) {
+      const t0 = i / 6;
+      const t1 = t0 + 0.6 / 6;
+      r.lineStyle(5, 0x1a1008, al * 0.4);
+      r.lineBetween(sx + (ex - sx) * t0, sy + (ey - sy) * t0, sx + (ex - sx) * t1, sy + (ey - sy) * t1);
+      r.lineStyle(3, col, al);
+      r.lineBetween(sx + (ex - sx) * t0, sy + (ey - sy) * t0, sx + (ex - sx) * t1, sy + (ey - sy) * t1);
+    }
+    const px = -dy;
+    const py = dx;
+    r.fillStyle(col, al);
+    r.fillTriangle(ex + dx * 16, ey + dy * 16, ex + px * 11, ey + py * 11, ex - px * 11, ey - py * 11);
   }
 
   impact() {
+    this.ring.clear();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.STRIKE);
@@ -388,6 +446,16 @@ export class Enemy extends Fighter {
   }
 
   afterStrike() {
+    // A perfect dodge or perfect block breaks the combo and leaves him open.
+    if (!this.scripted && (this.lastOutcome === 'perfect' || this.lastOutcome === 'perfectBlock')) {
+      this.setState(ES.PARRIED);
+      this.openDur = CONFIG.counter.openMs;
+      this.countered = true;
+      this.pose('recoil', 160);
+      this.director.onOpen?.();
+      this.director.onCounter?.();
+      return;
+    }
     if (this.comboIdx + 1 < this.combo.length) {
       this.setState(ES.GAP);
       this.gapDur = rand(this.cfg.comboGapMs);
@@ -406,6 +474,7 @@ export class Enemy extends Fighter {
 
   doFeint() {
     this.feintAt = null;
+    this.ring.clear();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.FEINT);
@@ -426,6 +495,8 @@ export class Enemy extends Fighter {
   }
 
   parried() {
+    this.countered = false;
+    this.ring.clear();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.PARRIED);
@@ -435,6 +506,7 @@ export class Enemy extends Fighter {
   }
 
   forceStagger(ms, superFlag) {
+    this.ring.clear();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
     this.setState(ES.STAGGERED);
@@ -503,6 +575,7 @@ export class Enemy extends Fighter {
 
   defeat() {
     this.setState(ES.DEFEATED);
+    this.ring.clear();
     this.glint.setVisible(false);
     this.dazeStars.forEach((s) => s.setVisible(false));
     this.scene.tweens.add({ targets: this.aura, alpha: 0, duration: 400 });

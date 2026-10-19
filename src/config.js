@@ -43,6 +43,7 @@ export const CONFIG = {
     earlyTriggerMult: 2.2,  // a swipe fires mid-drag once travel reaches minDist * this
     trailFadeMs: 200,
     trailWidth: 9,
+    bufferMs: 280,          // a swipe made while the arm is busy is kept this long
   },
 
   player: {
@@ -61,6 +62,16 @@ export const CONFIG = {
 
   block: {
     raiseMs: 70,
+    perfectMs: 170,         // shield raised this close to impact = perfect block (no pip spent)
+  },
+
+  counter: {
+    openMs: 850,            // a perfect dodge or perfect block breaks his combo and opens him this long
+  },
+
+  riposte: {
+    damageMult: 2,          // the first cut after a parry, along the shown chevron
+    stagger: 20,
   },
 
   parry: {
@@ -74,6 +85,7 @@ export const CONFIG = {
     fromPerfectDodge: 22,
     fromDodge: 8,
     fromBlock: 10,
+    fromPerfectBlock: 30,
     durationMs: 2000,
     damageMult: 1.5,
   },
@@ -84,6 +96,7 @@ export const CONFIG = {
     fromPerfectDodge: 12,
     fromDodge: 6,
     fromBlock: 7,
+    fromPerfectBlock: 12,
     fromHit: 3,
     staggerMs: 2500,
     damageMult: 2,
@@ -100,6 +113,9 @@ export const CONFIG = {
   juice: {
     hitStopMs: 70,
     parryStopMs: 120,
+    parrySlowScale: 0.3,    // a beat of slow motion after the clash
+    parrySlowMs: 320,
+    takenStopMs: 60,
     comboStopMs: 110,
     shakeHit: { ms: 90, intensity: 0.004 },
     shakeTaken: { ms: 160, intensity: 0.008 },

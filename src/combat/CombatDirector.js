@@ -19,6 +19,9 @@ export class CombatDirector {
     this.hitCount = 0;
     this.lastHitAt = 0;
     this.openSeq = [];
+    this.riposte = null;      // { dir, until } after a parry
+    this.comboHint = null;    // { combo, step } while he is open
+    this.comboTurn = 0;
     this.over = false;
     this.stats = { parries: 0, blocks: 0, dodges: 0, hits: 0, combos: 0, taken: 0 };
   }
@@ -29,7 +32,12 @@ export class CombatDirector {
     if (this.over) return;
     const p = this.player;
     const e = this.enemy;
-    if (!p.canSwing()) return;
+    if (!p.canSwing()) {
+      // Keep a swipe made during hit-stop or slow motion and play it as soon as the arm is free.
+      this.buffered = { dir, at: performance.now() };
+      return;
+    }
+    this.buffered = null;
     p.swing(dir);
     Sfx.swipe();
 
@@ -95,6 +103,7 @@ export class CombatDirector {
     e.parried();
     this.stats.parries += 1;
     this.juice.hitStop(CONFIG.juice.parryStopMs);
+    this.juice.slowMo(CONFIG.juice.parrySlowScale, CONFIG.juice.parrySlowMs);
     this.juice.clash(tip.x, tip.y);
     this.juice.screenFlash('gold', 0.25, 160);
     this.juice.shake(CONFIG.juice.shakeHit);
@@ -103,6 +112,10 @@ export class CombatDirector {
     this.hud.bigText('Parry!', PALETTE.goldLight, 200, 50);
     this.addSuper(CONFIG.super.fromParry);
     this.addStagger(CONFIG.stagger.fromParry);
+    // Riposte: the return cut along his blow's own line.
+    const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
+    this.riposte = { dir: back, until: performance.now() + CONFIG.parriedOpenMs };
+    this.hud.showHint(back, 'Riposte!', 'riposte');
     this.tutorial?.onParry?.();
   }
 
@@ -112,9 +125,24 @@ export class CombatDirector {
     const now = performance.now();
     this.hitCount = now - this.lastHitAt <= CONFIG.player.hitChainMs + CONFIG.player.attackMs ? this.hitCount + 1 : 1;
     this.lastHitAt = now;
-    const mult = e.damageTakenMult();
+    let mult = e.damageTakenMult();
+    let riposte = false;
+    if (this.riposte && now < this.riposte.until && dirDistance(dir, this.riposte.dir) === 0) {
+      riposte = true;
+      mult *= CONFIG.riposte.damageMult;
+    }
+    if (this.riposte) {
+      this.riposte = null;
+      this.hud.hideHint();
+    }
     const dmg = Math.round(p.damage * mult);
     this.stats.hits += 1;
+    if (riposte) {
+      this.stats.ripostes = (this.stats.ripostes || 0) + 1;
+      this.hud.bigText('Riposte!', '#fff6cf', 200, 46);
+      this.juice.hitStop(CONFIG.juice.comboStopMs);
+      this.juice.screenFlash('gold', 0.3, 200);
+    }
 
     const [dx, dy] = DIR_VEC[dir];
     const chest = e.rig.chestPoint
@@ -136,6 +164,12 @@ export class CombatDirector {
       this.enemyDefeated();
       return;
     }
+    if (riposte) {
+      if (e.state !== ES.STAGGERED) this.addStagger(CONFIG.riposte.stagger);
+      this._nextComboHint(null);
+    } else {
+      this._nextComboHint(dir);
+    }
 
     // Swipe combos within one open window.
     this.openSeq.push(dir);
@@ -151,6 +185,8 @@ export class CombatDirector {
         this.juice.sparksAt(hx, hy, 40);
         this.juice.damageNumber(hx, hy - 90, bonus, { color: '#ffffff', size: 46 });
         this.hud.bigText(c.name, PALETTE.goldLight, 150, 42);
+        this.comboHint = null;
+        this.hud.hideHint();
         Sfx.combo();
         if (e.takeHit(bonus, dir)) this.enemyDefeated();
         break;
@@ -176,6 +212,21 @@ export class CombatDirector {
         this.addStagger(CONFIG.stagger.fromDodge);
         this.addSuper(CONFIG.super.fromDodge);
       }
+    } else if (p.state === PS.BLOCKING && p.blockElapsed <= CONFIG.block.perfectMs) {
+      // Shield raised at the last moment: turned aside cleanly, no pip spent.
+      outcome = 'perfectBlock';
+      this.stats.blocks += 1;
+      this.stats.perfectBlocks = (this.stats.perfectBlocks || 0) + 1;
+      p.blockImpact(false);
+      Sfx.block();
+      Sfx.windowOpen();
+      this.juice.hitStop(90);
+      this.juice.shake(CONFIG.juice.shakeHit);
+      this.juice.screenFlash('gold', 0.2, 160);
+      this.juice.sparksAt(tip.x, tip.y, 26);
+      this.hud.bigText('Perfect block!', '#fff6cf', 200, 40);
+      this.addStagger(CONFIG.stagger.fromPerfectBlock);
+      this.addSuper(CONFIG.super.fromPerfectBlock);
     } else if (p.state === PS.BLOCKING && p.pips > 0) {
       outcome = 'blocked';
       p.blockImpact();
@@ -196,6 +247,7 @@ export class CombatDirector {
       this.stats.taken += dmg;
       const dead = p.takeHit(dmg);
       Sfx.hurt();
+      this.juice.hitStop(CONFIG.juice.takenStopMs);
       this.juice.shake(attack.heavy ? CONFIG.juice.shakeHeavy : CONFIG.juice.shakeTaken);
       this.juice.screenFlash('red', attack.heavy ? 0.5 : 0.35, 260);
       this.juice.vibrate(CONFIG.juice.vibrateHitMs * (attack.heavy ? 2 : 1));
@@ -211,6 +263,32 @@ export class CombatDirector {
 
   onOpen() {
     this.openSeq = [];
+    // Show the next known strike sequence, one chevron at a time (a parry shows its riposte first).
+    this.comboHint = { combo: CONFIG.combos[this.comboTurn % CONFIG.combos.length], step: 0 };
+    this.comboTurn += 1;
+    if (!this.riposte) this._showComboHint();
+  }
+
+  // A perfect dodge or perfect block broke his attack.
+  onCounter() {
+    this.hud.bigText('Counter!', '#fff6cf', 160, 44);
+    Sfx.windowOpen();
+  }
+
+  _showComboHint() {
+    const h = this.comboHint;
+    if (!h) return;
+    this.hud.showHint(h.combo.seq[h.step], `${h.combo.name} ${h.step + 1}/${h.combo.seq.length}`, 'combo');
+  }
+
+  _nextComboHint(dir) {
+    const h = this.comboHint;
+    if (!h) return;
+    if (dir === null) h.step = 0;
+    else if (dir === h.combo.seq[h.step]) h.step += 1;
+    else h.step = dir === h.combo.seq[0] ? 1 : 0;
+    if (h.step >= h.combo.seq.length) h.step = 0;
+    this._showComboHint();
   }
 
   onTelegraph(attack) {
@@ -279,6 +357,18 @@ export class CombatDirector {
   update() {
     const e = this.enemy;
     const p = this.player;
+    if (this.buffered) {
+      if (performance.now() - this.buffered.at > CONFIG.swipe.bufferMs) this.buffered = null;
+      else if (p.canSwing()) this.onSwipe(this.buffered.dir);
+    }
+    if (!e.isOpen() || this.over) {
+      if (this.comboHint || this.riposte) this.hud.hideHint();
+      this.comboHint = null;
+      this.riposte = null;
+    } else {
+      const c = e.rig.chestPoint ? e.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H * 0.45 };
+      this.hud.placeHint(c.x, c.y);
+    }
     this.hud.set({
       enemy: e.healthFrac,
       player: p.healthFrac,
