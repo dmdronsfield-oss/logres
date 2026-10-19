@@ -288,3 +288,12 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   while he does it, and the crowd jeers. It gives a struggling player a way back. It's in the Book of
   Arms.
 - Blade trails now only show during actual blows (they flared during gloats and stumbles).
+
+## Brief 21, difficulty curve (v37)
+
+`docs/BRIEF-21-difficulty-curve.md`
+
+- Measured each foe with a test bot at the level a player would reach them. The Black Knight was
+  easier than the Saxon, and the Red Knight was harder than the Green Knight. Retuned: the Black
+  Knight hits harder, the Red Knight a little softer, and the Green Knight is now the toughest (more
+  health, heavier blows). The curve now rises to the finale.

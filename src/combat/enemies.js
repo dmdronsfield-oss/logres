@@ -132,9 +132,9 @@ export const ENEMIES = [
       blade: '#c9ccd4', shield: '#1d1c21', shieldCharge: 'bend', device: 'cross',
     },
     attacks: {
-      overhead: overhead(720, 16, 950),
-      slashE: slash('E', 680, 14, 950),
-      slashW: slash('W', 680, 14, 950),
+      overhead: overhead(720, 19, 950),
+      slashE: slash('E', 680, 17, 950),
+      slashW: slash('W', 680, 17, 950),
       crusher: overhead(1150, 28, 1300, { parryable: false, heavy: true }),
       // Signature: the blow stops at the top of the wind-up before it falls.
       hesitate: overhead(1150, 18, 1100, { hesitate: [0.5, 420] }),
@@ -222,11 +222,11 @@ export const ENEMIES = [
       crest: '#e3b440', blade: '#dfe3ea', hilt: '#e3b440', device: 'lion',
     },
     attacks: {
-      overhead: overhead(650, 17, 900),
-      slashE: slash('E', 620, 15, 900),
-      slashW: slash('W', 620, 15, 900),
-      thrust: thrust(700, 16, 900),
-      reap: slash('E', 1000, 26, 1200, { parryable: false, heavy: true }),
+      overhead: overhead(650, 15, 900),
+      slashE: slash('E', 620, 13, 900),
+      slashW: slash('W', 620, 13, 900),
+      thrust: thrust(700, 14, 900),
+      reap: slash('E', 1000, 23, 1200, { parryable: false, heavy: true }),
     },
     combos: [
       { seq: ['overhead'], weight: 2 },
@@ -243,7 +243,7 @@ export const ENEMIES = [
     name: 'The Green Knight',
     epithet: 'of the Green Chapel',
     scene: 'chapel',
-    health: 640,
+    health: 720,
     size: 1.2,
     weapon: 'greataxe',
     offhand: 'holly',
@@ -264,10 +264,10 @@ export const ENEMIES = [
       blade: '#b8d4a8', device: 'holly',
     },
     attacks: {
-      sweepE: slash('E', 1200, 36, 1200, { parryable: false, heavy: true }),
-      sweepW: slash('W', 1200, 36, 1200, { parryable: false, heavy: true }),
-      chop: overhead(1300, 40, 1500, { parryable: false, heavy: true }),
-      jab: thrust(460, 14, 600),
+      sweepE: slash('E', 1200, 44, 1200, { parryable: false, heavy: true }),
+      sweepW: slash('W', 1200, 44, 1200, { parryable: false, heavy: true }),
+      chop: overhead(1300, 50, 1500, { parryable: false, heavy: true }),
+      jab: thrust(460, 17, 600),
     },
     combos: [
       { seq: ['sweepE'], weight: 2 },
