@@ -46,6 +46,7 @@ export class Enemy extends Fighter {
       feintChance: def.feintChance || 0,
       combos: def.combos,
       telegraphMult: 1,
+      openLimit: def.openLimit || null,
     };
     this.phaseIdx = 0;
     // Every foe without a scripted second phase makes a last stand at 30% health.
@@ -547,6 +548,7 @@ export class Enemy extends Fighter {
   afterStrike() {
     // A perfect dodge or perfect block breaks the combo and leaves him open.
     if (!this.scripted && (this.lastOutcome === 'perfect' || this.lastOutcome === 'perfectBlock')) {
+      this.cuts = 0;
       this.setState(ES.PARRIED);
       this.openDur = CONFIG.counter.openMs;
       this.countered = true;
@@ -564,7 +566,34 @@ export class Enemy extends Fighter {
     }
   }
 
+  // Cuts taken in the current opening, against his limit (if he has one).
+  get openWarn() {
+    const L = this.cfg.openLimit;
+    return !!L && this.isOpen() && this.state !== ES.STAGGERED && (this.cuts || 0) >= L.cuts - 1;
+  }
+
+  limitReached() {
+    const L = this.cfg.openLimit;
+    return !!L && this.state !== ES.STAGGERED && (this.cuts || 0) >= L.cuts;
+  }
+
+  // He won't stand for more: slip away, or turn the blade and answer.
+  recoverEarly() {
+    const L = this.cfg.openLimit;
+    this.cuts = 0;
+    this.hopAt = performance.now();
+    if (L.react === 'counter') {
+      this.flinchAt = performance.now();
+      this.counterCut();
+    } else {
+      this.toIdle();
+      this.idleDur = Math.min(this.idleDur, 450);
+    }
+    return L.react;
+  }
+
   recover(ms) {
+    this.cuts = 0;
     this.setState(ES.RECOVER);
     this.openDur = ms;
     this.pose('open', 220);
@@ -624,6 +653,7 @@ export class Enemy extends Fighter {
   }
 
   parried() {
+    this.cuts = 0;
     this.countered = false;
     this._clearRing();
     this.glint.setVisible(false);
@@ -635,6 +665,7 @@ export class Enemy extends Fighter {
   }
 
   forceStagger(ms, superFlag) {
+    this.cuts = 0;
     this._clearRing();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);
@@ -705,6 +736,7 @@ export class Enemy extends Fighter {
       comboGapMs: ph.comboGapMs ?? this.cfg.comboGapMs,
       feintChance: ph.feintChance ?? this.cfg.feintChance,
       combos: ph.combos ?? this.cfg.combos,
+      openLimit: ph.openLimit ?? this.cfg.openLimit,
     });
     this.setState(ES.INTERLUDE);
     this.pose('roar', 300);

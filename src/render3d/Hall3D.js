@@ -804,6 +804,8 @@ export class HallView extends World3D {
       target.footL[1] += s * 0.28;
       target.footR[1] -= s * 0.28;
     }
+    // Slipping away from your cuts: a hop back.
+    if (e.hopAt && e.hopAt !== v.hopSeen) { v.hopSeen = e.hopAt; v.zvel -= 3.2; }
     // Critically damped step toward the wanted distance.
     const sdt = dt / 1000;
     const ez = Math.exp(-zRate * sdt);
@@ -838,9 +840,12 @@ export class HallView extends World3D {
     // Gold shimmer while he is open: the moment to strike.
     const now = performance.now();
     const openNow = e.isOpen() && e.state !== ES.DEFEATED;
-    v.glow += ((openNow ? 1 : 0) - v.glow) * Math.min(1, dt / 120);
+    // The glow fades as the opening runs out, and flickers when he's about to recover early.
+    const wantGlow = openNow ? 0.35 + 0.65 * e.openFraction() : 0;
+    v.glow += (wantGlow - v.glow) * Math.min(1, dt / 120);
     if (now > v.flashUntil && (v.glow > 0.01 || v.glowWas)) {
-      const g = v.glow * (0.16 + Math.sin(now / 110) * 0.06) * (v.look && v.look.tint ? 0.45 : 1);
+      const flick = e.openWarn ? 0.35 + 0.65 * Math.abs(Math.sin(now / 45)) : 1;
+      const g = v.glow * flick * (0.16 + Math.sin(now / 110) * 0.06) * (v.look && v.look.tint ? 0.45 : 1);
       k.mats.forEach((m) => m.emissive && m.emissive.setRGB(g, g * 0.75, g * 0.25));
       v.glowWas = v.glow > 0.01;
     }

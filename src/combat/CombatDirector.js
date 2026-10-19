@@ -46,8 +46,17 @@ export class CombatDirector {
     if (e.state === ES.TELEGRAPH && e.inParryWindow() && e.attack.parryable && this.parryMatches(dir, e.attack)) {
       if (!this.tutorial && e.telegraphRemaining() <= CONFIG.lock.lastMs) this.startLock(e.attack);
       else this.doParry();
+    } else if (e.isOpen() && e.limitReached()) {
+      // He won't stand for it.
+      const how = e.recoverEarly();
+      Sfx.clang();
+      p.clangAt = performance.now();
+      this.hud.hideHint();
+      this.hud.bigText(how === 'counter' ? 'He turns your blade!' : 'He slips away!', how === 'counter' ? PALETTE.vermilionCss : '#fff3c4', 170, 34);
+      this._teach('limitHint', 'Some foes won\'t stand for it: when the gold glow FLICKERS, stop cutting before he recovers.', 1, true);
     } else if (e.isOpen()) {
       this.doHit(dir);
+      e.cuts = (e.cuts || 0) + 1;
     } else if (!this.tutorial?.step || this.tutorial.step === 'free' ? e.gapDirs().includes(dir) : false) {
       this.doGapHit(dir);
     } else if (e.state !== ES.DEFEATED) {

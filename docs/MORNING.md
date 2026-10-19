@@ -188,3 +188,13 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   40 seconds, and the Red Knight can now kill a careless knight.
 - **Portrait fixes:** the blade-lock camera keeps both knights whole on a narrow screen, and blade
   trails switch off while blades are bound.
+
+## Brief 11, they fight back (v27)
+
+`docs/BRIEF-11-they-fight-back.md`
+
+- **Openings have limits for the better foes:** after 3 cuts in one opening the Brigand slips back
+  out of reach. The Red Knight turns your 4th cut aside and answers at once ("He turns your blade!").
+  The Green Knight does the same after 4 cuts in his second phase. Staggers ignore the limits.
+- **Read it:** the gold "open" shimmer now fades as the opening runs out, and flickers when he's one
+  cut from recovering. Three-step known strikes still fit inside the limit.

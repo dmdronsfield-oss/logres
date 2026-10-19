@@ -14,6 +14,10 @@
 //   bash         drawn as a shield charge rather than a weapon blow
 //   hesitate     [fraction, ms]: the wind-up stops at that point for ms before falling
 //
+// openLimit (per foe or per phase): { cuts, react } - after that many cuts in one
+// opening he recovers: 'hop' (slips back out of reach) or 'counter' (turns your
+// next cut and answers). Staggers ignore it.
+//
 // Horizontal slashes are dodged against the blade's travel (an E slash is dodged left).
 
 const slash = (dir, t, dmg, rec, extra = {}) => ({
@@ -136,6 +140,7 @@ export const ENEMIES = [
   {
     id: 'brigand',
     taunt: 'point',
+    openLimit: { cuts: 3, react: 'hop' },
     name: 'The Brigand Captain',
     epithet: 'of the Wirral road',
     scene: 'road',
@@ -176,6 +181,7 @@ export const ENEMIES = [
   {
     id: 'red',
     taunt: 'raise',
+    openLimit: { cuts: 3, react: 'counter' },
     name: 'The Red Knight',
     epithet: 'of the Red Lands',
     scene: 'field',
@@ -257,6 +263,7 @@ export const ENEMIES = [
       {
         atHealth: 0.5,
         message: 'He laughs, and the holly burns green',
+        openLimit: { cuts: 4, react: 'counter' },
         telegraphMult: 0.82,
         idleMs: [500, 900],
         comboGapMs: [180, 300],
