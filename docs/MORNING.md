@@ -310,3 +310,14 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **Footfalls** on his lunges, and a scuff when you dodge.
 - I couldn't listen to these myself (the code runs cleanly). Formant voices can sound robotic, so tell
   me if they grate and I'll tone them down or take them out.
+
+## Brief 23, lighter on phones (v39)
+
+`docs/BRIEF-23-lighter-on-phones.md`
+
+- On **Medium and Low**, the knights now use a lighter copy of INKXO's armour with 30% of the
+  triangles. It looks the same at fighting distance, and the rig and recolouring are unchanged.
+  On Medium the capes also stay out of the floor reflection. Medium now draws about 140k triangles
+  a frame, against 437k on High.
+- High is unchanged. Phones that struggle already step down to Medium automatically, so they'll
+  pick up the light model on their next launch.

@@ -167,7 +167,7 @@ export class HallView extends World3D {
     // the code-built knight if the model can't load). On the model preview the
     // challengers use the CC0 Quaternius knight too.
     this.ready = Promise.all([
-      loadInkxo().then((a) => { this.hero = a; }).catch((err) => console.warn('Player model failed to load', err)),
+      loadInkxo(this.quality < 2).then((a) => { this.hero = a; }).catch((err) => console.warn('Player model failed to load', err)),
       window.LOGRES_MODEL === 'quaternius' ? loadQuaternius().then((a) => { this.skinned = a; }) : null,
     ]);
     this.fovKick = 0;
@@ -195,6 +195,7 @@ export class HallView extends World3D {
     const q = this.quality;
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, [1, 1.25, 1.5][q]);
     if (this.mirror) this.mirror.visible = q > 0;
+    [this.player, this.enemy].forEach((f) => (f?.cloths || []).forEach((c) => { if (q >= 2) c.mesh.layers.enable(REFLECT); else c.mesh.layers.disable(REFLECT); }));
     if (this.floor) {
       this.floor.material.opacity = q > 0 ? 0.74 : 1;
       this.floor.material.transparent = q > 0;
@@ -654,7 +655,8 @@ export class HallView extends World3D {
     const cloths = [];
     const cloth = (opts) => {
       const c = new Cloth({ ...opts, colliders: () => list });
-      c.mesh.layers.enable(REFLECT);
+      // Cloth is drawn in the floor's reflection only on High.
+      if (this.quality >= 2) c.mesh.layers.enable(REFLECT);
       this.content.add(c.mesh);
       cloths.push(c);
       return c;

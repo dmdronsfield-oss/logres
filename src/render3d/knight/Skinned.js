@@ -17,6 +17,8 @@ import { figureMaterials } from './Mat.js';
 const BASE = new URL('../../../assets/models/quaternius-knight/', import.meta.url).href;
 const GAWAIN = new URL('../../../assets/models/gawain/gawain.glb', import.meta.url).href;
 const INKXO = new URL('../../../assets/models/inkxo-knight/inkxo-knight.glb', import.meta.url).href;
+// The same knight reduced to under a third of its triangles (same rig, UVs, materials) for Medium and Low.
+const INKXO_LITE = new URL('../../../assets/models/inkxo-knight/inkxo-knight-lite.glb', import.meta.url).href;
 
 // INKXO's knight uses a Rigify metarig; its bones under our names.
 const INKXO_NAMES = {
@@ -144,15 +146,16 @@ function ownMaterials(obj) {
 // INKXO's "Medieval Knight Armor (Low-poly / Rigged)" (CC BY 4.0), whole and
 // unaltered apart from smaller textures; Draco-compressed. It carries its own
 // sheathed sword, so the sword and lion shield in hand come from Gawain's file.
-let inkxoPromise = null;
-export function loadInkxo() {
-  if (!inkxoPromise) {
+const inkxoPromises = {};
+export function loadInkxo(lite = false) {
+  const url = lite ? INKXO_LITE : INKXO;
+  if (!inkxoPromises[url]) {
     const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
-    inkxoPromise = Promise.all([loader.loadAsync(INKXO, track(INKXO, 'Arming Sir Gawain…')), loadGawain()])
+    inkxoPromises[url] = Promise.all([loader.loadAsync(url, track(url, 'Arming Sir Gawain…')), loadGawain()])
       .then(([{ scene }, g]) => ({ kind: 'gltf', knight: scene, sword: g.sword, shield: g.shield, names: INKXO_NAMES, curlFingers: true }));
   }
-  return inkxoPromise;
+  return inkxoPromises[url];
 }
 
 const v = new THREE.Vector3();
