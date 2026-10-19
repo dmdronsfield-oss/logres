@@ -216,9 +216,9 @@ export class Duel extends Phaser.Scene {
     const scale = this.juice.scale() * (this.tutorial ? this.tutorial.scale() : 1);
     this.tweens.timeScale = scale;
     const dt = dReal * scale;
-    // Slow motion slows the world, not you: your arm keeps real time (hit-stop still holds it).
-    const tut = this.tutorial ? this.tutorial.scale() : 1;
-    this.player.update(dReal * (this.juice.stopLeft > 0 ? 0 : 1) * tut);
+    // Slow motion and tutorial freezes stop the world, not you: your own moves keep
+    // real time (hit-stop still holds them), so a freeze can never trap you mid-dodge.
+    this.player.update(dReal * (this.juice.stopLeft > 0 ? 0 : 1));
     this.enemy.update(dt);
     this.director.update();
     if (this.tutorial) this.tutorial.update(dReal);
