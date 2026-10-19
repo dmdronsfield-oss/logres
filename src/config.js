@@ -1,6 +1,9 @@
 // Every tunable number in the game lives here.
 
 // '3d' when loaded from the /3d/ test page (it sets window.LOGRES_MODE first).
+// The release, shown on the title screen (bumped with the service worker's VERSION).
+export const BUILD = 'v54';
+
 export const MODE = (typeof window !== 'undefined' && window.LOGRES_MODE) || '2d';
 
 // View dimensions are decided once at boot from the device (see main.js).

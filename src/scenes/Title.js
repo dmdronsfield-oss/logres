@@ -1,4 +1,4 @@
-import { CONFIG, VIEW, PALETTE, MODE } from '../config.js';
+import { CONFIG, VIEW, PALETTE, MODE, BUILD } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { Music } from '../audio/Music.js';
@@ -48,6 +48,8 @@ export class Title extends Phaser.Scene {
 
     // The abbey takes the centre (the gear panel names the sword and shield).
     this.abbey = abbeyBackdrop(this);
+    // Which release this is, small in the corner (so an update can be confirmed).
+    text(this, W - 12, H - 8, BUILD, { fontSize: '12px', color: '#5a4a38', originX: 1, originY: 1 }).setDepth(12);
 
     // Layout: three columns in landscape; stacked when the phone is upright.
     const P = VIEW.portrait;

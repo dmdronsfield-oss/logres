@@ -21,6 +21,13 @@ const CLIPS = {
   step: ['step_1', 'step_2', 'step_3', 'step_4', 'step_5'],
 };
 const clipUrl = (n) => new URL(`../../assets/audio/sfx/${n}.mp3`, import.meta.url).href;
+// Fetch the clips as soon as the page loads; they're decoded the moment the audio is unlocked.
+const clipBytes = {};
+if (typeof fetch !== 'undefined') {
+  for (const files of Object.values(CLIPS)) {
+    files.forEach((f) => { clipBytes[f] = fetch(clipUrl(f)).then((r) => r.arrayBuffer()).catch(() => null); });
+  }
+}
 
 class SfxEngine {
   constructor() {
@@ -63,8 +70,9 @@ class SfxEngine {
     for (const [group, files] of Object.entries(CLIPS)) {
       this.clips[group] = [];
       files.forEach((f) => {
-        fetch(clipUrl(f)).then((r) => r.arrayBuffer()).then((b) => this.ctx.decodeAudioData(b))
-          .then((buf) => this.clips[group].push(buf)).catch(() => {});
+        (clipBytes[f] || fetch(clipUrl(f)).then((r) => r.arrayBuffer()))
+          .then((b) => (b ? this.ctx.decodeAudioData(b.slice(0)) : null))
+          .then((buf) => { if (buf) this.clips[group].push(buf); }).catch(() => {});
       });
     }
   }
@@ -149,7 +157,7 @@ class SfxEngine {
   // struck blade has), a hard transient and a body thud so it lands with weight.
   parry() {
     // Recorded blade on blade, with a body thud under it for weight.
-    if (this.clip('clash', { gain: 0.95 })) { this.tone(150, 0.22, { gain: 0.3, freqEnd: 70, type: 'sine' }); return; }
+    if (this.clip('clash', { gain: 1 })) { this.tone(150, 0.22, { gain: 0.18, freqEnd: 70, type: 'sine' }); return; }
     const k = 0.97 + Math.random() * 0.06;
     [1320, 2093, 2960, 4180, 5600, 7310].forEach((f, i) => {
       this.tone(f * k * (0.99 + Math.random() * 0.02), 1.1 - i * 0.14, { gain: 0.15 - i * 0.02, type: 'sine' });
@@ -161,7 +169,7 @@ class SfxEngine {
 
   // Your blow turned aside by the enemy: a short, heavy knock of steel on steel.
   clang() {
-    if (this.clip('clash', { gain: 0.5, rate: 1.12 })) return;
+    if (this.clip('clash', { gain: 0.65, rate: 1.12 })) return;
     const k = 0.92 + Math.random() * 0.16;
     [740, 1180, 1710, 2630].forEach((f, i) => this.tone(f * k, 0.22 - i * 0.04, { gain: 0.08, type: i ? 'sine' : 'square' }));
     this.tone(120, 0.12, { gain: 0.25, freqEnd: 70 });
@@ -250,7 +258,7 @@ class SfxEngine {
   // What a cut lands on: plate rings, mail chinks, leather thuds.
   hitArmour(kind) {
     const group = kind === 'plate' ? 'hit_plate' : kind === 'mail' ? 'hit_mail' : 'hit_leather';
-    if (this.clip(group, { gain: 0.9 })) { this.tone(110, 0.16, { gain: 0.35, freqEnd: 55 }); return; }
+    if (this.clip(group, { gain: 1 })) { this.tone(110, 0.16, { gain: 0.2, freqEnd: 55 }); return; }
     if (kind === 'plate') {
       const k = 0.9 + Math.random() * 0.2;
       [880, 1390, 2210, 3170].forEach((f, i) => this.tone(f * k, 0.35 - i * 0.06, { gain: 0.09 - i * 0.015 }));
@@ -266,13 +274,13 @@ class SfxEngine {
   }
 
   step(heavy = false) {
-    if (this.clip('step', { gain: heavy ? 0.85 : 0.55, rate: heavy ? 0.85 : 1 })) return;
+    if (this.clip('step', { gain: heavy ? 1 : 0.75, rate: heavy ? 0.85 : 1 })) return;
     this.tone(heavy ? 60 : 75, heavy ? 0.18 : 0.12, { gain: heavy ? 0.4 : 0.25, freqEnd: 40 });
     this.noise(0.06, { gain: heavy ? 0.2 : 0.12, filter: 'lowpass', freq: 500 });
   }
 
   scuff() {
-    if (this.clip('cloth', { gain: 0.4, rate: 1.15 })) return;
+    if (this.clip('cloth', { gain: 0.6, rate: 1.15 })) return;
     this.noise(0.18, { gain: 0.14, attack: 0.02, filter: 'bandpass', freq: 1800, freqEnd: 900, q: 0.8 });
   }
 
@@ -299,7 +307,7 @@ class SfxEngine {
 
   // Dull wooden thud on the shield.
   block() {
-    if (this.clip('block_shield', { gain: 0.95 })) return;
+    if (this.clip('block_shield', { gain: 1 })) return;
     this.tone(150, 0.16, { gain: 0.55, freqEnd: 60, type: 'sine' });
     this.noise(0.1, { gain: 0.45, filter: 'lowpass', freq: 900, q: 0.7 });
     this.tone(320, 0.06, { gain: 0.15, type: 'triangle' });
@@ -334,7 +342,7 @@ class SfxEngine {
   }
 
   swipe() {
-    this.noise(0.14, { gain: 0.22, attack: 0.02, filter: 'bandpass', freq: 600, freqEnd: 2600, q: 1.4 });
+    this.noise(0.14, { gain: 0.13, attack: 0.02, filter: 'bandpass', freq: 600, freqEnd: 2600, q: 1.4 });
   }
 
   dodge() {

@@ -452,3 +452,12 @@ keyboard only. Then I fixed what got in the way:
   swing after an update. New releases now always fetch fresh files.
 - The abbey photo is zoomed out a little on the menus and the loading screen, set in its own fog
   with soft edges.
+
+## Sounds louder, version shown (v54)
+
+- **The version number** (v54) now shows in the corner of the title screen, so you can tell whether
+  an update has reached your device.
+- **The recordings are louder**, and the synthesised layers under them (the swipe's whoosh, the low
+  thuds) are quieter, so the real steel, armour, shield and footsteps come through.
+- The clips download as the page opens, so they're ready from the first blow.
+- To release: bump both `VERSION` in service-worker.js and `BUILD` in src/config.js.
