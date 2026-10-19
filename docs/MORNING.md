@@ -404,3 +404,13 @@ keyboard only. Then I fixed what got in the way:
   landscape, the title and progress bar sit in the fog beside the abbey; on an upright phone the
   abbey is at the top, fading into fog where the title sits.
 - The illuminated border is gone from every screen.
+
+## Brief 31, the sword wrist and footwork (v49)
+
+`docs/BRIEF-31-wrist-and-footwork.md`
+
+- **Wrist:** the arm now finds an elbow position that keeps the wrist natural, and the wrist bends
+  only within a real wrist's range. No more cocked, folded sword hand (for Gawain and every foe).
+- **No more gliding:** feet stay planted and step when the body moves (lunges, recoveries, dodges),
+  for everyone.
+- The foes' blade trail is now a thin streak too.

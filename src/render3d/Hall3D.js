@@ -664,7 +664,7 @@ export class HallView extends World3D {
     f.k.root.rotation.y = ENEMY_TURN;
     const prox = { root: new P(), body: new P(), head: new P(), armL: new P(), armR: new P(), weapon: new P() };
     this.enemy = { ...f, prox, hp: null, walkPhase: 0, lastZ: null, fade: 1, zoff: 0, zvel: 0, flashUntil: 0, glow: 0 };
-    this.enemy.trail = new BladeTrail(this.content, { color: 0xffe7a0 });
+    this.enemy.trail = new BladeTrail(this.content, { color: 0xffe7a0, from: 0.84, over: 0.06, inner: 0.35, tail: 1.8, life: 120 });
     const view = this;
     const { k } = f;
     prox.root.flash = (ms) => {

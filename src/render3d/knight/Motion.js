@@ -387,6 +387,55 @@ const az = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 const euler = new THREE.Euler();
 
+const sh = new THREE.Vector3();
+const axis = new THREE.Vector3();
+const e1 = new THREE.Vector3();
+const e2 = new THREE.Vector3();
+const cand = new THREE.Vector3();
+const elb = new THREE.Vector3();
+const figUp = new THREE.Vector3();
+const figOut = new THREE.Vector3();
+const wq = new THREE.Quaternion();
+const wf = new THREE.Vector3();
+const wn = new THREE.Vector3();
+const wl = new THREE.Vector3();
+
+// The blade direction against the forearm's frame: dev is the tilt in the arm's plane
+// from square-to-the-forearm (+ toward the forearm's line, ulnar; - back, radial); side is
+// out of that plane. Degrees. (The forearm runs along its -y; the fist's blade line is -z.)
+function wristAngles(fore, blade) {
+  fore.getWorldQuaternion(wq);
+  wf.set(0, -1, 0).applyQuaternion(wq);
+  wn.set(0, 0, -1).applyQuaternion(wq);
+  wl.set(1, 0, 0).applyQuaternion(wq);
+  const a = blade.dot(wf);
+  const b = blade.dot(wn);
+  const c = blade.dot(wl);
+  return { dev: (Math.atan2(a, b) * 180) / Math.PI, side: (Math.asin(Math.max(-1, Math.min(1, c))) * 180) / Math.PI };
+}
+
+// Bend the sword wrist toward `dir` within a real wrist's range: tilt in the arm's plane
+// (ulnar/radial) from -15 to +45 degrees, and sideways (flexion/extension) to +-50.
+const RAD = Math.PI / 180;
+function bendWristNatural(hand, dir) {
+  const fore = hand.parent;
+  const w = wristAngles(fore, dir);
+  const dev = Math.max(-15, Math.min(45, w.dev)) * RAD;
+  const side = Math.max(-50, Math.min(50, w.side)) * RAD;
+  // In the forearm's frame: start square (-z), tilt toward the forearm's line (-y), then sideways (x).
+  const v = new THREE.Vector3(0, -Math.sin(dev) * Math.cos(side), -Math.cos(dev) * Math.cos(side));
+  v.x = Math.sin(side);
+  fore.getWorldQuaternion(wq);
+  bendWrist(hand, v.applyQuaternion(wq), Math.PI);
+}
+
+// Foot planting: a foot steps when the pose wants it this far (m, at size 1) from where it
+// stands; a step takes STEP_TIME seconds and lifts the foot STEP_LIFT at its height.
+const STEP_START = 0.1;
+const STEP_TIME = 0.14;
+const STEP_LIFT = 0.08;
+const tmp3 = new THREE.Vector3();
+
 export class Animator {
   constructor(knight, guard) {
     this.k = knight;
@@ -398,6 +447,44 @@ export class Animator {
     this.lift = { L: 0, R: 0 };
     this.hit = { p: 0, y: 0, r: 0, vp: 0, vy: 0, vr: 0 };
     this.headHit = { p: 0, y: 0, vp: 0, vy: 0 };
+  }
+
+  // Score elbow placements round the shoulder-to-hand axis; return the best pole.
+  _swordPole(J, target, blade, hint, qa, upper, lower) {
+    J.shR.getWorldPosition(sh);
+    axis.subVectors(target, sh).normalize();
+    // Two directions square to the shoulder-hand axis, to sweep the elbow round it.
+    e1.copy(hint).addScaledVector(axis, -hint.dot(axis));
+    if (e1.lengthSq() < 1e-6) e1.set(0, -1, 0).addScaledVector(axis, -axis.y);
+    e1.normalize();
+    e2.crossVectors(axis, e1).normalize();
+    figUp.set(0, 1, 0);
+    figOut.set(-1, 0, 0).applyQuaternion(qa);   // the sword arm's side of the body
+    let best = null;
+    let bestCost = Infinity;
+    const prev = this.swordPoleAngle;
+    for (let i = 0; i < 24; i++) {
+      const ang = (i / 24) * Math.PI * 2;
+      cand.copy(e1).multiplyScalar(Math.cos(ang)).addScaledVector(e2, Math.sin(ang));
+      solveTwoBone(J.shR, J.elR, upper, lower, target, cand);
+      const w = wristAngles(J.elR, blade);
+      // The wrist's comfortable range: tilted forward (ulnar) 0..40, back (radial) to -10, little sideways.
+      let cost = Math.pow(Math.max(0, w.dev - 40), 2) + Math.pow(Math.max(0, -10 - w.dev), 2) + 0.6 * w.side * w.side;
+      // Elbow low and out to the side, never up by the ear or across the chest.
+      J.elR.getWorldPosition(elb);
+      const up = elb.y - sh.y;
+      if (up > -0.05) cost += 4000 * (up + 0.05);
+      const outward = elb.clone().sub(sh).dot(figOut);
+      if (outward < -0.05) cost += 3000 * (-0.05 - outward);
+      // Steady: don't jump round the circle between frames.
+      if (prev !== undefined) {
+        const dA = Math.abs(Math.atan2(Math.sin(ang - prev), Math.cos(ang - prev)));
+        cost += 180 * dA;
+      }
+      if (cost < bestCost) { bestCost = cost; best = ang; }
+    }
+    this.swordPoleAngle = best;
+    return cand.copy(e1).multiplyScalar(Math.cos(best)).addScaledVector(e2, Math.sin(best)).clone();
   }
 
   set(target, omega = 10) {
@@ -436,6 +523,7 @@ export class Animator {
         v[i] = (v[i] - w * tv * dt) * e;
       }
     }
+    this.dt = dt;
     for (const s of ['L', 'R']) {
       const fv = this.vel[`foot${s}`];
       const speed = Math.hypot(fv[0], fv[1]);
@@ -497,11 +585,35 @@ export class Animator {
       J.head.rotation.y += hh.y * 0.6;
     }
 
-    // Legs: planted feet, knees forward.
+    // Legs: feet stay planted on the floor while the body moves over them, and step
+    // (one at a time, a quick lifted step) when the body has carried them too far from
+    // where the pose wants them. No sliding across the floor.
     fig.getWorldQuaternion(qa);
+    const dt = this.dt || 0;
+    const plants = this.plants || (this.plants = {});
+    for (const s of ['L', 'R']) {
+      const f = c[`foot${s}`];
+      const want = fig.localToWorld(tmp3.set(f[0], D.ankle, f[1]));
+      const p = plants[s] || (plants[s] = { pos: want.clone(), from: want.clone(), t: 1 });
+      const other = plants[s === 'L' ? 'R' : 'L'];
+      const off = Math.hypot(want.x - p.pos.x, want.z - p.pos.z);
+      if (p.t >= 1) {
+        if (off > 0.7 * size) p.pos.copy(want);                       // a jump cut: just stand there
+        else if (off > STEP_START * size && (!other || other.t >= 0.6 || off > 0.32 * size)) {
+          p.from.copy(p.pos);
+          p.t = 0;
+        } else p.pos.y = want.y;
+      }
+      if (p.t < 1) {
+        p.t = Math.min(1, p.t + dt / STEP_TIME);
+        const u = p.t * p.t * (3 - 2 * p.t);
+        p.pos.lerpVectors(p.from, want, u);
+        p.pos.y = want.y + Math.sin(Math.PI * p.t) * STEP_LIFT * size;
+      }
+    }
     for (const [s, sign] of [['L', 1], ['R', -1]]) {
       const f = c[`foot${s}`];
-      const target = fig.localToWorld(tmp.set(f[0], D.ankle + this.lift[s], f[1]));
+      const target = tmp.copy(plants[s].pos);
       const pole = tmp2.set(Math.sin(f[2]) + sign * 0.15, 0, Math.cos(f[2])).applyQuaternion(qa);
       solveTwoBone(J[`hip${s}`], J[`kn${s}`], D.thigh * size, D.shin * size, target, pole);
       qb.setFromEuler(euler.set(0, f[2], 0)).premultiply(qa);
@@ -524,8 +636,13 @@ export class Animator {
     fallback.addScaledVector(ay, -fallback.dot(ay)).normalize();
     if (across > 0.3) az.normalize().negate().lerp(fallback, 0.3).normalize();
     else az.copy(fallback).lerp(az.normalize().negate(), across / 0.3 * 0.5).normalize();
-    solveTwoBone(J.shR, J.elR, D.upper * size, reachB, target, az);
-    bendWrist(J.haR, ax, 1.35);
+    // A sword in the fist can't line up with the forearm: the blade leaves the fist
+    // about square to it, and the wrist only tilts it so far. So choose where the elbow
+    // goes (round the circle the elbow can sit on) to put the forearm at a natural angle
+    // to the blade, with the elbow low, outside the body and steady from frame to frame.
+    const swordPole = this._swordPole(J, target, ax, az, qa, D.upper * size, reachB);
+    solveTwoBone(J.shR, J.elR, D.upper * size, reachB, target, swordPole);
+    bendWristNatural(J.haR, ax);
 
     // Shield arm: hand to its mark, shield face turned toward `faceL`, top kept up.
     // The mark turns with the trunk (a shield arm is carried round by the body).
