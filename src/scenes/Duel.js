@@ -112,6 +112,11 @@ export class Duel extends Phaser.Scene {
     this.debugTaps = [];
     this.swipe = new SwipeInput(this, {
       onSwipe: (dir) => d.onSwipe(dir),
+      onTap: () => {
+        if (!d.lock) return false;
+        d.lockTap();
+        return true;
+      },
       swipesBlocked: () => this.player.blockHeld || this.paused,
       tolerance: () => this.player.sword.tolerance,
       onButtonDown: (id) => {
@@ -220,7 +225,7 @@ export class Duel extends Phaser.Scene {
     // real time (hit-stop still holds them), so a freeze can never trap you mid-dodge.
     this.player.update(dReal * (this.juice.stopLeft > 0 ? 0 : 1));
     this.enemy.update(dt);
-    this.director.update();
+    this.director.update(dReal);
     if (this.tutorial) this.tutorial.update(dReal);
     this.swipe.update();
     this.hud.update(dReal, () => this._debugInfo());

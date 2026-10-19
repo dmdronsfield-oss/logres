@@ -62,6 +62,10 @@ export function bot(frames, skill = 1) {
     const d = duel();
     if (!d.sys.isActive() || !d.enemy || d.director.over) return true;
     if (d.paused) d.resume();   // a hidden test tab counts as the app going to the background
+    if (d.director.lock) {
+      if (Math.random() < 0.13 * skill) d.director.lockTap();
+      return true;
+    }
     const e = d.enemy;
     const tut = d.tutorial;
     if (blockOff && T > blockOff) { d.director.onBlock(false); blockOff = 0; }

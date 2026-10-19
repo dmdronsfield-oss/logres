@@ -124,6 +124,32 @@ export class Juice {
     });
   }
 
+  // A red flash on the edge of the screen a blow came from (its direction of travel
+  // points away from that edge; overheads come from the top, thrusts from all round).
+  edgeFlash(direction) {
+    const W = VIEW.W;
+    const H = VIEW.H;
+    if (!this.scene.textures.exists('edgeGrad')) {
+      canvasTex(this.scene, 'edgeGrad', 64, 8, (ctx) => {
+        const g = ctx.createLinearGradient(0, 0, 64, 0);
+        g.addColorStop(0, 'rgba(220,30,20,0.9)');
+        g.addColorStop(1, 'rgba(220,30,20,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 64, 8);
+      });
+    }
+    const from = { E: ['L'], W: ['R'], S: ['T'], SE: ['L', 'T'], SW: ['R', 'T'], N: ['B'], NE: ['L'], NW: ['R'], T: ['L', 'R', 'T'] }[direction] || ['T'];
+    const depth = Math.min(W, H) * 0.22;
+    from.forEach((side) => {
+      const im = this.scene.add.image(0, 0, 'edgeGrad').setDepth(46).setBlendMode(Phaser.BlendModes.ADD);
+      if (side === 'L') im.setOrigin(0, 0.5).setPosition(0, H / 2).setDisplaySize(depth, H);
+      if (side === 'R') im.setOrigin(0, 0.5).setPosition(W, H / 2).setAngle(180).setDisplaySize(depth, H);
+      if (side === 'T') im.setOrigin(0, 0.5).setPosition(W / 2, 0).setAngle(90).setDisplaySize(depth, W);
+      if (side === 'B') im.setOrigin(0, 0.5).setPosition(W / 2, H).setAngle(-90).setDisplaySize(depth, W);
+      this.scene.time.delayedCall(30, () => this.scene.tweens.add({ targets: im, alpha: 0, duration: 520, onComplete: () => im.destroy() }));
+    });
+  }
+
   petals(ms = 2200) {
     const W = VIEW.W;
     const mk = (key, scale, qty) => this.scene.add.particles(0, 0, key, {

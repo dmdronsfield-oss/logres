@@ -105,3 +105,16 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **Performance:** two detailed knights on screen take about 2 ms a frame on this Mac, about 600k
   triangles counting the floor reflection and shadows. Phones will feel it more; the game's automatic
   quality step-down (bloom, then reflections) is there if they need it.
+
+## Brief 4, moments (v20)
+
+`docs/BRIEF-04-moments.md`
+
+- **Blade lock:** parry at the very last instant (the final 70 ms) and the blades bind. The camera
+  swings into a tight two-shot, both knights lean in, and a strength bar appears. Tap anywhere (or
+  press any key) to drive him back. Win and he's **Overpowered!** and staggered; lose and he forces
+  you down for a light cut.
+- **Where it came from:** when a blow lands on you, the edge of the screen it came from flashes red.
+- **Last stand:** at 30% health every foe (except the Green Knight, who has his own second phase)
+  roars and fights on, faster and with shorter pauses.
+- Bot check: all five duels completed, including a won and a lost lock, no errors.

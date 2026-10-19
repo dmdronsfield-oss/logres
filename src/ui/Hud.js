@@ -459,6 +459,42 @@ export class Hud {
     this.btn.super.setTexture(ready ? 'btn_super_lit' : 'btn_super').setAlpha(ready ? 1 : 0.8);
   }
 
+  // Blade lock: a strength bar (you from the left in blue, him from the right in red) and TAP!
+  showLock(on) {
+    if (!this.lockG) {
+      this.lockY = VIEW.portrait ? Math.round(VIEW.H * 0.7) : 418;
+      this.lockG = this.scene.add.graphics().setDepth(DEPTH + 3);
+      this.lockTxt = text(this.scene, VIEW.W / 2, this.lockY - 44, 'TAP!', {
+        fontSize: '34px', fontStyle: '700', color: '#fff6cf', stroke: PALETTE.inkCss, strokeThickness: 7,
+      }).setDepth(DEPTH + 3);
+    }
+    this.lockOn = on;
+    this.lockG.setVisible(on);
+    this.lockTxt.setVisible(on);
+    if (on) this.setLock(0.5);
+  }
+
+  setLock(v) {
+    const g = this.lockG;
+    const w = Math.min(340, VIEW.W - 120);
+    const x = VIEW.W / 2 - w / 2;
+    const y = this.lockY;
+    g.clear();
+    g.fillStyle(PALETTE.ink, 0.85).fillRoundedRect(x - 6, y - 6, w + 12, 26, 8);
+    g.fillStyle(0xb02a1c, 1).fillRect(x, y, w, 14);
+    g.fillStyle(0x3f63c8, 1).fillRect(x, y, w * Math.max(0, Math.min(1, v)), 14);
+    g.fillStyle(0xffffff, 0.25).fillRect(x, y, w, 4);
+    const mx = x + w * Math.max(0, Math.min(1, v));
+    g.fillStyle(0xfff6cf, 1).fillTriangle(mx, y - 2, mx - 9, y - 14, mx + 9, y - 14);
+    g.fillStyle(0xfff6cf, 1).fillTriangle(mx, y + 16, mx - 9, y + 28, mx + 9, y + 28);
+    this.lockTxt.setScale(1 + Math.sin(this.realT / 70) * 0.06);
+  }
+
+  pulseLock() {
+    if (!this.lockTxt) return;
+    this.lockTxt.setScale(1.3);
+  }
+
   // Clear the screen for a cinematic moment (the finishing blow).
   cinematic(on) {
     // A cut, not a tween: tweens run in slow motion during the finisher.

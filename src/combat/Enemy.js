@@ -16,6 +16,7 @@ export const ES = {
   STAGGERED: 'Staggered',
   FEINT: 'Feint',
   INTERLUDE: 'Interlude',
+  LOCKED: 'Locked',
   DEFEATED: 'Defeated',
 };
 
@@ -47,6 +48,11 @@ export class Enemy extends Fighter {
       telegraphMult: 1,
     };
     this.phaseIdx = 0;
+    // Every foe without a scripted second phase makes a last stand at 30% health.
+    this.phases = def.phases || [{
+      atHealth: 0.3, generic: true, message: `${def.name} fights on, desperate!`, telegraphMult: 0.88,
+      idleMs: def.idleMs.map((x) => Math.round(x * 0.7)), comboGapMs: def.comboGapMs.map((x) => Math.round(x * 0.8)),
+    }];
     this.pendingPhase = null;
     this.stagger = 0;
     this.script = [];        // forced combos (tutorial): { seq, recoverMs }
@@ -528,6 +534,14 @@ export class Enemy extends Fighter {
     this.scene.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 700, onComplete: () => t.destroy() });
   }
 
+  // Blades bound together (a last-instant parry); the director runs the struggle.
+  lock() {
+    this._clearRing();
+    this.glint.setVisible(false);
+    this.rig.setWeaponTint(null);
+    this.setState(ES.LOCKED);
+  }
+
   counterCut() {
     // His quickest dodgeable, parryable blow, sped up.
     const opts = Object.entries(this.def.attacks).filter(([, a]) => a.parryable && a.dodge.length && !a.hesitate);
@@ -614,7 +628,7 @@ export class Enemy extends Fighter {
       this.defeat();
       return true;
     }
-    const phases = this.def.phases || [];
+    const phases = this.phases;
     const next = phases[this.phaseIdx];
     if (next && !this.pendingPhase && this.healthFrac <= next.atHealth) this.pendingPhase = next;
     return false;
@@ -632,7 +646,8 @@ export class Enemy extends Fighter {
     });
     this.setState(ES.INTERLUDE);
     this.pose('roar', 300);
-    Sfx.laugh();
+    if (ph.generic) Sfx.stagger();
+    else Sfx.laugh();
     this.director.onPhase?.(ph);
   }
 

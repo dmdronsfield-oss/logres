@@ -70,6 +70,15 @@ export const CONFIG = {
     openMs: 700,            // a perfect dodge or perfect block breaks his combo and opens him this long
   },
 
+  lock: {
+    lastMs: 70,             // a parry this close to impact binds the blades (blade lock)
+    maxMs: 2600,            // the struggle is decided by then
+    tapPush: 0.075,         // each tap drives him back this much (the bar runs 0..1 from 0.5)
+    pushPerSec: 0.34,       // his strength; scaled by the foe's lockPush
+    winStaggerMs: 1600,
+    loseDamage: 0.6,        // fraction of the blow's damage when he forces you down
+  },
+
   riposte: {
     damageMult: 2,          // the first cut after a parry, along the shown chevron
     stagger: 20,

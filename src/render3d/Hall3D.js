@@ -755,6 +755,13 @@ export class HallView extends World3D {
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
+      case ES.LOCKED: {
+        // The struggle shows in the gap: his weight comes on as he wins, goes back as he loses.
+        const lv = this.duel && this.duel.director.lock ? this.duel.director.lock.v : 0.5;
+        target = pose(guard, STATES.lock); omega = 14; zWant = 0.5 - (lv - 0.5) * 0.9; zRate = 8; wobble = 0.4;
+        if (Math.random() < 0.3) anim.jolt((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, 0);
+        break;
+      }
       case ES.DEFEATED:
         if (e.rises && e.t > 1500) { target = pose(guard, STATES.roar); omega = 5; zWant = -0.2; zRate = 2; }
         else { target = pose(guard, e.t < 800 ? STATES.kneel : STATES.collapse); omega = e.t < 800 ? 7 : 4; zWant = -0.35; zRate = 4; }
@@ -848,10 +855,12 @@ export class HallView extends World3D {
       const sw = playerSwingPose(guard, mirrorDir(pl.swingDir), t);
       if (sw) { target = sw; omega = 30; }
     }
+    const lock = this.duel && this.duel.director.lock;
+    if (lock) { target = pose(guard, STATES.lock); omega = 14; }
     k.root.position.x = rootX;
     // Step into your cut (toward him is -z); recoil off his guard on a clang.
-    let zWant = 0;
-    if (t >= 0 && t < 260 && pl.swingDir && pl.state !== PS.DEAD) zWant = t < 60 ? 0.06 : -0.22;
+    let zWant = lock ? -0.3 - (lock.v - 0.5) * 0.35 : 0;
+    if (!lock && t >= 0 && t < 260 && pl.swingDir && pl.state !== PS.DEAD) zWant = t < 60 ? 0.06 : -0.22;
     if (pl.state === PS.STUNNED) zWant = 0.25;
     const sdt = dt / 1000;
     v.zoff += (zWant - v.zoff) * Math.min(1, sdt * (zWant < v.zoff ? 18 : 7));
@@ -889,6 +898,7 @@ export class HallView extends World3D {
   // ---------- per-frame ----------
 
   render(duel, dt) {
+    this.duel = duel;
     this.syncCanvas();
     const now = performance.now();
     this.time = now;
@@ -915,7 +925,22 @@ export class HallView extends World3D {
     }
     cam.up.set(0, 1, 0);
     const fin = duel.director && duel.director.finisher;
-    if (fin) {
+    // Blade lock: ease round into a two-shot so the bind is in view, and back after.
+    const locked = !fin && duel.director && duel.director.lock;
+    this.lockCam = (this.lockCam || 0) + ((locked ? 1 : 0) - (this.lockCam || 0)) * Math.min(1, (dt || 16) / (locked ? 160 : 260));
+    if (this.lockCam > 0.002 && !fin) {
+      const s = this.lockCam * this.lockCam * (3 - 2 * this.lockCam);
+      const piv = this._piv || (this._piv = new THREE.Vector3());
+      piv.set(-0.2, 0, MID_Z);
+      const dx = cam.position.x - piv.x;
+      const dz = cam.position.z - piv.z;
+      const th = -s * (VIEW.portrait ? 0.45 : 0.75);
+      const r = 1 - s * 0.3;
+      cam.position.x = piv.x + (dx * Math.cos(th) - dz * Math.sin(th)) * r;
+      cam.position.z = piv.z + (dx * Math.sin(th) + dz * Math.cos(th)) * r;
+      cam.position.y -= s * 0.2;
+      cam.lookAt(this.camTarget.x * (1 - s) - 0.2 * s, this.camTarget.y + s * 0.12, this.camTarget.z * (1 - s) + MID_Z * s);
+    } else if (fin) {
       // Kill cam: swing round to the side of the duel and drop a little, on him.
       const u = Math.min(1, (now - fin.at) / 1700);
       const s = u * u * (3 - 2 * u);
@@ -938,6 +963,7 @@ export class HallView extends World3D {
     // A short zoom punch on parries and staggers.
     const e = duel.enemy;
     if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 7;
+    if (e && e.state === ES.LOCKED) this.fovKick = Math.max(this.fovKick, 6 + Math.sin(now / 40) * 0.4);
     this.fovKick *= Math.exp(-(dt || 16) / 180);
     cam.fov = this.fov - this.fovKick;
     cam.updateProjectionMatrix();

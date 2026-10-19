@@ -30,6 +30,7 @@ export class CombatDirector {
 
   onSwipe(dir) {
     if (this.over) return;
+    if (this.lock) { this.lockTap(); return; }
     const p = this.player;
     const e = this.enemy;
     if (!p.canSwing()) {
@@ -42,7 +43,8 @@ export class CombatDirector {
     Sfx.swipe();
 
     if (e.state === ES.TELEGRAPH && e.inParryWindow() && e.attack.parryable && this.parryMatches(dir, e.attack)) {
-      this.doParry();
+      if (!this.tutorial && e.telegraphRemaining() <= CONFIG.lock.lastMs) this.startLock(e.attack);
+      else this.doParry();
     } else if (e.isOpen()) {
       this.doHit(dir);
     } else if (e.state !== ES.DEFEATED) {
@@ -61,6 +63,7 @@ export class CombatDirector {
 
   onDodge(side) {
     if (this.over) return;
+    if (this.lock) { this.lockTap(); return; }
     const p = this.player;
     if (!p.startDodge(side)) return;
     Sfx.dodge();
@@ -79,12 +82,14 @@ export class CombatDirector {
 
   onBlock(held) {
     if (this.over) return;
+    if (this.lock) { if (held) this.lockTap(); return; }
     this.player.setBlock(held);
     this.tutorial?.onBlock?.(held);
   }
 
   onSuper() {
     if (this.over) return;
+    if (this.lock) { this.lockTap(); return; }
     const e = this.enemy;
     if (this.superMeter < CONFIG.super.max) return;
     if (e.state === ES.DEFEATED || e.state === ES.INTRO || e.state === ES.INTERLUDE) return;
@@ -94,6 +99,77 @@ export class CombatDirector {
     this.juice.screenFlash('gold', 0.6, 400);
     this.juice.shake(CONFIG.juice.shakeHeavy);
     this.hud.bigText('Strike of the Pendragon!', PALETTE.goldLight, 200, 40);
+  }
+
+  // ---------- blade lock ----------
+
+  startLock(attack) {
+    const e = this.enemy;
+    const tip = e._tip();
+    this.lock = { v: 0.5, t: 0, last: performance.now(), attack };
+    e.lock();
+    this.player.setBlock(false);
+    this.juice.hitStop(140);
+    this.juice.clash(tip.x, tip.y);
+    this.juice.screenFlash('gold', 0.3, 200);
+    this.juice.shake(CONFIG.juice.shakeTaken);
+    this.juice.vibrate(CONFIG.juice.vibrateParryMs);
+    Sfx.parry();
+    this.hud.bigText('Blade lock!', '#fff6cf', 170, 46);
+    this.hud.showLock(true);
+    this._teach('lockHint', 'BLADE LOCK! Tap fast, anywhere (or any key), to drive him back!');
+  }
+
+  lockTap() {
+    const L = this.lock;
+    if (!L || L.done) return;
+    L.v = Math.min(1, L.v + CONFIG.lock.tapPush);
+    L.taps = (L.taps || 0) + 1;
+    Sfx.clang();
+    const tip = this.enemy._tip();
+    this.juice.sparksAt(tip.x, tip.y, 6);
+    this.hud.pulseLock();
+  }
+
+  _updateLock(realDt) {
+    const L = this.lock;
+    const dt = Math.min(50, realDt || 16.7);
+    if (L.done || this.juice.stopLeft > 0) return;
+    L.t += dt;
+    L.v -= (CONFIG.lock.pushPerSec * (this.enemy.def.lockPush || 1) * this.enemy.dmgMult * dt) / 1000;
+    this.hud.setLock(L.v);
+    if (L.v >= 1 || (L.t >= CONFIG.lock.maxMs && L.v >= 0.5)) this._endLock(true);
+    else if (L.v <= 0 || L.t >= CONFIG.lock.maxMs) this._endLock(false);
+  }
+
+  _endLock(won) {
+    const L = this.lock;
+    L.done = true;
+    this.lock = null;
+    this.hud.showLock(false);
+    const e = this.enemy;
+    const p = this.player;
+    if (won) {
+      this.stats.locks = (this.stats.locks || 0) + 1;
+      e.forceStagger(CONFIG.lock.winStaggerMs, false);
+      this.juice.hitStop(120);
+      this.juice.screenFlash('gold', 0.4, 300);
+      this.juice.shake(CONFIG.juice.shakeHeavy);
+      Sfx.stagger();
+      this.hud.bigText('Overpowered!', '#fff6cf', 200, 50);
+      this.addSuper(15);
+    } else {
+      const dmg = Math.round(L.attack.damage * e.dmgMult * CONFIG.lock.loseDamage);
+      this.stats.taken += dmg;
+      e.toIdle();
+      Sfx.hurt();
+      this.juice.screenFlash('red', 0.4, 260);
+      this.juice.shake(CONFIG.juice.shakeTaken);
+      this.hud.bigText('Forced down!', PALETTE.vermilionCss, 200, 40);
+      const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
+      this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
+      if (p.takeHit(dmg)) this.playerDefeated();
+    }
   }
 
   // ---------- outcomes ----------
@@ -269,6 +345,7 @@ export class CombatDirector {
       const dead = p.takeHit(dmg);
       Sfx.hurt();
       this.juice.hitStop(CONFIG.juice.takenStopMs);
+      this.juice.edgeFlash(attack.direction);
       this.juice.shake(attack.heavy ? CONFIG.juice.shakeHeavy : CONFIG.juice.shakeTaken);
       this.juice.screenFlash('red', attack.heavy ? 0.5 : 0.35, 260);
       this.juice.vibrate(CONFIG.juice.vibrateHitMs * (attack.heavy ? 2 : 1));
@@ -413,9 +490,10 @@ export class CombatDirector {
     this.scene.time.delayedCall(1900, () => this.scene.endDuel(false));
   }
 
-  update() {
+  update(realDt) {
     const e = this.enemy;
     const p = this.player;
+    if (this.lock) this._updateLock(realDt);
     if (this.buffered) {
       if (performance.now() - this.buffered.at > CONFIG.swipe.bufferMs) this.buffered = null;
       else if (p.canSwing()) this.onSwipe(this.buffered.dir);

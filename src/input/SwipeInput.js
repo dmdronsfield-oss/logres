@@ -73,6 +73,8 @@ export class SwipeInput {
       this.h.onButtonDown?.(b.id);
       return;
     }
+    // A tap can be claimed outright (the blade lock: every touch pushes).
+    if (this.h.onTap?.()) return;
     const now = performance.now();
     this.active.set(p.id, { type: 'swipe', pts: [{ x: p.worldX, y: p.worldY, t: now }], fired: false });
   }
