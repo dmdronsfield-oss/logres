@@ -388,3 +388,12 @@ keyboard only. Then I fixed what got in the way:
   testing, measured cutting dealt about 50% more than frantic swiping.
 - Damage was retuned, and a straight playthrough by the test bot matches the earlier difficulty
   curve.
+
+## Brief 30, a clean swipe (v47)
+
+`docs/BRIEF-30-clean-swipe.md`
+
+- Studied your swing frame by frame. The blade wobbled up and behind your head before cutting, and
+  the trail was a big pale sheet. Each swipe is now one clean arc: draw back, straight across the
+  front at the foe, through to the far side.
+- The trail is now a thin streak following the tip, shown only during the cut.

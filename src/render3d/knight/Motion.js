@@ -344,13 +344,34 @@ export function tauntPose(guard, kind, ms) {
 }
 
 // Your knight's swing (dir already mirrored into his frame). Null when finished.
-// Timed to the game: the blade reaches him at 85 ms (CONFIG.player.contactMs) and the
-// arm is free again at 250 ms (CONFIG.player.attackMs).
+// Your cut, timed to the game: the blade passes across his front at the foe at 85 ms
+// (CONFIG.player.contactMs, when the hit lands); the arm is free again at 250 ms
+// (CONFIG.player.attackMs). One clean arc: a quick draw back to the wind-up, straight
+// through the front (the 'through' key keeps the blade from swinging round behind the
+// head between opposite marks), on to the far side, and back to guard.
 export function playerSwingPose(guard, dir, ms) {
   if (ms > 250) return null;
   const m = swingMarks(guard, dir);
   const keep = (p) => { const q = pose(p); q.footL = guard.footL.slice(); q.footR = guard.footR.slice(); return q; };
-  return sampleClip([[0, guard], [40, keep(m.coil), 'out'], [85, keep(m.hit), 'snap'], [150, keep(m.follow), 'out'], [250, guard, 'inout']], ms, 250);
+  const wind = keep(m.wind);
+  // Seen from behind, a wind-up pointing back at the camera hides the blade behind his head:
+  // keep it raised or out to the side, where the start of the cut can be read.
+  if (wind.bladeR[2] < -0.15) {
+    const b = [wind.bladeR[0], wind.bladeR[1] + (-0.15 - wind.bladeR[2]) * 1.2, -0.15];
+    const l = Math.hypot(b[0], b[1], b[2]) || 1;
+    wind.bladeR = b.map((v) => v / l);
+  }
+  const hit = keep(m.hit);
+  const follow = keep(m.follow);
+  const thru = pose(hit);
+  const half = (a, b) => a.map((v, i) => (v + b[i]) / 2);
+  const bl = half(wind.bladeR, hit.bladeR).map((v, i) => v + [0, 0, 1.1][i]);
+  const bn = Math.hypot(bl[0], bl[1], bl[2]) || 1;
+  thru.bladeR = bl.map((v) => v / bn);
+  thru.handR = clampReach('handR', half(wind.handR, hit.handR).map((v, i) => v + [0, 0, 0.22][i]));
+  thru.chest = half(wind.chest, hit.chest);
+  thru.pelvisRot = half(wind.pelvisRot, hit.pelvisRot);
+  return sampleClip([[0, guard], [55, wind, 'out'], [85, thru, 'linear'], [120, hit, 'out'], [165, follow, 'out'], [250, guard, 'inout']], ms, 250);
 }
 
 // ---------- the animator ----------

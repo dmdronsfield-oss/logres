@@ -108,3 +108,65 @@ export async function show() {
   await new Promise((r) => setTimeout(r, 120));
   game().loop.sleep();
 }
+
+// Frame-by-frame contact sheet of your swing, from the game camera (the 3D canvas only).
+// Each cell is the next distinct moment of the swing; hit-stop frames are skipped.
+// Shows the sheet over the page (click it to dismiss). In a hidden pane, size the renderer
+// first: sheetSetup(). Usage: sheetSetup(); swingSheet('E', 12, 4, { open: true })
+export async function sheetSetup(w = 960, h = 540) {
+  const { VIEW } = await import('/src/config.js');
+  const w3 = VIEW.world3d;
+  w3.renderer.setPixelRatio(1);
+  w3.renderer.setSize(w, h, false);
+  w3.composer.setPixelRatio(1);
+  w3.composer.setSize(w, h);
+  return w3;
+}
+
+export async function swingSheet(dir, cells = 12, cols = 4, opts = {}) {
+  const { VIEW } = await import('/src/config.js');
+  const w3 = VIEW.world3d;
+  const d = duel();
+  const e = d.enemy;
+  const go = (n) => step(n, () => { if (d.paused) d.resume(); return true; });
+  until(() => e.state === 'Idle', 3000);
+  if (opts.open) { e.forceStagger(4000, false); go(12); }
+  d.hud.hideBanner(true);
+  const gl = w3.renderer.domElement;
+  const sx = gl.width * 0.12, sy = gl.height * 0.02, sw = gl.width * 0.62, sh = gl.height * 0.96;
+  const cw = 420;
+  const ch = Math.round((cw * sh) / sw);
+  const out = document.createElement('canvas');
+  out.width = cw * cols;
+  out.height = ch * Math.ceil(cells / cols);
+  const ctx = out.getContext('2d');
+  d.swipe.keySwipe(dir);
+  let i = 0;
+  let last = -1;
+  for (let guard = 0; i < cells && guard < 200; guard++) {
+    const st = Math.round(d.player.stateT);
+    if (st !== last || d.player.state !== 'Attacking') {
+      last = st;
+      const x = (i % cols) * cw;
+      const y = Math.floor(i / cols) * ch;
+      ctx.drawImage(gl, sx, sy, sw, sh, x, y, cw, ch);
+      ctx.fillStyle = '#000a';
+      ctx.fillRect(x, y, 120, 22);
+      ctx.fillStyle = '#ff0';
+      ctx.font = '600 15px monospace';
+      ctx.fillText(d.player.state === 'Attacking' ? `${st}ms` : 'guard', x + 4, y + 16);
+      i++;
+    }
+    go(1);
+  }
+  let img = document.getElementById('sheetview');
+  if (!img) {
+    img = document.createElement('img');
+    img.id = 'sheetview';
+    img.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;background:#000;z-index:99999';
+    img.onclick = () => img.remove();
+    document.body.append(img);
+  }
+  img.src = out.toDataURL('image/jpeg', 0.9);
+  return dir;
+}

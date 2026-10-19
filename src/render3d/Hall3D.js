@@ -697,9 +697,9 @@ export class HallView extends World3D {
     this.player = { body3d: true, ...f, hp: null, zoff: 0, zvel: 0 };
     // Your own blade is close to the lens: a fainter, shorter trail.
     this.player.trailColor = { excalibur: 0xd8eeff, clarent: 0xf0c878 }[sword.id] || 0xa8c4ff;
-    // Your cuts leave a long, bright ribbon of light near the tip, as in Infinity Blade.
+    // Your cut leaves a thin, bright streak along the tip's path, as in Infinity Blade.
     this.player.trail = new BladeTrail(this.content, {
-      color: this.player.trailColor, minSpeed: 4, life: sword.id === 'excalibur' ? 210 : 170, from: 0.5, over: 0.25, gain: 2.2, inner: 0.05, tail: 2.6,
+      color: this.player.trailColor, minSpeed: 4, life: sword.id === 'excalibur' ? 110 : 90, from: 0.86, over: 0.08, gain: 2.0, inner: 0.35, tail: 1.8,
     });
     // The Pendragon's light: a gold lamp at the blade during the super.
     this.player.superLight = new THREE.PointLight(0xffd27a, 0, 7, 1.6);
@@ -963,7 +963,7 @@ export class HallView extends World3D {
     const t = pl.state === PS.ATTACKING ? pl.stateT : 1e9;
     if (pl.state === PS.ATTACKING && pl.swingDir) {
       const sw = playerSwingPose(guard, mirrorDir(pl.swingDir), t);
-      if (sw) { target = sw; omega = 30; }
+      if (sw) { target = sw; omega = 70; }   // tight tracking: the clip, not the springs, shapes the cut
     }
     const lock = this.duel && this.duel.director.lock;
     if (lock) { target = pose(guard, STATES.lock); omega = 14; }
@@ -1006,7 +1006,9 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
-    this._trail(v, pl.state === PS.DEAD || lock ? null : v.trailColor);
+    // The streak marks the cut itself: from the draw-back to the far side, not the wind-up or the return.
+    const cutting = pl.state === PS.ATTACKING && pl.stateT >= 50 && pl.stateT <= 140;
+    this._trail(v, pl.state === PS.DEAD || lock || !cutting ? null : v.trailColor);
     this._superGlow(v);
     this._wear(v, pl.healthFrac);
   }
