@@ -263,7 +263,12 @@ export class Enemy extends Fighter {
 
     switch (this.state) {
       case ES.INTRO:
-        if (this.t >= 900) this.toIdle();
+        if (this.t >= 900) {
+          // Make sure the walk-in finished even if its tween was starved of frames.
+          this.scene.tweens.killTweensOf(this.rig.root);
+          this.rig.root.setAlpha(1).setScale(this.size);
+          this.toIdle();
+        }
         break;
       case ES.IDLE:
         if (!this.hold && this.t >= this.idleDur) this.startCombo();

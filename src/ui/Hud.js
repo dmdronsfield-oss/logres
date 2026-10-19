@@ -502,8 +502,15 @@ export class Hud {
     if (ms > 0) this._bannerTimer = this.scene.time.delayedCall(ms, () => this.hideBanner());
   }
 
-  hideBanner() {
-    this.scene.tweens.add({ targets: [this.bannerBg, this.bannerText, this.promptArrow], alpha: 0, duration: 250 });
+  hideBanner(now = false) {
+    const t = [this.bannerBg, this.bannerText, this.promptArrow];
+    if (now) {
+      this.scene.tweens.killTweensOf(t);
+      if (this._bannerTimer) this._bannerTimer.remove();
+      t.forEach((o) => o.setAlpha(0));
+      return;
+    }
+    this.scene.tweens.add({ targets: t, alpha: 0, duration: 250 });
   }
 
   toggleDebug() {

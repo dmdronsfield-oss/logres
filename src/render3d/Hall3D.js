@@ -910,13 +910,15 @@ export class HallView extends World3D {
       piv.set(-0.2, 0, MID_Z - 0.3);
       const dx = cam.position.x - piv.x;
       const dz = cam.position.z - piv.z;
-      const th = -s * 1.05;          // round to the right, into profile
-      const r = 1 - s * 0.12;
+      // Landscape swings round into profile; an upright screen closes in on him instead.
+      const th = -s * (VIEW.portrait ? 0.5 : 1.05);
+      const r = 1 - s * (VIEW.portrait ? 0.38 : 0.12);
       cam.position.x = piv.x + (dx * Math.cos(th) - dz * Math.sin(th)) * r;
       cam.position.z = piv.z + (dx * Math.sin(th) + dz * Math.cos(th)) * r;
       cam.position.y -= s * 0.45;
       this.cheer = 1;
-      cam.lookAt(this.camTarget.x * (1 - s) - 0.3 * s, this.camTarget.y - s * 0.2, this.camTarget.z + s * 0.95);
+      if (VIEW.portrait) cam.lookAt(this.camTarget.x * (1 - s) - 0.15 * s, this.camTarget.y - s * 0.35, this.camTarget.z + s * 0.4);
+      else cam.lookAt(this.camTarget.x * (1 - s) - 0.3 * s, this.camTarget.y - s * 0.2, this.camTarget.z + s * 0.95);
     } else {
       cam.lookAt(this.camTarget.x + px * 0.25, this.camTarget.y, this.camTarget.z);
     }

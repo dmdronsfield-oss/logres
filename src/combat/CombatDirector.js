@@ -368,7 +368,7 @@ export class CombatDirector {
     this.juice.shake(CONFIG.juice.shakeHeavy);
     this.hud.cinematic(true);
     this.hud.hideHint();
-    this.hud.hideBanner();
+    this.hud.hideBanner(true);
     Sfx.defeat();
     const t = this.scene.time;
     t.delayedCall(420, () => Sfx.roar());
