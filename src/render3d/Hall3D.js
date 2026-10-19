@@ -755,6 +755,9 @@ export class HallView extends World3D {
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
+      case ES.IDLE:
+        if (e.usesStances && e.stance) { target = pose(guard, e.stance === 'high' ? STATES.highGuard : STATES.lowGuard); omega = 9; }
+        break;
       case ES.LOCKED: {
         // The struggle shows in the gap: his weight comes on as he wins, goes back as he loses.
         const lv = this.duel && this.duel.director.lock ? this.duel.director.lock.v : 0.5;
@@ -839,8 +842,12 @@ export class HallView extends World3D {
         const s = Math.sin(Math.PI * Math.min(1, pl.stateT / CONFIG.dodge.durationMs));
         const dir = pl.dodgeSide === 'left' ? -1 : 1;
         rootX = dir * 0.85 * s;
-        target = pose(guard, { pelvis: [0, 0.8, 0.05], chest: [0.2, 0.1, -dir * 0.25] });
-        omega = 18;
+        // A crouched side-step: shoulders turned away from the blow, shield up, sword tucked.
+        target = pose(guard, {
+          pelvis: [0, 0.74, 0.02], pelvisRot: [0.15, dir * 0.25, -dir * 0.12], chest: [0.32, dir * 0.4, -dir * 0.42],
+          handL: [0.1, 1.32, 0.36], faceL: [-dir * 0.3, 0.1, 1], handR: [-0.32, 0.98, 0.1], bladeR: [-0.2, 0.5, -0.8],
+        });
+        omega = 20;
         break;
       }
       case PS.BLOCKING: target = pose(guard, STATES.block); omega = 24; break;
@@ -873,7 +880,16 @@ export class HallView extends World3D {
     k.root.position.z = PLAYER_Z + v.zoff;
     anim.set(target, omega);
     anim.update(dt / 1000);
-    if (v.hp !== null && pl.health < v.hp) { anim.jolt(-4.5, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 2); this.camHurt = 1; }
+    if (v.hp !== null && pl.health < v.hp) {
+      // Struck: thrown back, twisted with the blow's direction of travel.
+      const ad = this.duel && this.duel.enemy.attack ? DIR_VEC[this.duel.enemy.attack.direction] || [0, 0.3] : [0, 0.3];
+      anim.jolt(-5.5 - ad[1] * 2, -ad[0] * 4, ad[0] * 3);
+      v.zoff += 0.25;
+      this.camHurt = 1;
+    }
+    // Shield struck: braced jolt and a half step back.
+    if (v.pips !== undefined && pl.pips < v.pips && pl.state === PS.BLOCKING) { anim.jolt(-2.6, 0, 0); v.zoff += 0.14; }
+    v.pips = pl.pips;
     v.hp = pl.health;
     const look = this.enemy ? this.enemy.k.J.head.getWorldPosition(this.v3 || (this.v3 = new THREE.Vector3())) : null;
     anim.apply(look, { breathe: pl.state === PS.DEAD ? 0 : 1, time: now });

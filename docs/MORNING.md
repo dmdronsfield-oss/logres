@@ -130,3 +130,16 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **The crowd** murmurs through every duel, cheers your parries and gasps when you're hit.
 - **Heavier steel:** parries ring longer and land with a thud; clangs knock and vary.
 - **Low health:** you hear your heart, faster as you weaken.
+
+## Brief 6, read his guard (v22)
+
+`docs/BRIEF-06-read-his-guard.md`
+
+- **High guard / low guard:** while he waits, he holds his blade high (open to a horizontal cut, ← or
+  →) or low (open to a vertical cut, ↓ or ↑), and shifts every couple of seconds. A faint arrow at his
+  shoulders shows the gap. A cut through it gets in for half damage ("Through his guard!"); he changes
+  guard at once and attacks sooner. Anything else still clangs, and two clangs still earn his
+  counter-cut. The Green Knight's axe has no such guard.
+- **Gawain's own moves:** the dodge is now a crouched side-step with the shoulders turned away and the
+  shield up. Blows throw him back and twist him with their direction, and a block braces him with a
+  half step back.

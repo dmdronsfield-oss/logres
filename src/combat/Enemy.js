@@ -292,6 +292,8 @@ export class Enemy extends Fighter {
         }
         break;
       case ES.IDLE:
+        this.stanceT -= dt;
+        if (this.stanceT <= 0) this.shiftGuard();
         if (!this.hold && this.t >= this.idleDur) this.startCombo();
         break;
       case ES.TELEGRAPH: {
@@ -344,12 +346,35 @@ export class Enemy extends Fighter {
     }
   }
 
+  // High guard (open to horizontal cuts) or low guard (open to vertical cuts).
+  // The Green Knight's axe has no such guard.
+  get usesStances() {
+    return this.def.weapon !== 'greataxe';
+  }
+
+  gapDirs() {
+    if (!this.usesStances || this.state !== ES.IDLE) return [];
+    return this.stance === 'high' ? ['E', 'W'] : ['S', 'N'];
+  }
+
+  shiftGuard(to) {
+    this.stance = to || (this.stance === 'high' ? 'low' : 'high');
+    this.stanceT = CONFIG.guard.shiftMs[0] + Math.random() * (CONFIG.guard.shiftMs[1] - CONFIG.guard.shiftMs[0]);
+  }
+
+  // A cut found the gap: he adapts and comes at you sooner.
+  gapStruck() {
+    this.shiftGuard();
+    this.idleDur = Math.min(this.idleDur, this.t + CONFIG.guard.hurryMs);
+  }
+
   toIdle() {
     if (this.pendingPhase) {
       this.enterPhase(this.pendingPhase);
       return;
     }
     this.setState(ES.IDLE);
+    this.shiftGuard(Math.random() < 0.5 ? 'high' : 'low');
     this.superStagger = false;
     this.idleDur = this.forceShortIdle ? 250 : rand(this.cfg.idleMs);
     this.forceShortIdle = false;

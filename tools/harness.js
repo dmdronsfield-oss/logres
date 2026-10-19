@@ -86,6 +86,8 @@ export function bot(frames, skill = 1) {
         else if (e.attack.dodge.length && (r < 0.8 || e.attack.unblockable)) d.director.onDodge(ok ? e.attack.dodge[0] : (Math.random() < 0.5 ? 'left' : 'right'));
         else { d.director.onBlock(true); blockOff = T + 300; }
       }
+    } else if (e.state === 'Idle' && e.gapDirs && e.gapDirs().length && Math.random() < 0.02 * skill) {
+      d.swipe.keySwipe(Math.random() < skill ? e.gapDirs()[0] : DIRS[(Math.random() * 8) | 0]);
     } else if (e.isOpen() && Math.random() < 0.1) {
       const h = d.director.riposte ? d.director.riposte.dir
         : d.director.comboHint ? d.director.comboHint.combo.seq[d.director.comboHint.step] : DIRS[(Math.random() * 8) | 0];

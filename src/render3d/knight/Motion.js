@@ -110,6 +110,16 @@ export const STATES = {
     handL: [0.02, 1.42, 0.46], faceL: [0, 0.1, 1], poleL: [1, -0.4, -0.2], handR: [-0.34, 1.0, 0.14], bladeR: [-0.1, 0.6, 0.75],
     chest: [0.26, 0.05, 0], pelvis: [0, 0.8, 0.02],
   },
+  // Waiting guards. High: blade raised above the head, the body below it open to a
+  // horizontal cut. Low: point dropped toward you, the head and shoulders open from above.
+  highGuard: {
+    handR: [-0.28, 1.72, 0.12], bladeR: [0.35, 0.8, 0.45], chest: [-0.05, 0.25, 0], pelvis: [0, 0.95, 0],
+    handL: [0.2, 1.25, 0.38], faceL: [0.05, 0.05, 1],
+  },
+  lowGuard: {
+    handR: [-0.3, 0.98, 0.34], bladeR: [0.12, -0.42, 0.9], chest: [0.22, 0.1, 0], pelvis: [0, 0.88, 0.02],
+    handL: [0.18, 1.02, 0.36], faceL: [0.1, -0.2, 1],
+  },
   // Blades bound: leaning in, sword hand high and forward, blade slanted across (both knights).
   lock: {
     pelvis: [0, 0.84, 0.14], pelvisRot: [0.14, -0.1, 0], chest: [0.32, 0.18, 0],

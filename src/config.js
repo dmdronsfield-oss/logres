@@ -79,6 +79,12 @@ export const CONFIG = {
     loseDamage: 0.6,        // fraction of the blow's damage when he forces you down
   },
 
+  guard: {
+    shiftMs: [1600, 2800],  // how long he holds a guard while waiting
+    gapDamage: 0.5,         // a cut through the gap in his guard
+    hurryMs: 320,           // after you find a gap he attacks within this
+  },
+
   riposte: {
     damageMult: 2,          // the first cut after a parry, along the shown chevron
     stagger: 20,

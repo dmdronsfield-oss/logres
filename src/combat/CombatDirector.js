@@ -48,6 +48,8 @@ export class CombatDirector {
       else this.doParry();
     } else if (e.isOpen()) {
       this.doHit(dir);
+    } else if (!this.tutorial?.step || this.tutorial.step === 'free' ? e.gapDirs().includes(dir) : false) {
+      this.doGapHit(dir);
     } else if (e.state !== ES.DEFEATED) {
       const at = e.guardFlinch();
       p.clangAt = performance.now();
@@ -275,6 +277,27 @@ export class CombatDirector {
         break;
       }
     }
+  }
+
+  // A cut through the gap in his guard: half damage, no combos, and he adapts.
+  doGapHit(dir) {
+    const e = this.enemy;
+    const p = this.player;
+    const dmg = Math.round(p.damage * CONFIG.guard.gapDamage);
+    this.stats.gaps = (this.stats.gaps || 0) + 1;
+    e.clangs = [];
+    const c = e.rig.chestPoint ? e.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H * 0.45 };
+    this.juice.flash(e.rig.root);
+    this.juice.hitStop(50);
+    this.juice.shake(CONFIG.juice.shakeHit);
+    this.juice.sparksAt(c.x, c.y, 10, 'red');
+    this.juice.damageNumber(c.x, c.y - 40, dmg, { color: PALETTE.goldLight, size: 28 });
+    this.hud.bigText('Through his guard!', '#fff3c4', 160, 32);
+    Sfx.hit();
+    this.addSuper(CONFIG.super.fromHit);
+    this.hud.hideGap();
+    if (e.takeHit(dmg, dir)) { this.enemyDefeated(); return; }
+    e.gapStruck();
   }
 
   // Called by the enemy at the moment its blow lands.
@@ -506,6 +529,13 @@ export class CombatDirector {
       if (performance.now() - this.buffered.at > CONFIG.swipe.bufferMs) this.buffered = null;
       else if (p.canSwing()) this.onSwipe(this.buffered.dir);
     }
+    // The gap in his guard, while he waits (a faint arrow; taught once).
+    const gaps = this.over || (this.tutorial && this.tutorial.step !== 'free') ? [] : e.gapDirs();
+    if (gaps.length) {
+      const c = e.rig.chestPoint ? e.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H * 0.45 };
+      this.hud.showGap(e.stance, c.x, c.y);
+      if (e.t > 600) this._teach('gapHint', 'Between his attacks, watch his guard: a faint arrow shows the GAP. Cut through it for a quick strike.');
+    } else this.hud.hideGap();
     if (!e.isOpen() || this.over) {
       if (this.comboHint || this.riposte) this.hud.hideHint();
       this.comboHint = null;

@@ -459,6 +459,30 @@ export class Hud {
     this.btn.super.setTexture(ready ? 'btn_super_lit' : 'btn_super').setAlpha(ready ? 1 : 0.8);
   }
 
+  // The gap in his guard: a faint double arrow (↔ for a high guard, ↕ for a low one).
+  showGap(stance, x, y) {
+    if (!this.gap) {
+      this.gap = this.scene.add.container(0, 0).setDepth(DEPTH - 3);
+      const a = img(this.scene, 40, 0, 'chev');
+      const b = img(this.scene, -40, 0, 'chev').setAngle(180);
+      [a, b].forEach((o) => o.setScale(0.8 / VIEW.RES).setTint(0xfff3c4));
+      this.gap.add([a, b]);
+    }
+    if (this.gapStance !== stance) {
+      this.gapStance = stance;
+      this.gap.setAngle(stance === 'high' ? 0 : 90);
+      this.gap.setScale(1.4);
+      this.scene.tweens.add({ targets: this.gap, scale: 1, duration: 200, ease: 'Back.easeOut' });
+    }
+    this.gap.setVisible(true).setAlpha(0.72 + Math.sin(this.realT / 220) * 0.14);
+    this.gap.setPosition(x, y - 46);   // over the shoulders, clear of his shield
+  }
+
+  hideGap() {
+    if (this.gap) this.gap.setVisible(false);
+    this.gapStance = null;
+  }
+
   // Blade lock: a strength bar (you from the left in blue, him from the right in red) and TAP!
   showLock(on) {
     if (!this.lockG) {
