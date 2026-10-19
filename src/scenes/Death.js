@@ -6,6 +6,7 @@ import { img, text, canvasTex } from '../art/Tex.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { drawShieldShape } from '../art/Rig.js';
 import { setupCamera, fadeTo, py } from './common.js';
+import { Music } from '../audio/Music.js';
 
 // Bloodline succession: the fallen knight's shield hangs in the chapel.
 export class Death extends Phaser.Scene {
@@ -89,6 +90,7 @@ export class Death extends Phaser.Scene {
       this.events.once('shutdown', () => window.removeEventListener('keydown', onKey));
     });
 
+    Music.play('silence');
     this.cameras.main.fadeIn(600, 0, 0, 0);
     this.time.delayedCall(400, () => Sfx.bell());
   }

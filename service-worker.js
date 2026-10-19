@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v20';
+const VERSION = 'logres-v21';
 
 const CORE = [
   './',
@@ -24,6 +24,7 @@ const CORE = [
   './src/combat/Tutorial.js',
   './src/fx/Juice.js',
   './src/audio/Sfx.js',
+  './src/audio/Music.js',
   './src/art/Tex.js',
   './src/art/Rig.js',
   './src/art/Backgrounds.js',

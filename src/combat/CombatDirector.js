@@ -4,6 +4,7 @@ import { PS } from './Player.js';
 import { DIR_VEC, opposite, dirDistance } from '../input/SwipeInput.js';
 import { Sfx } from '../audio/Sfx.js';
 import { Save } from '../save/Save.js';
+import { Music } from '../audio/Music.js';
 
 // Referee between the player and the enemy: applies the combat rules,
 // meters, combos and feedback, and decides the outcome of the duel.
@@ -117,6 +118,7 @@ export class CombatDirector {
     Sfx.parry();
     this.hud.bigText('Blade lock!', '#fff6cf', 170, 46);
     this.hud.showLock(true);
+    Music.play('stand');
     this._teach('lockHint', 'BLADE LOCK! Tap fast, anywhere (or any key), to drive him back!');
   }
 
@@ -148,6 +150,8 @@ export class CombatDirector {
     this.lock = null;
     this.hud.showLock(false);
     const e = this.enemy;
+    Music.play(e.phaseIdx > 0 ? 'stand' : 'duel');
+    if (won) Sfx.cheer();
     const p = this.player;
     if (won) {
       this.stats.locks = (this.stats.locks || 0) + 1;
@@ -186,6 +190,7 @@ export class CombatDirector {
     this.juice.shake(CONFIG.juice.shakeHit);
     this.juice.vibrate(CONFIG.juice.vibrateParryMs);
     Sfx.parry();
+    Sfx.cheer();
     this.hud.bigText('Parry!', PALETTE.goldLight, 200, 50);
     this.addSuper(CONFIG.super.fromParry);
     this.addStagger(CONFIG.stagger.fromParry);
@@ -344,6 +349,7 @@ export class CombatDirector {
       this.stats.taken += dmg;
       const dead = p.takeHit(dmg);
       Sfx.hurt();
+      Sfx.gasp();
       this.juice.hitStop(CONFIG.juice.takenStopMs);
       this.juice.edgeFlash(attack.direction);
       this.juice.shake(attack.heavy ? CONFIG.juice.shakeHeavy : CONFIG.juice.shakeTaken);
@@ -426,6 +432,8 @@ export class CombatDirector {
   }
 
   onPhase(ph) {
+    Music.play('stand');
+    Sfx.cheer();
     this.hud.banner(ph.message, 1600);
     this.juice.shake(CONFIG.juice.shakeHeavy);
     this.juice.screenFlash('gold', 0.3, 500);

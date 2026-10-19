@@ -15,6 +15,7 @@ const DEFAULTS = {
   sword: 'squire',
   shield: 'targe',
   muted: false,
+  music: true,
   vibration: true,
   leftHanded: false,
   tutorialDone: false,

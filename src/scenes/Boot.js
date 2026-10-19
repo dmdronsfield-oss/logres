@@ -1,6 +1,7 @@
 import { MODE, VIEW } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
+import { Music } from '../audio/Music.js';
 import { setupCamera } from './common.js';
 
 export class Boot extends Phaser.Scene {
@@ -11,6 +12,7 @@ export class Boot extends Phaser.Scene {
   create() {
     setupCamera(this);
     Sfx.setMuted(Save.data.muted);
+    Music.setEnabled(Save.data.music !== false);
     const fontReady = document.fonts && document.fonts.load
       ? Promise.all([document.fonts.load('700 32px "Cinzel"'), document.fonts.load('400 20px "Cinzel"')])
       : Promise.resolve();

@@ -6,6 +6,7 @@ import { img, text } from '../art/Tex.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
 import { menuButton } from '../ui/Button.js';
 import { bindMenuKeys } from '../input/Keys.js';
+import { Music } from '../audio/Music.js';
 import { setupCamera, fadeTo, py } from './common.js';
 
 export class Victory extends Phaser.Scene {
@@ -69,6 +70,7 @@ export class Victory extends Phaser.Scene {
     menuButton(this, W / 2 - 140, H - 70, 220, 56, 'To camp', () => fadeTo(this, 'Title'), { size: 22 });
 
     this.cameras.main.fadeIn(300, 26, 20, 16);
+    Music.play('victory');
     this.time.delayedCall(200, () => Sfx.bell());
   }
 }

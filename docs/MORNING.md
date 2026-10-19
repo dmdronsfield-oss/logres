@@ -118,3 +118,15 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **Last stand:** at 30% health every foe (except the Green Knight, who has his own second phase)
   roars and fights on, faster and with shorter pauses.
 - Bot check: all five duels completed, including a won and a lost lock, no errors.
+
+## Brief 5, the sound of the hall (v21)
+
+`docs/BRIEF-05-sound.md`
+
+- **Music, made in code:** a drone, a harp improvising in an old church mode, and a drum that builds
+  from a heartbeat to a war-march. It's calm in camp, steady in the duel, and faster and denser in a
+  last stand or blade lock. Victory gets a horn call; defeat goes silent. Turn it off under Music, in
+  camp or the pause menu.
+- **The crowd** murmurs through every duel, cheers your parries and gasps when you're hit.
+- **Heavier steel:** parries ring longer and land with a thud; clangs knock and vary.
+- **Low health:** you hear your heart, faster as you weaken.

@@ -1,6 +1,7 @@
 import { CONFIG, VIEW, PALETTE, MODE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
+import { Music } from '../audio/Music.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { img, text, canvasTex, roundRect } from '../art/Tex.js';
 import { backgroundKey, borderKey } from '../art/Backgrounds.js';
@@ -124,13 +125,16 @@ export class Title extends Phaser.Scene {
     });
 
     const setY = panelY + 84;
-    const bw3 = (colW - 40) / 3;
-    this._toggle(rightX - bw3 - 6, setY, bw3, 'Sound', () => !Save.data.muted, (v) => {
-      Save.set({ muted: !v });
-      Sfx.setMuted(!v);
-    });
-    this._toggle(rightX, setY, bw3, 'Buzz', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
-    this._toggle(rightX + bw3 + 6, setY, bw3, 'Lefty', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
+    // Four toggles when there's room; on narrow screens vibration lives in the pause menu only.
+    const items = [
+      ['Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); }],
+      ['Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); }],
+      ['Buzz', () => Save.data.vibration, (v) => Save.set({ vibration: v })],
+      ['Lefty', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v })],
+    ].filter((it) => it[0] !== 'Buzz' || (colW - 34) / 4 >= 74);
+    const n = items.length;
+    const bwn = (colW - 28 - (n - 1) * 6) / n;
+    items.forEach(([label, get, set], i) => this._toggle(rightX + (i - (n - 1) / 2) * (bwn + 6), setY, bwn, label, get, set));
 
     // Small footer
     const footer = desktopLikely()
@@ -157,6 +161,7 @@ export class Title extends Phaser.Scene {
       });
     }
 
+    Music.play('camp');
     this.cameras.main.fadeIn(300, 26, 20, 16);
   }
 
@@ -232,7 +237,7 @@ export class Title extends Phaser.Scene {
     const b = menuButton(this, x, y, Math.round(w), 40, '', () => {
       set(!get());
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
-    }, { size: 13 });
+    }, { size: w < 80 ? 11 : 13 });
     b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
     return b;
   }

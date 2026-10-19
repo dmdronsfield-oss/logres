@@ -1,6 +1,7 @@
 import { CONFIG, VIEW, PALETTE, MODE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
+import { Music } from '../audio/Music.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { Player } from '../combat/Player.js';
 import { Enemy } from '../combat/Enemy.js';
@@ -103,6 +104,10 @@ export class Duel extends Phaser.Scene {
       }
     });
 
+    Music.play('duel');
+    Sfx.crowd(true);
+    this.events.once('shutdown', () => Sfx.crowd(false));
+    this.heartT = 0;
     this.cameras.main.fadeIn(300, 26, 20, 16);
   }
 
@@ -226,6 +231,11 @@ export class Duel extends Phaser.Scene {
     this.player.update(dReal * (this.juice.stopLeft > 0 ? 0 : 1));
     this.enemy.update(dt);
     this.director.update(dReal);
+    // Low on health: your heart in your ears.
+    if (this.player.healthFrac < 0.3 && !this.director.over) {
+      this.heartT -= dReal;
+      if (this.heartT <= 0) { Sfx.heartbeat(); this.heartT = 600 + this.player.healthFrac * 1500; }
+    }
     if (this.tutorial) this.tutorial.update(dReal);
     this.swipe.update();
     this.hud.update(dReal, () => this._debugInfo());
@@ -257,7 +267,8 @@ export class Duel extends Phaser.Scene {
     toggle(238, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
     toggle(296, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
     toggle(354, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
-    c.add(menuButton(this, W / 2, py(430), 300, 54, 'Retreat to camp', () => {
+    toggle(412, 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
+    c.add(menuButton(this, W / 2, py(478), 300, 54, 'Retreat to camp', () => {
       this.tweens.resumeAll();
       fadeTo(this, 'Title');
     }, { size: 20 }));

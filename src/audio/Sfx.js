@@ -94,19 +94,77 @@ class SfxEngine {
     src.stop(t + attack + decay + 0.05);
   }
 
-  // Bright, long steel ring: the signature parry sound.
+  // Bright, long steel ring: the signature parry sound. Inharmonic partials (as a
+  // struck blade has), a hard transient and a body thud so it lands with weight.
   parry() {
-    [1320, 2093, 2960, 4180, 5600].forEach((f, i) => {
-      this.tone(f * (0.99 + Math.random() * 0.02), 0.9 - i * 0.12, { gain: 0.16 - i * 0.022, type: 'sine' });
+    const k = 0.97 + Math.random() * 0.06;
+    [1320, 2093, 2960, 4180, 5600, 7310].forEach((f, i) => {
+      this.tone(f * k * (0.99 + Math.random() * 0.02), 1.1 - i * 0.14, { gain: 0.15 - i * 0.02, type: 'sine' });
     });
-    this.tone(660, 0.5, { gain: 0.12, type: 'triangle' });
-    this.noise(0.08, { gain: 0.35, filter: 'highpass', freq: 3000 });
+    this.tone(660 * k, 0.6, { gain: 0.12, type: 'triangle' });
+    this.tone(150, 0.22, { gain: 0.35, freqEnd: 70, type: 'sine' });
+    this.noise(0.06, { gain: 0.45, filter: 'highpass', freq: 2600 });
   }
 
-  // Your blow turned aside by the enemy: short, dull metal tick.
+  // Your blow turned aside by the enemy: a short, heavy knock of steel on steel.
   clang() {
-    [740, 1180, 1710].forEach((f, i) => this.tone(f, 0.18 - i * 0.04, { gain: 0.1, type: 'square' }));
-    this.noise(0.05, { gain: 0.2, filter: 'bandpass', freq: 2200, q: 2 });
+    const k = 0.92 + Math.random() * 0.16;
+    [740, 1180, 1710, 2630].forEach((f, i) => this.tone(f * k, 0.22 - i * 0.04, { gain: 0.08, type: i ? 'sine' : 'square' }));
+    this.tone(120, 0.12, { gain: 0.25, freqEnd: 70 });
+    this.noise(0.05, { gain: 0.25, filter: 'bandpass', freq: 2200, q: 2 });
+  }
+
+  // The crowd: a murmur under everything, and its reactions.
+  crowd(on) {
+    if (!this.ctx) return;
+    if (on && !this.crowdNode) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      src.loop = true;
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 480;
+      bp.Q.value = 0.6;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      g.gain.linearRampToValueAtTime(0.035, this.ctx.currentTime + 1.5);
+      const lfo = this.ctx.createOscillator();
+      const lg = this.ctx.createGain();
+      lfo.frequency.value = 0.13;
+      lg.gain.value = 0.012;
+      lfo.connect(lg);
+      lg.connect(g.gain);
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(this.master);
+      src.start();
+      lfo.start();
+      this.crowdNode = { src, lfo, g };
+    } else if (!on && this.crowdNode) {
+      const { src, lfo, g } = this.crowdNode;
+      const t = this.ctx.currentTime;
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(0, t + 0.6);
+      src.stop(t + 0.7);
+      lfo.stop(t + 0.7);
+      this.crowdNode = null;
+    }
+  }
+
+  gasp() {
+    this.noise(0.5, { gain: 0.14, attack: 0.04, filter: 'bandpass', freq: 1100, freqEnd: 420, q: 0.7 });
+  }
+
+  cheer() {
+    this.noise(1.0, { gain: 0.14, attack: 0.12, filter: 'bandpass', freq: 600, freqEnd: 850, q: 0.6 });
+    this.noise(0.8, { gain: 0.08, attack: 0.2, filter: 'bandpass', freq: 1400, q: 0.9, delay: 0.05 });
+  }
+
+  // Low health: your own heart.
+  heartbeat() {
+    this.tone(55, 0.16, { gain: 0.5, freqEnd: 40 });
+    this.tone(52, 0.2, { gain: 0.38, freqEnd: 38, delay: 0.22 });
   }
 
   // Dull wooden thud on the shield.
