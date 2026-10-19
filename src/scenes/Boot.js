@@ -9,6 +9,11 @@ export class Boot extends Phaser.Scene {
     super('Boot');
   }
 
+  preload() {
+    // The Sacra di San Michele above the clouds: the menus' backdrop (and the loading screen's).
+    this.load.image('abbey', new URL('../../assets/art/loading.jpg', import.meta.url).href);
+  }
+
   create() {
     setupCamera(this);
     Sfx.setMuted(Save.data.muted);

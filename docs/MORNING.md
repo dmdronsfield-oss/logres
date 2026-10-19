@@ -414,3 +414,12 @@ keyboard only. Then I fixed what got in the way:
 - **No more gliding:** feet stay planted and step when the body moves (lunges, recoveries, dodges),
   for everyone.
 - The foes' blade trail is now a thin streak too.
+
+## The abbey on the menus, and plainsong (v50)
+
+- The title screen and the Book of Arms now show the Sacra di San Michele above the clouds:
+  between the panels in landscape, above Continue on an upright phone. The crest gave way to it.
+- **Menu music:** "Wendale Abbey", a short plainsong chant by Yubatake (CC BY 4.0, OpenGameArt.org).
+  It loops quietly on the menus, starts on your first tap and fades out as you ride into a duel.
+  It respects the Music setting.
+- **Credits:** a new section at the end of the Book of Arms lists the work by others in the game.

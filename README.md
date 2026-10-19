@@ -71,3 +71,5 @@ Armour reference for the knights: English harness c.1370-1400 (the Black Prince'
 ## Releasing
 
 Bump `VERSION` in `service-worker.js` and push to `main`. GitHub Pages redeploys automatically, and installed copies pick up the new version on their next launch.
+
+**Menu music:** "Wendale Abbey" by Yubatake (CC BY 4.0, https://opengameart.org/content/wendale-abbey), converted to MP3 (`assets/audio/`). **Loading and menu image:** the Sacra di San Michele above the clouds (`assets/art/loading.jpg`), supplied by the project owner.

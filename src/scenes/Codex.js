@@ -1,11 +1,11 @@
 import { VIEW, PALETTE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
+import { Music } from '../audio/Music.js';
 import { img, text, canvasTex, roundRect } from '../art/Tex.js';
-import { backgroundKey } from '../art/Backgrounds.js';
 import { menuButton } from '../ui/Button.js';
 import { bindMenuKeys } from '../input/Keys.js';
-import { setupCamera, fadeTo } from './common.js';
+import { setupCamera, fadeTo, abbeyBackdrop } from './common.js';
 
 // The Book of Arms: every technique and foe's trick, with how to do or answer
 // it. Entries open as you meet them in battle (the lesson flags); basics are open.
@@ -49,8 +49,7 @@ export class Codex extends Phaser.Scene {
     setupCamera(this);
     const W = VIEW.W;
     const H = VIEW.H;
-    img(this, W / 2, H / 2, backgroundKey(this, 'forest')).setAlpha(0.45);
-    this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.4);
+    abbeyBackdrop(this);
 
     const pw = Math.min(W - 50, 780);
     const top = 70;
@@ -107,6 +106,17 @@ export class Codex extends Phaser.Scene {
     ARTS.forEach(entry);
     section('Their Tricks');
     TRICKS.forEach(entry);
+    // Credits for the work by others in the game (their licences ask for it).
+    section('Credits');
+    [
+      'Knight armour: "Medieval Knight Armor (Low-poly / Rigged)" by INKXO, CC BY 4.0 (sketchfab.com).',
+      'Menu music: "Wendale Abbey" by Yubatake, CC BY 4.0 (OpenGameArt.org).',
+      'Everything else (art, motion, sound) is made in code for Logres.',
+    ].forEach((line) => {
+      const t = text(this, x0, y, line, { fontSize: '14px', color: PALETTE.inkCss, wordWrap: { width: wrap }, originX: 0, originY: 0, align: 'left' });
+      col.add(t);
+      y += t.height + 8;
+    });
     const contentH = y - top;
     const viewH = bottom - top;
     const maskShape = this.make.graphics({ add: false });
@@ -137,6 +147,7 @@ export class Codex extends Phaser.Scene {
       ArrowDown: () => setScroll(this.scrollY + 80), ArrowUp: () => setScroll(this.scrollY - 80),
       PageDown: () => setScroll(this.scrollY + viewH * 0.8), PageUp: () => setScroll(this.scrollY - viewH * 0.8),
     });
+    Music.play('abbey');
     this.cameras.main.fadeIn(250, 26, 20, 16);
   }
 }

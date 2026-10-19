@@ -11,6 +11,11 @@ const MOTIFS = [
   [0, 2, 4, 2, 1, 0], [4, 5, 4, 2, 3, 1], [7, 6, 4, 5, 4, 2], [0, 4, 7, 6, 4, 2],
   [2, 1, 0, -1, 0, 2], [4, 4, 5, 7, 5, 4], [9, 7, 6, 4, 2, 4], [0, 0, 2, 4, 3, 2],
 ];
+// The menus' music: "Wendale Abbey", plainsong by Yubatake (CC-BY 4.0, OpenGameArt.org),
+// looped quietly. Fetched the first time it's wanted.
+const CHANT_URL = new URL('../../assets/audio/wendale-abbey.mp3', import.meta.url).href;
+const CHANT_LEVEL = 0.5;
+
 const semis = (i) => DORIAN[((i % 7) + 7) % 7] + 12 * Math.floor(i / 7);
 
 class MusicEngine {
@@ -39,17 +44,49 @@ class MusicEngine {
 
   setEnabled(on) {
     this.on = on;
-    if (!on) this._fadeTo(0, 0.4);
+    if (!on) { this._fadeTo(0, 0.4); this._chant(false); }
     else if (this.mood) this.play(this.mood, true);
   }
 
-  // camp | duel | stand (last stand / blade lock) | victory | silence
+  // Fade the chant in (looping) or out. Waits for the audio to be unlocked by a tap or key.
+  _chant(want) {
+    this.chantWanted = want && this.on;
+    if (!this._ready()) return;
+    const ctx = Sfx.ctx;
+    if (!this.chantGain) {
+      this.chantGain = ctx.createGain();
+      this.chantGain.gain.value = 0;
+      this.chantGain.connect(Sfx.master);
+    }
+    const g = this.chantGain.gain;
+    const t = ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(this.chantWanted ? CHANT_LEVEL : 0, t + (this.chantWanted ? 2.5 : 1.0));
+    if (!this.chantWanted || this.chantSrc) return;
+    if (!this.chantBuf) {
+      if (this.chantLoading) return;
+      this.chantLoading = fetch(CHANT_URL).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b))
+        .then((buf) => { this.chantBuf = buf; this.chantLoading = null; this._chant(this.mood === 'abbey'); })
+        .catch(() => { this.chantLoading = null; });
+      return;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = this.chantBuf;
+    src.loop = true;
+    src.connect(this.chantGain);
+    src.start();
+    this.chantSrc = src;
+  }
+
+  // abbey (the menus' chant) | camp | duel | stand (last stand / blade lock) | victory | silence
   play(mood, force = false) {
     if (this.mood === mood && !force) return;
     this.mood = mood;
-    this.target = { camp: 0.15, duel: 0.55, stand: 1, victory: 0.4, silence: 0 }[mood] ?? 0.5;
+    this.target = { camp: 0.15, duel: 0.55, stand: 1, victory: 0.4, silence: 0, abbey: 0 }[mood] ?? 0.5;
     if (!this.timer) this.timer = setInterval(() => this._tick(), 90);
-    if (this._ready()) this._fadeTo(this.on && mood !== 'silence' ? (mood === 'camp' ? 0.5 : 0.62) : 0, 1.2);
+    if (this._ready()) this._fadeTo(this.on && mood !== 'silence' && mood !== 'abbey' ? (mood === 'camp' ? 0.5 : 0.62) : 0, 1.2);
+    this._chant(mood === 'abbey');
     if (mood === 'victory' && this._ready() && this.on) this._fanfare();
   }
 
@@ -64,7 +101,9 @@ class MusicEngine {
 
   _tick() {
     if (!this._ready()) return;
-    if (this.out.gain.value === 0 && this.mood && this.on && this.mood !== 'silence') this._fadeTo(this.mood === 'camp' ? 0.5 : 0.62, 1.2);
+    // The chant waits for the audio to be unlocked; start it once it is.
+    if (this.mood === 'abbey' && this.on && !this.chantSrc && !this.chantLoading) this._chant(true);
+    if (this.out.gain.value === 0 && this.mood && this.on && this.mood !== 'silence' && this.mood !== 'abbey') this._fadeTo(this.mood === 'camp' ? 0.5 : 0.62, 1.2);
     this.intensity += (this.target - this.intensity) * 0.08;
     const ctx = Sfx.ctx;
     const bpm = this.bpm + this.intensity * 26;

@@ -4,11 +4,10 @@ import { Sfx } from '../audio/Sfx.js';
 import { Music } from '../audio/Music.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { img, text, canvasTex, roundRect } from '../art/Tex.js';
-import { backgroundKey } from '../art/Backgrounds.js';
 import { drawShieldShape } from '../art/Rig.js';
 import { DIR_ARROW } from '../input/SwipeInput.js';
 import { menuButton, arrowButton } from '../ui/Button.js';
-import { setupCamera, fadeTo } from './common.js';
+import { setupCamera, fadeTo, abbeyBackdrop } from './common.js';
 import { bindMenuKeys, desktopLikely } from '../input/Keys.js';
 
 function panel(scene, x, y, w, h) {
@@ -47,8 +46,8 @@ export class Title extends Phaser.Scene {
     if (!Save.unlocked(Save.sword())) Save.set({ sword: 'squire' });
     if (!Save.unlocked(Save.shield())) Save.set({ shield: 'targe' });
 
-    img(this, W / 2, H / 2, backgroundKey(this, 'forest')).setAlpha(0.55);
-    this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.25);
+    // The abbey takes the centre (the gear panel names the sword and shield).
+    this.abbey = abbeyBackdrop(this);
 
     // Layout: three columns in landscape; stacked when the phone is upright.
     const P = VIEW.portrait;
@@ -163,11 +162,12 @@ export class Title extends Phaser.Scene {
       });
     }
 
-    Music.play('camp');
+    Music.play('abbey');
     this.cameras.main.fadeIn(300, 26, 20, 16);
   }
 
   _drawCrest(x, y) {
+    if (this.abbey) return;
     const sh = Save.shield();
     const sw = Save.sword();
     const key = `crest_${sh.id}_${sw.id}`;

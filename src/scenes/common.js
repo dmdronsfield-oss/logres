@@ -48,3 +48,48 @@ export function py(y, anchor = 0.5) {
   if (!VIEW.portrait) return y;
   return Math.round(VIEW.H * anchor + (y - 270));
 }
+
+// The menus' backdrop: the Sacra di San Michele above the clouds. Landscape: the photograph
+// covers the screen with the abbey centred. Upright: the whole abbey near the top, fading
+// into fog (the photograph's own colour) top and bottom.
+const FOG = 0xd8d6d2;
+export function abbeyBackdrop(scene) {
+  const W = VIEW.W;
+  const H = VIEW.H;
+  if (!scene.textures.exists('abbey')) return null;
+  const im = scene.add.image(W / 2, 0, 'abbey');
+  const tw = im.width;
+  const th = im.height;
+  // The abbey's middle sits about a third of the way across and 42% down the photograph.
+  const fx = 0.36;
+  const fy = 0.42;
+  im.setOrigin(fx, fy);
+  if (!VIEW.portrait) {
+    const cy = H * 0.46;
+    const s = Math.max((W / 2) / (fx * tw), (W / 2) / ((1 - fx) * tw), cy / (fy * th), (H - cy) / ((1 - fy) * th));
+    im.setScale(s).setPosition(W / 2, cy);
+    return im;
+  }
+  scene.add.rectangle(W / 2, H / 2, W + 40, H + 40, FOG).setDepth(-2);
+  im.setDepth(-1);
+  const s = (W * 1.02) / (0.62 * tw);   // the abbey, about 62% of the photograph's width, fills the screen's
+  const cy = H * 0.31;
+  im.setScale(s).setPosition(W / 2, cy);
+  const top = cy - fy * th * s;
+  const bottom = cy + (1 - fy) * th * s;
+  const key = `fogfade_${W}`;
+  if (!scene.textures.exists(key)) {
+    const t = scene.textures.createCanvas(key, 4, 256);
+    const ctx = t.getContext();
+    const g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, 'rgba(216,214,210,0)');
+    g.addColorStop(1, 'rgba(216,214,210,1)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 4, 256);
+    t.refresh();
+  }
+  const fade = Math.round(th * s * 0.18);
+  scene.add.image(W / 2, bottom - fade / 2, key).setDisplaySize(W + 40, fade).setDepth(-1);
+  if (top > 0) scene.add.image(W / 2, top + fade / 2, key).setDisplaySize(W + 40, fade).setFlipY(true).setDepth(-1);
+  return im;
+}
