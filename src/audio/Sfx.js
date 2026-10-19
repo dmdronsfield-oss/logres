@@ -20,6 +20,15 @@ const CLIPS = {
   shield_break: ['shield_break_1'],
   step: ['step_1', 'step_2', 'step_3', 'step_4', 'step_5'],
 };
+// decodeAudioData in its callback form: older Safari (iOS 14.4 and earlier) has no promise form.
+export function decodeAudio(ctx, bytes) {
+  return new Promise((resolve, reject) => {
+    try {
+      const p = ctx.decodeAudioData(bytes, resolve, reject);
+      if (p && p.catch) p.catch(reject);
+    } catch (e) { reject(e); }
+  });
+}
 const clipUrl = (n) => new URL(`../../assets/audio/sfx/${n}.mp3`, import.meta.url).href;
 // Fetch the clips as soon as the page loads; they're decoded the moment the audio is unlocked.
 const clipBytes = {};
@@ -67,12 +76,14 @@ class SfxEngine {
   // Fetch and decode the clips once the audio is unlocked (about 175 KB in all).
   _loadClips() {
     this.clips = {};
+    this.clipStats = { ok: 0, failed: 0, total: Object.values(CLIPS).reduce((n, f) => n + f.length, 0), error: '' };
     for (const [group, files] of Object.entries(CLIPS)) {
       this.clips[group] = [];
       files.forEach((f) => {
         (clipBytes[f] || fetch(clipUrl(f)).then((r) => r.arrayBuffer()))
-          .then((b) => (b ? this.ctx.decodeAudioData(b.slice(0)) : null))
-          .then((buf) => { if (buf) this.clips[group].push(buf); }).catch(() => {});
+          .then((b) => (b ? decodeAudio(this.ctx, b.slice(0)) : null))
+          .then((buf) => { if (buf) { this.clips[group].push(buf); this.clipStats.ok += 1; } else this.clipStats.failed += 1; })
+          .catch((e) => { this.clipStats.failed += 1; this.clipStats.error = String((e && e.message) || e || 'decode failed'); });
       });
     }
   }

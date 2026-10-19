@@ -49,7 +49,13 @@ export class Title extends Phaser.Scene {
     // The abbey takes the centre (the gear panel names the sword and shield).
     this.abbey = abbeyBackdrop(this);
     // Which release this is, small in the corner (so an update can be confirmed).
-    text(this, W - 12, H - 8, BUILD, { fontSize: '12px', color: '#5a4a38', originX: 1, originY: 1 }).setDepth(12);
+    const build = text(this, W - 12, H - 8, BUILD, { fontSize: '12px', color: '#5a4a38', originX: 1, originY: 1 }).setDepth(12);
+    // After the first tap, also report the sound clips (so a device that can't load them shows it).
+    this.time.addEvent({ delay: 500, loop: true, callback: () => {
+      const st = Sfx.clipStats;
+      if (!st) return;
+      build.setText(`${BUILD} · sounds ${st.ok}/${st.total}${st.failed ? ` · ${st.failed} failed${st.error ? `: ${st.error.slice(0, 40)}` : ''}` : ''}`);
+    } });
 
     // Layout: three columns in landscape; stacked when the phone is upright.
     const P = VIEW.portrait;

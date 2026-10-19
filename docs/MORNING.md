@@ -461,3 +461,11 @@ keyboard only. Then I fixed what got in the way:
   thuds) are quieter, so the real steel, armour, shield and footsteps come through.
 - The clips download as the page opens, so they're ready from the first blow.
 - To release: bump both `VERSION` in service-worker.js and `BUILD` in src/config.js.
+
+## Sound clips on older Safari (v55)
+
+- The clips (and the menu chant) were decoded with a form of the browser's audio call that older
+  Safari doesn't support. There the recordings failed silently and the old synthesised sounds played
+  instead. They now use the form every browser supports.
+- After your first tap, the title screen's corner shows how many sound clips loaded (for example
+  "v55 · sounds 34/34"), and the reason if any failed.

@@ -1,4 +1,4 @@
-import { Sfx } from './Sfx.js';
+import { Sfx, decodeAudio } from './Sfx.js';
 
 // Music for the hall, synthesised like everything else: a bourdon drone (as on a
 // hurdy-gurdy), a plucked harp improvising in D Dorian, and a tabor that drives
@@ -66,7 +66,7 @@ class MusicEngine {
     if (!this.chantWanted || this.chantSrc) return;
     if (!this.chantBuf) {
       if (this.chantLoading) return;
-      this.chantLoading = fetch(CHANT_URL).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b))
+      this.chantLoading = fetch(CHANT_URL).then((r) => r.arrayBuffer()).then((b) => decodeAudio(ctx, b))
         .then((buf) => { this.chantBuf = buf; this.chantLoading = null; this._chant(this.mood === 'abbey'); })
         .catch(() => { this.chantLoading = null; });
       return;
