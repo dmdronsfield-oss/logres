@@ -59,7 +59,7 @@ export class Title extends Phaser.Scene {
       L.subY = 124;
       L.footerY = H - 34;
       L.strikesY = L.footerY - 40 - 125;
-      L.gearY = L.strikesY - 264;
+      L.gearY = L.strikesY - 274;
       L.foeY = L.gearY - 125 - 30;
       L.playY = L.foeY - 50;
       const room = L.playY - 40 - (L.subY + 24);
@@ -86,7 +86,7 @@ export class Title extends Phaser.Scene {
     const panelH = 250;
 
     // ---------- left: the knight and his gear ----------
-    panel(this, leftX, panelY, colW, panelH);
+    panel(this, leftX, panelY, colW, panelH + 20);
     text(this, leftX, panelY - 100, `Generation ${s.generation}`, { fontSize: '24px', fontStyle: '700' });
     const cycleTxt = s.cycle > 0 ? ` · Cycle ${s.cycle + 1}` : '';
     text(this, leftX, panelY - 72, `Level ${s.level}${cycleTxt} · Best run ${s.bestRun}`, { fontSize: '15px' });
@@ -97,7 +97,7 @@ export class Title extends Phaser.Scene {
     g.fillStyle(PALETTE.lapis, 1).fillRect(leftX - bw / 2, panelY - 53, bw * (s.xp / Save.xpToNext()), 6);
 
     this.swordText = this._selector(leftX, panelY - 12, CONFIG.swords, 'sword', colW);
-    this.shieldText = this._selector(leftX, panelY + 70, CONFIG.shields, 'shield', colW);
+    this.shieldText = this._selector(leftX, panelY + 74, CONFIG.shields, 'shield', colW);
     bindMenuKeys(this, {
       Enter: () => this._play(), Space: () => this._play(), KeyB: () => fadeTo(this, 'Codex'),
       ArrowLeft: () => this.steps.sword(-1), ArrowRight: () => this.steps.sword(1),
@@ -210,8 +210,8 @@ export class Title extends Phaser.Scene {
       const cur = list.find((i) => i.id === Save.data[kind]) || list[0];
       nameT.setText(cur.name);
       infoT.setText(kind === 'sword'
-        ? `Damage ×${cur.damage.toFixed(2)} · Swipe time ${Math.round(cur.tolerance * 100)}%`
-        : `${cur.pips} pips · regains one every ${(cur.regenMs / 1000).toFixed(1)}s`);
+        ? `Damage ×${cur.damage.toFixed(2)} · Timing ${Math.round(cur.tolerance * 100)}%`
+        : `${cur.pips} pips · one back every ${(cur.regenMs / 1000).toFixed(1)}s`);
     };
     const step = (d) => {
       const idx = list.findIndex((i) => i.id === Save.data[kind]);
@@ -226,18 +226,18 @@ export class Title extends Phaser.Scene {
       this._drawCrest(VIEW.W / 2, this.L.crestY);
     };
     (this.steps || (this.steps = {}))[kind] = step;
-    arrowButton(this, x - colW / 2 + 32, y + 6, -1, () => step(-1));
-    arrowButton(this, x + colW / 2 - 32, y + 6, 1, () => step(1));
+    arrowButton(this, x - colW / 2 + 27, y + 4, -1, () => step(-1));
+    arrowButton(this, x + colW / 2 - 27, y + 4, 1, () => step(1));
     refresh();
     const locked = list.filter((i) => !Save.unlocked(i));
     if (locked.length) {
-      text(this, x, y + 42, `Next: ${locked[0].name} at Generation ${locked[0].unlockGen}`, { fontSize: '11px', color: '#7a6040' });
+      text(this, x, y + 42, `Next: ${locked[0].name} at Generation ${locked[0].unlockGen}`, { fontSize: '12px', color: '#6a5034' });
     }
     return nameT;
   }
 
   _toggle(x, y, w, label, get, set) {
-    const b = menuButton(this, x, y, Math.round(w), 40, '', () => {
+    const b = menuButton(this, x, y, Math.round(w), VIEW.portrait ? 50 : 40, '', () => {
       set(!get());
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
     }, { size: w < 80 ? 11 : 13 });

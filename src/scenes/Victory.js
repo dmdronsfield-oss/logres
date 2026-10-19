@@ -28,7 +28,8 @@ export class Victory extends Phaser.Scene {
     this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.35);
     img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
-    const title = text(this, W / 2, py(80, 0.4), data.final ? 'The Cycle Turns' : 'Victory', {
+    const P = VIEW.portrait;
+    const title = text(this, W / 2, py(80, 0.42), data.final ? 'The Cycle Turns' : 'Victory', {
       fontSize: '64px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 10,
     }).setScale(0.6).setAlpha(0);
     this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 500, ease: 'Back.easeOut' });
@@ -41,12 +42,12 @@ export class Victory extends Phaser.Scene {
       lines.push(`${def.name} is beaten.`);
     }
     const st = data.stats || {};
-    lines.push(`Parries ${st.parries || 0} · Ripostes ${st.ripostes || 0} · Dodges ${st.dodges || 0} · Blocks ${st.blocks || 0} · Strikes ${st.hits || 0}`);
+    lines.push(`Parries ${st.parries || 0} · Ripostes ${st.ripostes || 0} · Dodges ${st.dodges || 0}${P ? '\n' : ' · '}Blocks ${st.blocks || 0} · Strikes ${st.hits || 0}`);
     lines.push(`+${data.xp} experience`);
     if (data.levels > 0) lines.push(`Level up! You are now level ${s.level}: more health and a keener edge.`);
     (data.unlocks || []).forEach((u) => lines.push(`New gear: ${u}. Choose it in camp.`));
 
-    let ly = py(160, 0.4);
+    let ly = py(160, 0.42);
     lines.forEach((l, i) => {
       const t = text(this, W / 2, ly, l, {
         fontSize: i === 0 ? '24px' : '19px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
@@ -64,10 +65,13 @@ export class Victory extends Phaser.Scene {
     g.fillStyle(PALETTE.lapis, 1).fillRect(W / 2 - bw / 2, by, bw * (s.xp / Save.xpToNext()), 8);
 
     const next = ENEMIES[s.runStage] || ENEMIES[0];
-    menuButton(this, W / 2 + 140, H - 70, 260, 62, `Onward`, () => fadeTo(this, 'Duel'), { size: 26, fill: '#f6dc8a' });
+    // Upright phones stack the buttons, Onward on top, in thumb reach.
+    const on = P ? { x: W / 2, y: H - 210 } : { x: W / 2 + 140, y: H - 70 };
+    const camp = P ? { x: W / 2, y: H - 92 } : { x: W / 2 - 140, y: H - 70 };
+    menuButton(this, on.x, on.y, P ? 320 : 260, P ? 72 : 62, `Onward`, () => fadeTo(this, 'Duel'), { size: P ? 30 : 26, fill: '#f6dc8a' });
     bindMenuKeys(this, { Enter: () => fadeTo(this, 'Duel'), Space: () => fadeTo(this, 'Duel'), Escape: () => fadeTo(this, 'Title') });
-    text(this, W / 2 + 140, H - 28, `vs ${next.name}`, { fontSize: '15px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4 });
-    menuButton(this, W / 2 - 140, H - 70, 220, 56, 'To camp', () => fadeTo(this, 'Title'), { size: 22 });
+    text(this, on.x, on.y + (P ? 54 : 42), `vs ${next.name}`, { fontSize: '15px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4 });
+    menuButton(this, camp.x, camp.y, 220, 56, 'To camp', () => fadeTo(this, 'Title'), { size: 22 });
 
     this.cameras.main.fadeIn(300, 26, 20, 16);
     Music.play('victory');

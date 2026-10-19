@@ -256,15 +256,19 @@ export class Duel extends Phaser.Scene {
     const H = VIEW.H;
     const c = this.add.container(0, 0).setDepth(70);
     c.add(this.add.rectangle(W / 2, H / 2, W + 400, H + 400, 0x120c08, 0.72).setInteractive());
-    c.add(text(this, W / 2, py(64), 'Paused', {
+    // Upright phones get finger-sized buttons, spread over the taller screen.
+    const P = VIEW.portrait;
+    const my = (y) => py(P ? 270 + (y - 270) * 1.45 : y);
+    const bh = P ? 60 : 42;
+    c.add(text(this, W / 2, my(64), 'Paused', {
       fontSize: '42px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
     }));
     const toggle = (y, label, get, set) => {
-      const b = menuButton(this, W / 2, py(y), 320, 42, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: 18 });
+      const b = menuButton(this, W / 2, my(y), P ? 380 : 320, bh, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: P ? 22 : 18 });
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
       c.add(b);
     };
-    c.add(menuButton(this, W / 2, py(130), 300, 52, 'Resume', () => this.resume(), { size: 25, fill: '#f6dc8a' }));
+    c.add(menuButton(this, W / 2, my(130), P ? 380 : 300, P ? 68 : 52, 'Resume', () => this.resume(), { size: P ? 28 : 25, fill: '#f6dc8a' }));
     toggle(190, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
     toggle(240, 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
     toggle(290, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
@@ -274,17 +278,17 @@ export class Duel extends Phaser.Scene {
     if (this.w3 && this.w3.setQuality) {
       // Graphics: looks or battery life. Remembered; turns off the automatic step-down.
       const names = ['Low', 'Medium', 'High'];
-      const gb = menuButton(this, W / 2, py(390), 320, 42, '', () => {
+      const gb = menuButton(this, W / 2, my(390), P ? 380 : 320, bh, '', () => {
         this.w3.setQuality((this.w3.quality + 2) % 3, true);
         gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
-      }, { size: 18 });
+      }, { size: P ? 22 : 18 });
       gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
       c.add(gb);
     }
-    c.add(menuButton(this, W / 2, py(498), 300, 46, 'Retreat to camp', () => {
+    c.add(menuButton(this, W / 2, my(498), P ? 380 : 300, P ? 60 : 46, 'Retreat to camp', () => {
       this.tweens.resumeAll();
       fadeTo(this, 'Title');
-    }, { size: 20 }));
+    }, { size: P ? 22 : 20 }));
     this.pauseMenu = c;
   }
 

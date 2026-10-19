@@ -5,6 +5,11 @@ import { DIR_VEC, opposite, dirDistance } from '../input/SwipeInput.js';
 import { Sfx } from '../audio/Sfx.js';
 import { Save } from '../save/Save.js';
 import { Music } from '../audio/Music.js';
+import { desktopLikely } from '../input/Keys.js';
+
+// Lessons in touch or keyboard wording.
+const KEYS = desktopLikely();
+const say = (touch, keys) => (KEYS ? keys : touch);
 
 const GAWAIN_VOICE = { f0: 118, vowel: 'u' };
 
@@ -223,7 +228,7 @@ export class CombatDirector {
     const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
     this.riposte = { dir: back, until: performance.now() + CONFIG.parriedOpenMs };
     this.hud.showHint(back, 'Riposte!', 'riposte');
-    this._teach('ripHint', 'RIPOSTE: swipe along the white arrow for double damage.', 1, true);
+    this._teach('ripHint', say('RIPOSTE: swipe along the white arrow for double damage.', 'RIPOSTE: press the arrow key the white arrow shows, for double damage.'), 1, true);
     this.tutorial?.onParry?.();
   }
 
@@ -430,7 +435,7 @@ export class CombatDirector {
     this.comboTurn += 1;
     if (!this.riposte) {
       this._showComboHint();
-      this._teach('comboHint', 'Follow the gold arrows for a KNOWN STRIKE: a heavy bonus blow.');
+      this._teach('comboHint', say('Follow the gold arrows for a KNOWN STRIKE: a heavy bonus blow.', 'Press the arrow keys the gold arrows show for a KNOWN STRIKE: a heavy bonus blow.'));
     }
   }
 
@@ -499,7 +504,7 @@ export class CombatDirector {
 
   onEnemyCounter() {
     this.hud.bigText('His counter!', PALETTE.vermilionCss, 170, 36);
-    this._teach('spamHint', 'Swiping at his guard only clangs, and he answers. Strike when he is OPEN.');
+    this._teach('spamHint', 'Striking at his guard only clangs, and he answers. Strike when he is OPEN.');
   }
 
   onTelegraph(attack) {
@@ -513,7 +518,7 @@ export class CombatDirector {
       this.hud.banner('A RED glint cannot be parried. Dodge it or block it!', 3200);
     } else if (attack.direction === 'T' && !Save.data.thrustHintShown) {
       Save.set({ thrustHintShown: true });
-      this.hud.banner('A THRUST cannot be dodged. Block it, or swipe sideways to parry!', 3400);
+      this.hud.banner(say('A THRUST cannot be dodged. Block it, or swipe sideways to parry!', 'A THRUST cannot be dodged. Block it (S), or press ← or → to parry!'), 3400);
     }
   }
 
@@ -547,7 +552,7 @@ export class CombatDirector {
     this.superMeter = Math.min(CONFIG.super.max, this.superMeter + n);
     if (was < CONFIG.super.max && this.superMeter >= CONFIG.super.max && !Save.data.superHintShown) {
       Save.set({ superHintShown: true });
-      this.hud.banner('Your SUPER is ready: tap the glowing star to stun him.', 3200);
+      this.hud.banner(say('Your SUPER is ready: tap the glowing star to stun him.', 'Your SUPER is ready: press W (or Enter) to stun him.'), 3200);
     }
   }
 

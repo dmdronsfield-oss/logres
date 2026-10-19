@@ -79,12 +79,13 @@ export class Codex extends Phaser.Scene {
     };
     const entry = (e) => {
       const open = e.open || !!Save.data[e.flag];
-      const t = text(this, x0, y, open ? e.title : 'Sealed', {
+      // Sealed entries show their name, greyed, so there's something to look for.
+      const t = text(this, x0, y, open ? e.title : `${e.title} · sealed`, {
         fontSize: '19px', fontStyle: '700', color: open ? PALETTE.lapisCss : '#9a8a6a', originX: 0, originY: 0,
       });
       col.add(t);
       y += t.height + 2;
-      const b = text(this, x0, y, open ? e.text : 'Not yet seen in battle.', {
+      const b = text(this, x0, y, open ? e.text : 'Not yet met in battle.', {
         fontSize: '15px', color: open ? PALETTE.inkCss : '#9a8a6a', wordWrap: { width: wrap }, originX: 0, originY: 0, lineSpacing: 2, align: 'left',
       });
       col.add(b);

@@ -1,3 +1,4 @@
+import { desktopLikely } from '../input/Keys.js';
 import { VIEW, PALETTE, CONFIG } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
@@ -76,7 +77,7 @@ export class Death extends Phaser.Scene {
       fontSize: '16px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4, wordWrap: { width: W - 60 }, align: 'center',
     });
 
-    const tap = text(this, W / 2, H - 30, 'Tap to take up the sword', {
+    const tap = text(this, W / 2, H - 30, desktopLikely() ? 'Press Enter to take up the sword' : 'Tap to take up the sword', {
       fontSize: '18px', color: '#f6dc8a', stroke: PALETTE.inkCss, strokeThickness: 4,
     }).setAlpha(0);
     this.tweens.add({ targets: tap, alpha: 1, delay: 1800, duration: 500 });

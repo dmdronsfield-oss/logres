@@ -321,3 +321,15 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   a frame, against 437k on High.
 - High is unchanged. Phones that struggle already step down to Medium automatically, so they'll
   pick up the light model on their next launch.
+
+## Brief 24, fresh eyes (v40)
+
+`docs/BRIEF-24-fresh-eyes.md`
+
+I played the whole game from an empty save twice: on a phone held upright, and on a laptop with the
+keyboard only. Then I fixed what got in the way:
+- **Phone:** bigger pause-menu and camp buttons. The Victory screen now puts Onward under your
+  thumb. The camp's gear panel no longer clips its last line.
+- **Keyboard:** the remaining lessons (riposte, thrust, Pendragon strike, known strikes) and the death
+  screen now name keys rather than taps and swipes.
+- **Book of Arms:** sealed entries show their names, so a new player can see what's still to find.
