@@ -375,3 +375,16 @@ keyboard only. Then I fixed what got in the way:
 - **Brighter blade trails** on your cuts.
 - **Ghosted buttons** that brighten when he attacks or you press them.
 - **The finish:** a white flash on the killing blow, and a fade to white into Victory.
+
+## Brief 29, measured blows (v46)
+
+`docs/BRIEF-29-measured-blows.md`
+
+- **Cleaner swings:** each cut now plays out in full (coil, cut, follow-through), and the hit lands
+  when the blade arrives, not at the swipe.
+- **No reward for flailing:** extra swipes mid-cut are dropped and "rush" the next cut (60% damage),
+  and a cut that rings off his guard throws you off balance for a moment, open to his blow.
+- **Timing rewarded:** a **Timed cut** (the first cut the instant he opens) does 1.5× damage. In
+  testing, measured cutting dealt about 50% more than frantic swiping.
+- Damage was retuned, and a straight playthrough by the test bot matches the earlier difficulty
+  curve.

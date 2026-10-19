@@ -44,13 +44,18 @@ export const CONFIG = {
     earlyTriggerMult: 2.2,  // a swipe fires mid-drag once travel reaches minDist * this
     trailFadeMs: 200,
     trailWidth: 9,
-    bufferMs: 280,          // a swipe made while the arm is busy is kept this long
+    bufferMs: 140,          // a swipe made this late in a swing is kept and follows on; earlier ones are dropped
   },
 
   player: {
     baseHealth: 100,
-    baseDamage: 10,
-    attackMs: 120,          // time the sword arm is busy after a swipe
+    baseDamage: 14,          // (was 10 before brief 29's one-cut-at-a-time)
+    attackMs: 250,          // the sword arm is busy for the whole cut (coil, cut, follow-through)
+    contactMs: 85,          // the blade reaches him this long into the swing; the hit lands then
+    offBalanceMs: 320,      // a cut that rings off his guard leaves you off balance this long
+    timedCutMs: 400,        // the first cut landing this soon after he opens is a Timed cut
+    timedCutMult: 1.5,
+    rushedMult: 0.6,        // a cut swiped for again early in the last one (flailing) bites this much
     stunMs: 300,
     hitChainMs: 250,        // hits within this of each other build the counter
   },

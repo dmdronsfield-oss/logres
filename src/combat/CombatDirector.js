@@ -42,8 +42,12 @@ export class CombatDirector {
     const p = this.player;
     const e = this.enemy;
     if (!p.canSwing()) {
-      // Keep a swipe made during hit-stop or slow motion and play it as soon as the arm is free.
-      this.buffered = { dir, at: performance.now() };
+      // One clean cut at a time: a swipe made late in a swing (or during a dodge) follows on;
+      // earlier extra swipes, and any made while off balance, are dropped.
+      const late = p.state === PS.ATTACKING && p.swingElapsed >= CONFIG.player.attackMs - CONFIG.swipe.bufferMs;
+      if (late || p.state === PS.DODGING) this.buffered = { dir, at: this.clock || 0 };
+      // Swiping again early in a cut rushes the next one: it bites less.
+      else if (p.state === PS.ATTACKING) this.rushed = true;
       return;
     }
     this.buffered = null;
@@ -53,7 +57,18 @@ export class CombatDirector {
     if (e.state === ES.TELEGRAPH && e.inParryWindow() && e.attack.parryable && this.parryMatches(dir, e.attack)) {
       if (!this.tutorial && e.telegraphRemaining() <= CONFIG.lock.lastMs) this.startLock(e.attack);
       else this.doParry();
-    } else if (e.isOpen() && e.limitReached()) {
+      return;
+    }
+    // Anything else lands when the blade reaches him.
+    this.pendingCut = { dir, left: CONFIG.player.contactMs };
+  }
+
+  // The blade arrives: a cut if he's open, through the gap in his guard, or it rings off it.
+  _landCut(dir) {
+    const p = this.player;
+    const e = this.enemy;
+    if (this.over || e.state === ES.DEFEATED) return;
+    if (e.isOpen() && e.limitReached()) {
       // He won't stand for it.
       const how = e.recoverEarly();
       Sfx.clang();
@@ -66,12 +81,18 @@ export class CombatDirector {
       e.cuts = (e.cuts || 0) + 1;
     } else if (!this.tutorial?.step || this.tutorial.step === 'free' ? e.gapDirs().includes(dir) : false) {
       this.doGapHit(dir);
-    } else if (e.state !== ES.DEFEATED) {
+    } else {
       const at = e.guardFlinch();
       p.clangAt = performance.now();
       Sfx.clang();
       this.juice.sparksAt(at.x, at.y, 8);
       this.tutorial?.onClang?.(dir);
+      // Flailing at his guard throws you off balance (not while the tutorial is teaching).
+      if (!this.tutorial || this.tutorial.step === 'free') {
+        p.offBalance(CONFIG.player.offBalanceMs);
+        this.hud.callout('Off balance', 'bad');
+        this._teach('flailHint', 'Cutting at his guard throws you OFF BALANCE: you can\'t dodge or block for a moment. Wait for him to open.', 1, true);
+      }
     }
   }
 
@@ -291,6 +312,22 @@ export class CombatDirector {
       this.riposte = null;
       this.hud.hideHint();
     }
+    // Timed cut: the first cut of an opening, landed the moment he opens.
+    const rushed = this.rushed && !riposte;
+    this.rushed = false;
+    if (rushed) {
+      mult *= CONFIG.player.rushedMult;
+      this.stats.rushed = (this.stats.rushed || 0) + 1;
+      this.hud.callout('Rushed', 'bad');
+      this._teach('rushHint', 'Swiping again before your cut has finished RUSHES the next one: it bites less. One clean cut at a time.', 2);
+    }
+    const timed = !riposte && !rushed && this.openSeq.length === 0 && (this.clock || 0) - (this.openedAt ?? -1e9) <= CONFIG.player.timedCutMs;
+    if (timed) {
+      mult *= CONFIG.player.timedCutMult;
+      this.stats.timed = (this.stats.timed || 0) + 1;
+      this.hud.callout('Timed cut');
+      this._teach('timedHint', 'TIMED CUT! Strike the instant he opens for extra damage. Be ready, not mid-swing.', 2);
+    }
     const dmg = Math.round(p.damage * mult);
     this.stats.hits += 1;
     if (riposte) {
@@ -476,6 +513,7 @@ export class CombatDirector {
 
   onOpen() {
     this.openSeq = [];
+    this.openedAt = this.clock || 0;
     // Show the next known strike sequence, one chevron at a time (a parry shows its riposte first).
     this.comboHint = { combo: CONFIG.combos[this.comboTurn % CONFIG.combos.length], step: 0 };
     this.comboTurn += 1;
@@ -650,10 +688,20 @@ export class CombatDirector {
   update(realDt) {
     const e = this.enemy;
     const p = this.player;
+    this.clock = (this.clock || 0) + realDt;   // real time, ms (also steps with the test harness)
     if (!this.over) this._nextLesson();
     if (this.lock) this._updateLock(realDt);
+    if (this.pendingCut) {
+      this.pendingCut.left -= realDt;
+      if (this.pendingCut.left <= 0) {
+        const { dir } = this.pendingCut;
+        this.pendingCut = null;
+        this._landCut(dir);
+      }
+    }
     if (this.buffered) {
-      if (performance.now() - this.buffered.at > CONFIG.swipe.bufferMs) this.buffered = null;
+      // Kept for the rest of the swing (allowing for slow motion), then played at once.
+      if ((this.clock || 0) - this.buffered.at > CONFIG.swipe.bufferMs + 300) this.buffered = null;
       else if (p.canSwing()) this.onSwipe(this.buffered.dir);
     }
     // The gap in his guard, while he waits (a faint arrow; taught once).

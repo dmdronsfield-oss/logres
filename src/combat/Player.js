@@ -55,7 +55,8 @@ export class Player extends Fighter {
         if (this.stateT >= CONFIG.dodge.durationMs) this._rest();
         break;
       case PS.STUNNED:
-        if (this.stateT >= CONFIG.player.stunMs) {
+        if (this.stateT >= (this.stunFor || CONFIG.player.stunMs)) {
+          this.stunFor = null;
           this._rest();
           this._home(120);
         }
@@ -75,7 +76,19 @@ export class Player extends Fighter {
   }
 
   canSwing() {
-    return this.state === PS.READY || (this.state === PS.ATTACKING && this.stateT >= CONFIG.player.attackMs * 0.75);
+    return this.state === PS.READY || (this.state === PS.ATTACKING && this.stateT >= CONFIG.player.attackMs);
+  }
+
+  // How far into the current swing (ms), or Infinity when not swinging.
+  get swingElapsed() {
+    return this.state === PS.ATTACKING ? this.stateT : Infinity;
+  }
+
+  // Your cut rang off his guard: thrown off balance, open to his blow.
+  offBalance(ms) {
+    if (this.state === PS.DEAD) return;
+    this.setState(PS.STUNNED);
+    this.stunFor = ms;
   }
 
   get blockElapsed() {
@@ -182,6 +195,7 @@ export class Player extends Fighter {
       return true;
     }
     this.setState(PS.STUNNED);
+    this.stunFor = null;
     const arm = this.rig.swordArm;
     this.scene.tweens.killTweensOf(arm);
     this.scene.tweens.add({

@@ -959,8 +959,9 @@ export class HallView extends World3D {
     }
     // Your swing: coil, cut along the swipe with follow-through, back to guard.
     this.playerState = pl;
-    const t = now - (pl.swingAt || -1e9);
-    if (t >= 0 && pl.swingDir && pl.state !== PS.DEAD && pl.state !== PS.STUNNED && pl.state !== PS.BLOCKING) {
+    // Timed by the swing itself, so the blade arrives exactly when the hit lands (contactMs).
+    const t = pl.state === PS.ATTACKING ? pl.stateT : 1e9;
+    if (pl.state === PS.ATTACKING && pl.swingDir) {
       const sw = playerSwingPose(guard, mirrorDir(pl.swingDir), t);
       if (sw) { target = sw; omega = 30; }
     }

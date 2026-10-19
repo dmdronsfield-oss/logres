@@ -344,11 +344,13 @@ export function tauntPose(guard, kind, ms) {
 }
 
 // Your knight's swing (dir already mirrored into his frame). Null when finished.
+// Timed to the game: the blade reaches him at 85 ms (CONFIG.player.contactMs) and the
+// arm is free again at 250 ms (CONFIG.player.attackMs).
 export function playerSwingPose(guard, dir, ms) {
-  if (ms > 360) return null;
+  if (ms > 250) return null;
   const m = swingMarks(guard, dir);
   const keep = (p) => { const q = pose(p); q.footL = guard.footL.slice(); q.footR = guard.footR.slice(); return q; };
-  return sampleClip([[0, guard], [70, keep(m.coil), 'out'], [150, keep(m.hit), 'snap'], [220, keep(m.follow), 'out'], [360, guard, 'inout']], ms, 360);
+  return sampleClip([[0, guard], [40, keep(m.coil), 'out'], [85, keep(m.hit), 'snap'], [150, keep(m.follow), 'out'], [250, guard, 'inout']], ms, 250);
 }
 
 // ---------- the animator ----------
