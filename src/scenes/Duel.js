@@ -2,6 +2,7 @@ import { CONFIG, VIEW, PALETTE, MODE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { Music } from '../audio/Music.js';
+import { comfort } from '../ui/Comfort.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { Player } from '../combat/Player.js';
 import { Enemy } from '../combat/Enemy.js';
@@ -268,6 +269,8 @@ export class Duel extends Phaser.Scene {
     toggle(240, 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
     toggle(290, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
     toggle(340, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
+    // Comfort mode: calmer camera, softer flashes (defaults to the device's reduce-motion setting).
+    toggle(440, 'Comfort mode', () => comfort(), (v) => Save.set({ comfort: v }));
     if (this.w3 && this.w3.setQuality) {
       // Graphics: looks or battery life. Remembered; turns off the automatic step-down.
       const names = ['Low', 'Medium', 'High'];
@@ -278,7 +281,7 @@ export class Duel extends Phaser.Scene {
       gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
       c.add(gb);
     }
-    c.add(menuButton(this, W / 2, py(454), 300, 50, 'Retreat to camp', () => {
+    c.add(menuButton(this, W / 2, py(498), 300, 46, 'Retreat to camp', () => {
       this.tweens.resumeAll();
       fadeTo(this, 'Title');
     }, { size: 20 }));

@@ -251,3 +251,11 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   body and blades through heads.
 - It found that follow-throughs aimed the sword hand up to 73 cm beyond arm's length, and that shield
   arms didn't turn with the body. Both are fixed; issues went from 41 to 11, all minor.
+
+## Brief 17, comfort mode (v33)
+
+`docs/BRIEF-17-comfort.md`
+
+- **Comfort mode** in the pause menu: no screen shake or camera kicks, the cinematic cameras hold
+  still, and flashes are softened. It's on automatically for anyone whose phone is set to reduce
+  motion. All the motion added overnight made this worth having.

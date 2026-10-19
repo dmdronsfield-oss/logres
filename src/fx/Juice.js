@@ -1,6 +1,7 @@
 import { CONFIG, PALETTE, VIEW } from '../config.js';
 import { canvasTex, text, star } from '../art/Tex.js';
 import { Save } from '../save/Save.js';
+import { comfort } from '../ui/Comfort.js';
 
 // Hit-stop, slow motion, shake, flashes, sparks, damage numbers, haptics.
 export class Juice {
@@ -88,6 +89,7 @@ export class Juice {
   }
 
   shake({ ms, intensity }) {
+    if (comfort()) return;
     this.scene.cameras.main.shake(ms, intensity);
   }
 
@@ -105,6 +107,7 @@ export class Juice {
   }
 
   screenFlash(kind = 'red', alpha = 0.35, ms = 220) {
+    if (comfort()) alpha = Math.min(alpha, 0.12);
     const r = kind === 'red' ? this.redFlash : this.goldFlash;
     r.setAlpha(alpha);
     this.scene.tweens.add({ targets: r, alpha: 0, duration: ms });
@@ -154,7 +157,7 @@ export class Juice {
     const from = { E: ['L'], W: ['R'], S: ['T'], SE: ['L', 'T'], SW: ['R', 'T'], N: ['B'], NE: ['L'], NW: ['R'], T: ['L', 'R', 'T'] }[direction] || ['T'];
     const depth = Math.min(W, H) * 0.22;
     from.forEach((side) => {
-      const im = this.scene.add.image(0, 0, 'edgeGrad').setDepth(46).setBlendMode(Phaser.BlendModes.ADD);
+      const im = this.scene.add.image(0, 0, 'edgeGrad').setDepth(46).setBlendMode(Phaser.BlendModes.ADD).setAlpha(comfort() ? 0.45 : 1);
       if (side === 'L') im.setOrigin(0, 0.5).setPosition(0, H / 2).setDisplaySize(depth, H);
       if (side === 'R') im.setOrigin(0, 0.5).setPosition(W, H / 2).setAngle(180).setDisplaySize(depth, H);
       if (side === 'T') im.setOrigin(0, 0.5).setPosition(W / 2, 0).setAngle(90).setDisplaySize(depth, W);

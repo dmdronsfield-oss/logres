@@ -18,6 +18,7 @@ import { Cloth } from './knight/Cloth.js';
 import { BladeTrail } from './Trail.js';
 import { drapeTex } from './knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from './knight/Looks.js';
+import { comfort } from '../ui/Comfort.js';
 
 // Third-person duel in Camelot's great hall, staged like Infinity Blade: the
 // camera rides over your knight's shoulder, the challenger faces you, and both
@@ -1017,11 +1018,15 @@ export class HallView extends World3D {
     this.camPush = (this.camPush || 0) + (push - (this.camPush || 0)) * Math.min(1, (dt || 16) / (push > (this.camPush || 0) ? 400 : 90));
     this.camPunch = (this.camPunch || 0) * Math.exp(-(dt || 16) / 90);
     this.camHurt = (this.camHurt || 0) * Math.exp(-(dt || 16) / 140);
-    cam.position.z -= this.camPush + this.camPunch * 0.12;
-    cam.position.x += this.camHurt * 0.08 * Math.sin(now / 17);
-    cam.position.y -= this.camHurt * 0.05;
+    // Comfort mode: no pushes, punches or jolts.
+    const calm = comfort();
+    if (!calm) {
+      cam.position.z -= this.camPush + this.camPunch * 0.12;
+      cam.position.x += this.camHurt * 0.08 * Math.sin(now / 17);
+      cam.position.y -= this.camHurt * 0.05;
+    }
     const sh = duel.cameras.main.shakeEffect;
-    if (sh && sh.isRunning) {
+    if (sh && sh.isRunning && !comfort()) {
       cam.position.x += (sh._offsetX || 0) * 0.004;
       cam.position.y += (sh._offsetY || 0) * 0.004;
     }
@@ -1034,7 +1039,10 @@ export class HallView extends World3D {
     this.lockCam = (this.lockCam || 0) + ((locked ? 1 : 0) - (this.lockCam || 0)) * Math.min(1, (dt || 16) / (locked ? 160 : 260));
     const sfxA = duel.director && duel.director.superFx;
     const sft = sfxA ? now - sfxA.at : 1e9;
-    if (sft < 1300 && !fin && !fall) {
+    if (calm) {
+      // Comfort mode: the camera holds its place for every cinematic moment.
+      cam.lookAt(this.camTarget.x + px * 0.25, this.camTarget.y, this.camTarget.z);
+    } else if (sft < 1300 && !fin && !fall) {
       // The Pendragon: low and close, looking up at Gawain.
       const s = sft < 300 ? sft / 300 : sft > 950 ? Math.max(0, 1 - (sft - 950) / 350) : 1;
       const e2 = s * s * (3 - 2 * s);
@@ -1106,6 +1114,7 @@ export class HallView extends World3D {
     const e = duel.enemy;
     if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 7;
     if (e && e.state === ES.LOCKED) this.fovKick = Math.max(this.fovKick, 6 + Math.sin(now / 40) * 0.4);
+    if (calm) this.fovKick = 0;
     this.fovKick *= Math.exp(-(dt || 16) / 180);
     cam.fov = this.fov - this.fovKick;
     cam.updateProjectionMatrix();
