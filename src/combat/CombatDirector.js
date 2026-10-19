@@ -258,6 +258,23 @@ export class CombatDirector {
     this.hud.showHint(back, 'Riposte!', 'riposte');
     this._teach('ripHint', say('RIPOSTE: swipe along the white arrow for double damage.', 'RIPOSTE: press the arrow key the white arrow shows, for double damage.'), 1, true);
     this.tutorial?.onParry?.();
+    // Three parries in a row strike the weapon from his hand.
+    this.parryRun = (this.parryRun || 0) + 1;
+    if (this.parryRun >= CONFIG.disarm.parries && e.state === ES.PARRIED && !this.tutorial) this.doDisarm();
+  }
+
+  doDisarm() {
+    const e = this.enemy;
+    this.parryRun = 0;
+    this.riposte = null;
+    this.hud.hideHint();
+    e.disarm(CONFIG.disarm.openMs);
+    this.stats.disarms = (this.stats.disarms || 0) + 1;
+    this.hud.bigText('Disarmed!', '#fff6cf', 200, 52);
+    this.juice.slowMo(0.3, 380);
+    Sfx.cheer();
+    this.scene.time.delayedCall(820, () => Sfx.hitArmour('plate'));
+    this._teach('disarmHint', 'DISARMED! Three parries in a row struck the blade from his hand. Cut him down before he takes it up!', 1, true);
   }
 
   doHit(dir) {
@@ -369,6 +386,7 @@ export class CombatDirector {
     const e = this.enemy;
     const tip = e._tip();
     let outcome;
+    this.parryRun = 0;
     if (p.state === PS.DODGING) this.noteAnswer(`dodge:${p.dodgeSide}`);
     else if (p.state === PS.BLOCKING) this.noteAnswer('block');
     if (p.state === PS.DODGING && attack.dodge.includes(p.dodgeSide)) {

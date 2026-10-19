@@ -781,7 +781,22 @@ export class HallView extends World3D {
       case ES.GAP: target = strikePose(guard, dir, 380 + e.t, style); omega = 14; zWant = 0.25; break;
       case ES.FEINT: omega = 16; zWant = -0.1; break;
       case ES.RECOVER: target = e.gloating ? tauntPose(guard, e.def.taunt, e.t) : recoverPose(guard, dir, e.t, style); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
-      case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
+      case ES.PARRIED:
+        if (e.disarmed) {
+          // Disarmed: thrown back empty-handed, a stagger, then he reaches for his weapon.
+          const left = e.openDur - e.t;
+          if (e.t < 260) { target = pose(guard, STATES.parried); omega = 26; zWant = -0.3; zRate = 14; }
+          else if (left > 1000 || !v.disarm) { target = pose(guard, STATES.staggered); omega = 9; wobble = 0.6; zWant = -0.3; zRate = 4; }
+          else {
+            target = pose(guard);
+            target.handR = v.disarm.hand.slice();
+            target.chest = [0.38, 0.35, -0.1];
+            target.pelvis = [target.pelvis[0], target.pelvis[1] - 0.12, target.pelvis[2]];
+            omega = 10; zWant = 0; zRate = 3;
+          }
+          break;
+        }
+        target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
       case ES.INTRO: {
@@ -859,6 +874,7 @@ export class HallView extends World3D {
     }
     if (e.state === ES.PARRIED && e.t < 30) anim.jolt(-3.5, 1.5, 0);
     v.hp = e.health;
+    this._disarm(v, e, dt);
     const look = this.player ? this.player.k.J.head.getWorldPosition(this.v2 || (this.v2 = new THREE.Vector3())) : null;
     anim.apply(look, { breathe: e.state === ES.DEFEATED ? 0 : 1, wobble, time: this.time });
     if (k.retarget) k.retarget();
@@ -889,6 +905,51 @@ export class HallView extends World3D {
         if (!o.material) return;
         (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.transparent = a < 0.999 || m.alphaTest > 0; m.opacity = a; });
       }));
+    }
+  }
+
+  // Disarmed: his weapon spins out of his hand, falls point-first and sticks in the
+  // floor beside him; when he takes it up it's back in his grip.
+  _disarm(v, e, dt) {
+    const k = v.k;
+    const w = k.weaponObj;
+    const on = e.state === ES.PARRIED && e.disarmed && e.openDur - e.t > 380;
+    let d = v.disarm;
+    if (on && !d) {
+      w.updateMatrixWorld(true);
+      const base = w.localToWorld(new THREE.Vector3());
+      const len = base.distanceTo(w.localToWorld(new THREE.Vector3(0, -k.weaponLen, 0)));
+      d = v.disarm = { parent: w.parent, p: w.position.clone(), q: w.quaternion.clone(), s: w.scale.clone(), t: 0 };
+      this.content.attach(w);
+      d.from = w.position.clone();
+      d.q0 = w.quaternion.clone();
+      // Where it lands: off to his left (the open side of the screen), within reach, sunk a fifth of its length.
+      const rq = k.root.getWorldQuaternion(new THREE.Quaternion());
+      const hilt = k.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0.72, 0, 0.12).applyQuaternion(rq));
+      hilt.y = len * 0.8;
+      d.land = this.content.worldToLocal(hilt.clone());
+      const hand = k.root.worldToLocal(hilt.clone());
+      d.hand = [hand.x, hand.y, hand.z];
+      // Point down (the blade runs along -y), leaning a little.
+      d.qEnd = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.14, Math.random() * Math.PI * 2, 0.1, 'YXZ'));
+      d.axis = new THREE.Vector3().subVectors(d.land, d.from).setY(0).cross(new THREE.Vector3(0, 1, 0)).normalize();
+      if (d.axis.lengthSq() < 0.5) d.axis.set(1, 0, 0);
+    }
+    if (!d) return;
+    if (on) {
+      d.t += dt / 1000;
+      const u = Math.min(1, d.t / 0.85);
+      w.position.lerpVectors(d.from, d.land, u);
+      w.position.y += 4 * 1.3 * u * (1 - u);
+      const spin = new THREE.Quaternion().setFromAxisAngle(d.axis, u * Math.PI * 4.5).multiply(d.q0);
+      const settle = Math.max(0, Math.min(1, (u - 0.65) / 0.35));
+      w.quaternion.copy(spin).slerp(d.qEnd, settle * settle * (3 - 2 * settle));
+    } else {
+      d.parent.add(w);
+      w.position.copy(d.p);
+      w.quaternion.copy(d.q);
+      w.scale.copy(d.s);
+      v.disarm = null;
     }
   }
 

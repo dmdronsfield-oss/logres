@@ -384,6 +384,7 @@ export class Enemy extends Fighter {
     }
     this.setState(ES.IDLE);
     this.gloating = false;
+    this.disarmed = false;
     this.shiftGuard(Math.random() < 0.5 ? 'high' : 'low');
     this.superStagger = false;
     this.idleDur = this.forceShortIdle ? 250 : rand(this.cfg.idleMs);
@@ -623,12 +624,12 @@ export class Enemy extends Fighter {
   // Cuts taken in the current opening, against his limit (if he has one).
   get openWarn() {
     const L = this.cfg.openLimit;
-    return !!L && this.isOpen() && this.state !== ES.STAGGERED && (this.cuts || 0) >= L.cuts - 1;
+    return !!L && this.isOpen() && this.state !== ES.STAGGERED && !this.disarmed && (this.cuts || 0) >= L.cuts - 1;
   }
 
   limitReached() {
     const L = this.cfg.openLimit;
-    return !!L && this.state !== ES.STAGGERED && (this.cuts || 0) >= L.cuts;
+    return !!L && this.state !== ES.STAGGERED && !this.disarmed && (this.cuts || 0) >= L.cuts;
   }
 
   // He won't stand for more: slip away, or turn the blade and answer.
@@ -718,7 +719,16 @@ export class Enemy extends Fighter {
     this.director.onOpen?.();
   }
 
+  // Disarmed: his weapon spun from his hand. Open (and unable to slip away) until he
+  // has stooped and taken it up again.
+  disarm(ms) {
+    this.parried();
+    this.disarmed = true;
+    this.openDur = ms;
+  }
+
   forceStagger(ms, superFlag) {
+    this.disarmed = false;
     this.cuts = 0;
     this._clearRing();
     this.glint.setVisible(false);

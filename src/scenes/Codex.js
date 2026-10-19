@@ -15,6 +15,7 @@ const ARTS = [
   { title: 'The Shield', open: true, text: 'Stops anything but the shield bash. Each block spends a pip; they return in time.', how: 'Hold the shield roundel · S or Space' },
   { title: 'The Parry', open: true, text: 'As the ring turns WHITE, swipe against his blow. It breaks his guard and fills his stagger.', how: 'Swipe against the blow · the opposite arrow' },
   { title: 'The Riposte', flag: 'ripHint', text: 'After a parry, a white arrow shows the return cut. Follow it for double damage.', how: 'Swipe along the white arrow' },
+  { title: 'The Disarm', flag: 'disarmHint', text: 'Three parries in a row strike the weapon from his hand. He is open until he stoops to take it up.', how: 'Parry three blows in a row' },
   { title: 'The Perfect Block', flag: 'perfectBlockHint', text: 'Raise the shield at the last instant: no pip is spent, and his attack is broken.', how: 'Block just as the ring closes' },
   { title: 'The Counter', flag: 'counterHint', text: 'A perfect dodge or perfect block cuts his combination short and leaves him open.', how: 'Dodge or block at the last instant' },
   { title: 'Known Strikes', open: true, text: 'Sequences of cuts in one opening for a heavy bonus blow. Gold arrows walk you through one each time he is open.', how: 'Follow the gold arrows (listed in camp)' },

@@ -342,3 +342,12 @@ keyboard only. Then I fixed what got in the way:
   ("He reads your dodge!"), then picks one of his own attacks that beats it. Always dodging left
   brings a cut you can only dodge right; always blocking brings a heavy blow; always parrying
   brings a feint. A player who varies their defence is rarely read. It's in the Book of Arms.
+
+## Brief 26, the disarm (v42)
+
+`docs/BRIEF-26-disarm.md`
+
+- **Parry three blows in a row and his weapon spins out of his hand** and sticks point-first in the
+  floor beside him. "Disarmed!" and a cheer. He's open for about 2.6 seconds, and can't slip away or
+  counter, until he reaches over and takes it up again. It works for swords, the falchion and the
+  Green Knight's axe. It's in the Book of Arms.
