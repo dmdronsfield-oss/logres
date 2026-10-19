@@ -37,10 +37,9 @@ export function until(cond, n = 3000) {
   return -1;
 }
 
-export function save(patch) {
-  const k = 'logres.save.3dside.v1';
-  const s = JSON.parse(localStorage.getItem(k) || '{}');
-  localStorage.setItem(k, JSON.stringify({ ...s, ...patch }));
+export async function save(patch) {
+  const { Save } = await import('/src/save/Save.js');
+  Save.set(patch);
 }
 
 // Start a duel from the title (or restart from Victory/Death) and wait for the foe.
@@ -62,6 +61,7 @@ export function bot(frames, skill = 1) {
   step(frames, () => {
     const d = duel();
     if (!d.sys.isActive() || !d.enemy || d.director.over) return true;
+    if (d.paused) d.resume();   // a hidden test tab counts as the app going to the background
     const e = d.enemy;
     const tut = d.tutorial;
     if (blockOff && T > blockOff) { d.director.onBlock(false); blockOff = 0; }

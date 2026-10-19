@@ -102,6 +102,8 @@ export const ENEMIES = [
     look: {
       tabard: '#1f1e24', trim: '#c9ccd4', charge: 'cross', chargeColor: '#e0e0e0', helm: 'greathelm',
       helmColor: '#2e2e36', mail: '#4a4a52', metal: '#3a3a44', cape: '#141318', skin: '#d9b08c',
+      // Worn over INKXO's plate harness: blackened steel, silvered edges, a black plume.
+      model: 'inkxo', tint: '#3a3b42', trimTint: '#9a9ca6', plumeTint: '#26262c',
     },
     crest: { field: '#1f1e24', charge: 'cross', color: '#e0e0e0' },
     idleMs: [800, 1400],
@@ -181,6 +183,8 @@ export const ENEMIES = [
     look: {
       tabard: '#a52a18', trim: '#e3b440', charge: 'lion', helm: 'greathelm', helmColor: '#9a2a1c', crest: '#e3b440',
       mail: '#6e3a30', metal: '#9a2a1c', cape: '#7a1a10', skin: '#d9b08c',
+      // Worn over INKXO's plate harness: red-lacquered steel, gilt edges, a red plume.
+      model: 'inkxo', tint: '#c2473a', trimTint: '#f0c060', plumeTint: '#b02018',
     },
     crest: { field: '#a52a18', charge: 'lion' },
     idleMs: [700, 1300],

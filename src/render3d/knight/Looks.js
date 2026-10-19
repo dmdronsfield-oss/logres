@@ -16,5 +16,6 @@ export function lookFor(def) {
     mail: l.mail || '#8f959d', cape: l.cape, capeCharge: l.capeCharge, crest: l.crest, skin: l.skin || p.skin,
     beard: l.beard || p.beard, leafy: l.leafy, antler: l.antler, blade: p.blade,
     shield: p.shield || l.tabard, shieldCharge: l.charge ?? null,
+    model: l.model, tint: l.tint, trimTint: l.trimTint, plumeTint: l.plumeTint,
   };
 }

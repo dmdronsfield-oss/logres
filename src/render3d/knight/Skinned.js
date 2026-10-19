@@ -189,6 +189,17 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   // Livery: armour in the knight's colours, skin, boots.
   const plate = look.plate || '#b9bec6';
   const mats = gltf ? ownMaterials(model) : [];
+  // Livery for a borrowed harness: steel recoloured, edges and plume in their own colours.
+  if (gltf && look.tint) {
+    const c = (hex) => new THREE.Color(hex);
+    mats.forEach((m) => {
+      const n = m.name || '';
+      if (/Leather|Padding|Belt|Hanger/i.test(n) || !m.color) return;
+      if (/Feather/i.test(n)) m.color.multiply(c(look.plumeTint || look.tint));
+      else if (/Rims|EdgeRein|Scabbard|Ring/i.test(n)) m.color.multiply(c(look.trimTint || look.tint));
+      else m.color.multiply(c(look.tint));
+    });
+  }
   model.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true;
@@ -313,7 +324,7 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   const shieldHolder = new THREE.Object3D();
   root.add(shieldHolder);
   let off;
-  if (gltf && offhandKind === 'heater') {
+  if (gltf && offhandKind === 'heater' && !look.tint) {
     off = assets.shield.clone();
     mats.push(...ownMaterials(off));
     off.scale.setScalar(unit);

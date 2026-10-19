@@ -91,3 +91,17 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - Your own blade trail is fainter (it was flaring across the screen), and the landscape banners sit
   lower so they don't cover his blows.
 - Bot check: all five duels completed by a deliberately imperfect bot, no errors.
+
+## Brief 3, worthy opponents (v19)
+
+`docs/BRIEF-03-worthy-opponents.md`
+
+- **The Black Knight** now wears INKXO's full harness in blackened steel with silvered edges and a
+  black plume, and carries his own cross shield.
+- **The Red Knight** wears it in red lacquer with gilt edges and a red plume.
+- Both are driven by the same motion as Gawain. The Saxon, the Brigand and the Green Knight stay
+  code-built; they aren't plate knights.
+- The gold "open" shimmer is softened on dark armour.
+- **Performance:** two detailed knights on screen take about 2 ms a frame on this Mac, about 600k
+  triangles counting the floor reflection and shadows. Phones will feel it more; the game's automatic
+  quality step-down (bloom, then reflections) is there if they need it.

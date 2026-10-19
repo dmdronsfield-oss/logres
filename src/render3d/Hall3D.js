@@ -657,13 +657,15 @@ export class HallView extends World3D {
       cloth({ cols: 7, rows: 10, width: 0.54, height: 1.2, material: drape(drapeTex(look.cape, look.trim, look.capeCharge, look.chargeColor, 'cape')), pin: along(J.chest, 0.21, -0.21, 0.19, -0.15, 7) });
     }
     k.root.traverse((o) => { if (o.isMesh) o.layers.enable(REFLECT); });
-    return { k, anim, cloths, updateSpheres, guard };
+    return { k, anim, cloths, updateSpheres, guard, look };
   }
 
   buildEnemy(def) {
     const look = lookFor(def);
     const giant = def.weapon === 'greataxe';
-    const f = this._figure(look, def.weapon, def.offhand, def.size || 1, giant ? GUARD.giant : GUARD.ss);
+    // Plate knights wear INKXO's harness, recoloured; the others stay code-built.
+    const assets = look.model === 'inkxo' && this.hero ? this.hero : this.skinned;
+    const f = this._figure(look, def.weapon, def.offhand, def.size || 1, giant ? GUARD.giant : GUARD.ss, { assets });
     f.k.root.position.set(0, 0, ENEMY_Z);
     f.k.root.rotation.y = ENEMY_TURN;
     const prox = { root: new P(), body: new P(), head: new P(), armL: new P(), armR: new P(), weapon: new P() };
@@ -801,7 +803,7 @@ export class HallView extends World3D {
     const openNow = e.isOpen() && e.state !== ES.DEFEATED;
     v.glow += ((openNow ? 1 : 0) - v.glow) * Math.min(1, dt / 120);
     if (now > v.flashUntil && (v.glow > 0.01 || v.glowWas)) {
-      const g = v.glow * (0.16 + Math.sin(now / 110) * 0.06);
+      const g = v.glow * (0.16 + Math.sin(now / 110) * 0.06) * (v.look && v.look.tint ? 0.45 : 1);
       k.mats.forEach((m) => m.emissive && m.emissive.setRGB(g, g * 0.75, g * 0.25));
       v.glowWas = v.glow > 0.01;
     }
