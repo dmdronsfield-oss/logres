@@ -62,7 +62,10 @@
       font: 700 38px "Cinzel", Georgia, serif;
       letter-spacing: 0.2em;
       text-shadow: 0 0 14px rgba(255, 255, 255, 0.9);
-      background: #d8d6d2 url(../assets/art/loading.jpg) 34% 50% / cover no-repeat;
+      /* Zoomed out a little and set in its own fog: soft edges wherever the photograph ends. */
+      background: linear-gradient(to bottom, #d8d6d2 6%, rgba(216, 214, 210, 0) 16%, rgba(216, 214, 210, 0) 84%, #d8d6d2 94%),
+        linear-gradient(to right, #d8d6d2 1%, rgba(216, 214, 210, 0) 9%, rgba(216, 214, 210, 0) 91%, #d8d6d2 99%),
+        #d8d6d2 url(../assets/art/loading.jpg) 30% 44% / auto 86% no-repeat;
     }
     @media (orientation: portrait) {
       /* Upright: the whole abbey at the top, fading into fog where the title sits. */

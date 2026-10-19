@@ -444,3 +444,11 @@ keyboard only. Then I fixed what got in the way:
   in pitch and level so repeats don't sound identical.
 - The voices, crowd, whooshes and duel music are still synthesised.
 - I couldn't listen to them myself, so tell me which ones jar.
+
+## Updates arrive reliably; the photo zoomed out (v53)
+
+- **Fixed an update bug.** A new release could store the previous release's files: the offline
+  cache fetched them through the browser's own 10-minute cache. So you could be shown an older
+  swing after an update. New releases now always fetch fresh files.
+- The abbey photo is zoomed out a little on the menus and the loading screen, set in its own fog
+  with soft edges.

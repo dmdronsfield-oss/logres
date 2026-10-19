@@ -49,35 +49,12 @@ export function py(y, anchor = 0.5) {
   return Math.round(VIEW.H * anchor + (y - 270));
 }
 
-// The menus' backdrop: the Sacra di San Michele above the clouds. Landscape: the photograph
-// covers the screen with the abbey centred. Upright: the whole abbey near the top, fading
-// into fog (the photograph's own colour) top and bottom.
+// The menus' backdrop: the Sacra di San Michele above the clouds, set in its own fog: the
+// photograph is drawn a little smaller than the screen (landscape) or across its width
+// (upright), on the fog's colour, with soft fades wherever its edges fall on screen.
 const FOG = 0xd8d6d2;
-export function abbeyBackdrop(scene) {
-  const W = VIEW.W;
-  const H = VIEW.H;
-  if (!scene.textures.exists('abbey')) return null;
-  const im = scene.add.image(W / 2, 0, 'abbey');
-  const tw = im.width;
-  const th = im.height;
-  // The abbey's middle sits about a third of the way across and 42% down the photograph.
-  const fx = 0.36;
-  const fy = 0.42;
-  im.setOrigin(fx, fy);
-  if (!VIEW.portrait) {
-    const cy = H * 0.46;
-    const s = Math.max((W / 2) / (fx * tw), (W / 2) / ((1 - fx) * tw), cy / (fy * th), (H - cy) / ((1 - fy) * th));
-    im.setScale(s).setPosition(W / 2, cy);
-    return im;
-  }
-  scene.add.rectangle(W / 2, H / 2, W + 40, H + 40, FOG).setDepth(-2);
-  im.setDepth(-1);
-  const s = (W * 1.02) / (0.62 * tw);   // the abbey, about 62% of the photograph's width, fills the screen's
-  const cy = H * 0.31;
-  im.setScale(s).setPosition(W / 2, cy);
-  const top = cy - fy * th * s;
-  const bottom = cy + (1 - fy) * th * s;
-  const key = `fogfade_${W}`;
+function fogFadeKey(scene) {
+  const key = 'fogfade';
   if (!scene.textures.exists(key)) {
     const t = scene.textures.createCanvas(key, 4, 256);
     const ctx = t.getContext();
@@ -88,8 +65,41 @@ export function abbeyBackdrop(scene) {
     ctx.fillRect(0, 0, 4, 256);
     t.refresh();
   }
-  const fade = Math.round(th * s * 0.18);
-  scene.add.image(W / 2, bottom - fade / 2, key).setDisplaySize(W + 40, fade).setDepth(-1);
-  if (top > 0) scene.add.image(W / 2, top + fade / 2, key).setDisplaySize(W + 40, fade).setFlipY(true).setDepth(-1);
+  return key;
+}
+export function abbeyBackdrop(scene) {
+  const W = VIEW.W;
+  const H = VIEW.H;
+  if (!scene.textures.exists('abbey')) return null;
+  scene.add.rectangle(W / 2, H / 2, W + 40, H + 40, FOG).setDepth(-2);
+  const im = scene.add.image(0, 0, 'abbey').setDepth(-1);
+  const tw = im.width;
+  const th = im.height;
+  // The abbey's middle sits about a third of the way across and 42% down the photograph.
+  const fx = 0.36;
+  const fy = 0.42;
+  im.setOrigin(fx, fy);
+  let s;
+  let cy;
+  if (!VIEW.portrait) {
+    cy = H * 0.48;
+    s = (H * 1.0) / th;                 // the whole photograph's height on screen: zoomed out
+  } else {
+    cy = H * 0.31;
+    s = (W * 1.02) / (0.62 * tw);       // the abbey (about 62% of the photograph) across the screen
+  }
+  im.setScale(s).setPosition(W / 2, cy);
+  const left = W / 2 - fx * tw * s;
+  const right = W / 2 + (1 - fx) * tw * s;
+  const top = cy - fy * th * s;
+  const bottom = cy + (1 - fy) * th * s;
+  const key = fogFadeKey(scene);
+  const fade = Math.round(Math.min(tw, th) * s * 0.16);
+  // Fades run from clear (inside the photograph) to fog (at its edge).
+  const strip = (x, y, w, h, angle) => scene.add.image(x, y, key).setDisplaySize(w, h).setAngle(angle).setDepth(-1);
+  if (bottom < H + fade) strip(W / 2, bottom - fade / 2, W + 40, fade, 0);
+  if (top > -fade) strip(W / 2, top + fade / 2, W + 40, fade, 180);
+  if (left > -fade) strip(left + fade / 2, H / 2, H + 40, fade, 90).setDisplaySize(H + 40, fade);
+  if (right < W + fade) strip(right - fade / 2, H / 2, H + 40, fade, -90).setDisplaySize(H + 40, fade);
   return im;
 }

@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v52';
+const VERSION = 'logres-v53';
 
 const CORE = [
   './',
@@ -62,8 +62,10 @@ const CORE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
+    // Bypass the browser's HTTP cache (GitHub Pages allows 10 minutes), so a new release
+    // never stores the previous release's files.
     caches.open(VERSION)
-      .then((cache) => cache.addAll(CORE))
+      .then((cache) => cache.addAll(CORE.map((u) => new Request(u, { cache: 'reload' }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -82,7 +84,11 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then((hit) => {
       if (hit) return hit;
-      return fetch(req).then((res) => {
+      // Same-origin files are revalidated with the server before they're cached (a cheap 304
+      // when unchanged), for the same reason.
+      const fresh = new URL(req.url).origin === self.location.origin && req.mode !== 'navigate'
+        ? new Request(req, { cache: 'no-cache' }) : req;
+      return fetch(fresh).then((res) => {
         // Cache fonts and anything else fetched at runtime for offline play.
         if (res && (res.ok || res.type === 'opaque')) {
           const copy = res.clone();
