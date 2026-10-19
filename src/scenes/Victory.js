@@ -40,7 +40,7 @@ export class Victory extends Phaser.Scene {
       lines.push(`${def.name} is beaten.`);
     }
     const st = data.stats || {};
-    lines.push(`Parries ${st.parries || 0} · Dodges ${st.dodges || 0} · Blocks ${st.blocks || 0} · Strikes ${st.hits || 0}`);
+    lines.push(`Parries ${st.parries || 0} · Ripostes ${st.ripostes || 0} · Dodges ${st.dodges || 0} · Blocks ${st.blocks || 0} · Strikes ${st.hits || 0}`);
     lines.push(`+${data.xp} experience`);
     if (data.levels > 0) lines.push(`Level up! You are now level ${s.level}: more health and a keener edge.`);
     (data.unlocks || []).forEach((u) => lines.push(`New gear: ${u}. Choose it in camp.`));

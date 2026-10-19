@@ -117,6 +117,7 @@ export class CombatDirector {
     const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
     this.riposte = { dir: back, until: performance.now() + CONFIG.parriedOpenMs };
     this.hud.showHint(back, 'Riposte!', 'riposte');
+    this._teach('ripHint', 'RIPOSTE: swipe along the white arrow for double damage.');
     this.tutorial?.onParry?.();
   }
 
@@ -207,6 +208,8 @@ export class CombatDirector {
       this.stats.dodges += 1;
       if (perfect) {
         this.hud.bigText('Perfect dodge!', '#fff6cf', 200, 36);
+        this.juice.slowMo(0.35, 240);
+        this.juice.screenFlash('gold', 0.12, 140);
         this.addStagger(CONFIG.stagger.fromPerfectDodge);
         this.addSuper(CONFIG.super.fromPerfectDodge);
       } else {
@@ -237,6 +240,7 @@ export class CombatDirector {
       this.juice.sparksAt(VIEW.W / 2, VIEW.H - 170, 10);
       this.addStagger(CONFIG.stagger.fromBlock);
       this.addSuper(CONFIG.super.fromBlock);
+      this._teach('perfectBlockHint', 'Raise the shield at the LAST instant for a perfect block: no pip spent, and he is thrown open.', 2);
       if (p.pips === 0) {
         Sfx.shieldBreak();
         this.hud.bigText('Shield spent!', PALETTE.vermilionCss, 200, 36);
@@ -267,13 +271,29 @@ export class CombatDirector {
     // Show the next known strike sequence, one chevron at a time (a parry shows its riposte first).
     this.comboHint = { combo: CONFIG.combos[this.comboTurn % CONFIG.combos.length], step: 0 };
     this.comboTurn += 1;
-    if (!this.riposte) this._showComboHint();
+    if (!this.riposte) {
+      this._showComboHint();
+      this._teach('comboHint', 'Follow the gold arrows for a KNOWN STRIKE: a heavy bonus blow.');
+    }
+  }
+
+  // One-time lessons for the deeper moves, shown once the tutorial is over.
+  // `after` = only on the nth time the situation arises.
+  _teach(flag, msg, after = 1) {
+    if (this.tutorial && this.tutorial.step !== 'free') return;
+    if (Save.data[flag]) return;
+    this._seen = this._seen || {};
+    this._seen[flag] = (this._seen[flag] || 0) + 1;
+    if (this._seen[flag] < after) return;
+    Save.set({ [flag]: true });
+    this.hud.banner(msg, 3400);
   }
 
   // A perfect dodge or perfect block broke his attack.
   onCounter() {
     this.hud.bigText('Counter!', '#fff6cf', 160, 44);
     Sfx.windowOpen();
+    this._teach('counterHint', 'A perfect dodge or block breaks his attack. He is open: strike!');
   }
 
   _showComboHint() {

@@ -63,11 +63,11 @@ export const CONFIG = {
 
   block: {
     raiseMs: 70,
-    perfectMs: 170,         // shield raised this close to impact = perfect block (no pip spent)
+    perfectMs: 120,         // shield raised this close to impact = perfect block (no pip spent)
   },
 
   counter: {
-    openMs: 850,            // a perfect dodge or perfect block breaks his combo and opens him this long
+    openMs: 700,            // a perfect dodge or perfect block breaks his combo and opens him this long
   },
 
   riposte: {
@@ -86,7 +86,7 @@ export const CONFIG = {
     fromPerfectDodge: 22,
     fromDodge: 8,
     fromBlock: 10,
-    fromPerfectBlock: 30,
+    fromPerfectBlock: 22,
     durationMs: 2000,
     damageMult: 1.5,
   },
