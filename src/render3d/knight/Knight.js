@@ -169,6 +169,18 @@ function antlers(bag, head, L) {
   });
 }
 
+// Antlers on their own (for a borrowed helm): a group with its origin at the
+// head joint of the code-built knight (antler bases about 0.24 m above it).
+export function antlerCrown(L) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: L.antler || '#d8cbb0', roughness: 0.75, flatShading: true });
+  const bag = new PartBag({ matte: mat });
+  antlers(bag, g, L);
+  bag.build();
+  g.userData.mats = [mat];
+  return g;
+}
+
 // ---------- weapons and shields ----------
 
 // Built with the blade along -y from the grip; a holder turns it to leave the

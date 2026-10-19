@@ -3,7 +3,7 @@ import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/j
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js';
 import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
-import { DIM, buildSkeleton, weapon, shield } from './Knight.js';
+import { DIM, buildSkeleton, weapon, shield, antlerCrown } from './Knight.js';
 import { figureMaterials } from './Mat.js';
 
 // Skinned characters made in a real 3D tool (here Quaternius's CC0 "Lowpoly
@@ -280,6 +280,18 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   const hipsDelta = hips.getWorldPosition(new THREE.Vector3()).sub(sk.J.pelvis.getWorldPosition(v));
 
   // Helmet and shoulder pads ride the head and torso bones.
+  // The Green Knight's antlers, set on the borrowed helm.
+  if (gltf && look.antler) {
+    const crown = antlerCrown(look);
+    mats.push(...crown.userData.mats);
+    const head = bone('Head');
+    head.getWorldPosition(v);
+    crown.position.copy(v).add(new THREE.Vector3(0, -0.08 * unit, 0.02 * unit));
+    crown.scale.setScalar(unit * 0.9);
+    root.add(crown);
+    root.updateMatrixWorld(true);
+    head.attach(crown);
+  }
   const helmetKey = gltf ? null : { greathelm: 'h1', antler: 'h3', bascinet: 'h2', nasal: 'h2', hood: null }[look.helm || 'greathelm'];
   if (helmetKey) {
     const h = assets.helmets[helmetKey].clone();

@@ -235,6 +235,8 @@ export const ENEMIES = [
     look: {
       tabard: '#3f8a35', trim: '#c9b04a', charge: null, helm: 'antler', helmColor: '#356a35', antler: '#d8c8a8',
       mail: '#3a5e36', metal: '#4f8a45', leafy: true, skin: '#8cc27a',
+      // The last round: INKXO's harness in green and gold, with his antlers, cloak, axe and holly.
+      model: 'inkxo', tint: '#5f9e4c', trimTint: '#e0b84e', plumeTint: '#3f7a35',
     },
     crest: { field: '#24502a', charge: 'stag' },
     idleMs: [900, 1500],

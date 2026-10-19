@@ -198,3 +198,12 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   The Green Knight does the same after 4 cuts in his second phase. Staggers ignore the limits.
 - **Read it:** the gold "open" shimmer now fades as the opening runs out, and flickers when he's one
   cut from recovering. Three-step known strikes still fit inside the limit.
+
+## Brief 12, the Green Knight (v28)
+
+`docs/BRIEF-12-green-knight.md`
+
+- The final foe now wears the detailed harness in green with gold edges, at 1.2× Gawain's size, with
+  his antler crown, leaf cloak, great axe and holly. Everything else about him (phases, blows, the
+  ending from the poem) is unchanged. In the poem he wears no armour; this is the romantic, armoured
+  reading. Say if you'd rather he stayed unarmoured.
