@@ -218,3 +218,14 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   level cuts twist his trunk round.
 - **Battle wear:** at two-thirds and one-third health a knight's armour darkens and dulls a step.
   Gawain's too.
+
+## Brief 14, the Pendragon's strike and the arsenal (v30)
+
+`docs/BRIEF-14-pendragon.md`
+
+- **Strike of the Pendragon** (the super) is now a short cinematic: slow motion, the camera drops low
+  and looks up as Gawain raises a blazing sword that lights the hall, then brings it down in a burst
+  of gold. The crowd roars.
+- **The arsenal shows:** Clarent is gilded and Excalibur's blade shines with a pale light (and leaves a
+  brighter trail). The Kite of Logres is Gawain's lion heater, Pridwen a blue heater with gold crowns,
+  and the Ash Targe a round wooden targe.

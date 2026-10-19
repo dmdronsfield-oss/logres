@@ -326,6 +326,9 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
     const s = assets.sword.clone();
     swordMats = ownMaterials(s);
     mats.push(...swordMats);
+    // Clarent is gilded; Excalibur shines.
+    if (look.swordId === 'clarent') swordMats.forEach((m) => { m.color.multiply(new THREE.Color('#ffd98a')); m.metalness = 1; m.roughness = 0.22; });
+    if (look.swordId === 'excalibur') swordMats.forEach((m) => { m.emissive = new THREE.Color(0.28, 0.36, 0.5); m.roughness = 0.12; m.metalness = 1; });
     s.scale.setScalar(unit);   // blade already runs down -y from the grip
     weaponObj = new THREE.Object3D();
     weaponObj.add(s);
@@ -348,7 +351,7 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   const shieldHolder = new THREE.Object3D();
   root.add(shieldHolder);
   let off;
-  if (gltf && offhandKind === 'heater' && !look.tint) {
+  if (gltf && offhandKind === 'heater' && !look.tint && look.modelShield !== false) {
     off = assets.shield.clone();
     mats.push(...ownMaterials(off));
     off.scale.setScalar(unit);

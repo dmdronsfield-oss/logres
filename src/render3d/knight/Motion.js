@@ -120,6 +120,11 @@ export const STATES = {
     handR: [-0.3, 0.98, 0.34], bladeR: [0.12, -0.42, 0.9], chest: [0.22, 0.1, 0], pelvis: [0, 0.88, 0.02],
     handL: [0.18, 1.02, 0.36], faceL: [0.1, -0.2, 1],
   },
+  // Strike of the Pendragon: the sword raised high in both... in the sword hand, shield out wide.
+  pendragon: {
+    pelvis: [0, 0.98, 0], pelvisRot: [0, 0, 0], chest: [-0.28, 0, 0], handR: [-0.08, 2.05, 0.12], bladeR: [0.02, 1, 0.12],
+    handL: [0.5, 1.25, 0.2], faceL: [0.4, 0, 1], footL: [0.18, 0.2, 0.2], footR: [-0.2, -0.22, -0.4],
+  },
   // Taking your blow: on the shield (raised, angled into it) or on the blade, crosswise.
   shieldBlock: { handL: [0.04, 1.42, 0.5], faceL: [-0.1, 0.15, 1], poleL: [1, -0.4, -0.2], chest: [0.12, 0.2, 0], pelvis: [0, 0.9, -0.04] },
   bladeBlock: { handR: [-0.12, 1.48, 0.42], bladeR: [0.95, 0.25, 0.15], chest: [0.1, -0.1, 0], pelvis: [0, 0.9, -0.04] },

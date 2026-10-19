@@ -707,13 +707,22 @@ export class HallView extends World3D {
   }
 
   buildPlayer(sword, shield) {
-    const look = { ...PLAYER_LOOK, blade: sword.color, shield: shield.field, shieldCharge: 'lion' };
+    // The arsenal: Clarent gilded, Excalibur shining; the Kite is Gawain's own lion
+    // heater, Pridwen a blue heater with gold crowns, the Targe a round wooden one.
+    const look = {
+      ...PLAYER_LOOK, blade: sword.color, shield: shield.field, shieldCharge: shield.id === 'pridwen' ? shield.charge : 'lion',
+      swordId: sword.id, modelShield: shield.id === 'kite',
+    };
     const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false, assets: this.hero || this.skinned });
     f.k.root.position.set(0, 0, PLAYER_Z);
     f.k.root.rotation.y = Math.PI;
     this.player = { body3d: true, ...f, hp: null, zoff: 0, zvel: 0 };
     // Your own blade is close to the lens: a fainter, shorter trail.
-    this.player.trail = new BladeTrail(this.content, { color: 0x6f86b8, minSpeed: 4, life: 110 });
+    this.player.trailColor = { excalibur: 0xbfe0ff, clarent: 0xc8a060 }[sword.id] || 0x6f86b8;
+    this.player.trail = new BladeTrail(this.content, { color: this.player.trailColor, minSpeed: 4, life: sword.id === 'excalibur' ? 150 : 110 });
+    // The Pendragon's light: a gold lamp at the blade during the super.
+    this.player.superLight = new THREE.PointLight(0xffd27a, 0, 7, 1.6);
+    this.content.add(this.player.superLight);
     const W = VIEW.W;
     const H = VIEW.H;
     const swordHome = { x: W / 2 + W * 0.3, y: H + 20, angle: 8 };
@@ -899,6 +908,13 @@ export class HallView extends World3D {
     }
     const lock = this.duel && this.duel.director.lock;
     if (lock) { target = pose(guard, STATES.lock); omega = 14; }
+    // Strike of the Pendragon: sword raised high and blazing, then brought down.
+    const sfx = this.duel && this.duel.director.superFx;
+    const st = sfx ? now - sfx.at : 1e9;
+    if (st < 1000) {
+      if (st < 560) { target = pose(guard, STATES.pendragon); omega = 10; }
+      else { target = playerSwingPose(guard, 'S', Math.min(300, (st - 560) * 0.9)) || guard; omega = 34; }
+    }
     k.root.position.x = rootX;
     // Step into your cut (toward him is -z); recoil off his guard on a clang.
     let zWant = lock ? -0.3 - (lock.v - 0.5) * 0.35 : 0;
@@ -931,7 +947,8 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
-    this._trail(v, pl.state === PS.DEAD || lock ? null : 0x6f86b8);
+    this._trail(v, pl.state === PS.DEAD || lock ? null : v.trailColor);
+    this._superGlow(v);
     this._wear(v, pl.healthFrac);
   }
 
@@ -946,6 +963,26 @@ export class HallView extends World3D {
       });
     }
     v.wear = stage;
+  }
+
+  // The super's light on the blade (and on the hall around it).
+  _superGlow(v) {
+    const sfx = this.duel && this.duel.director.superFx;
+    const t = sfx ? performance.now() - sfx.at : 1e9;
+    const g = t < 1100 ? (t < 560 ? t / 560 : Math.max(0, 1 - (t - 560) / 540)) : 0;
+    if (!v.baseEmissive) v.baseEmissive = v.k.weaponMats.map((m) => (m.emissive ? m.emissive.clone() : null));
+    if (g > 0 || v.glowing) {
+      v.k.weaponMats.forEach((m, i) => {
+        if (!m.emissive) return;
+        if (g > 0) m.emissive.setRGB(g * 1.1, g * 0.8, g * 0.3);
+        else if (v.baseEmissive[i]) m.emissive.copy(v.baseEmissive[i]);
+      });
+      v.glowing = g > 0;
+    }
+    if (v.superLight) {
+      v.superLight.intensity = g * 6;
+      if (g > 0) v.k.weaponObj.localToWorld(v.superLight.position.set(0, -v.k.weaponLen * 0.7, 0));
+    }
   }
 
   _trail(v, color) {
@@ -995,7 +1032,17 @@ export class HallView extends World3D {
     // Blade lock: ease round into a two-shot so the bind is in view, and back after.
     const locked = !fin && duel.director && duel.director.lock;
     this.lockCam = (this.lockCam || 0) + ((locked ? 1 : 0) - (this.lockCam || 0)) * Math.min(1, (dt || 16) / (locked ? 160 : 260));
-    if (fall) {
+    const sfxA = duel.director && duel.director.superFx;
+    const sft = sfxA ? now - sfxA.at : 1e9;
+    if (sft < 1300 && !fin && !fall) {
+      // The Pendragon: low and close, looking up at Gawain.
+      const s = sft < 300 ? sft / 300 : sft > 950 ? Math.max(0, 1 - (sft - 950) / 350) : 1;
+      const e2 = s * s * (3 - 2 * s);
+      cam.position.y -= e2 * 0.75;
+      cam.position.z -= e2 * 0.5;
+      cam.position.x -= e2 * 0.4;
+      cam.lookAt(this.camTarget.x * (1 - e2) + px * e2, this.camTarget.y + e2 * 0.55, this.camTarget.z * (1 - e2) + (PLAYER_Z - 0.6) * e2);
+    } else if (fall) {
       // Your fall: round to face Gawain as he goes down.
       const u = Math.min(1, (now - fall.at) / 1600);
       const s = u * u * (3 - 2 * u);

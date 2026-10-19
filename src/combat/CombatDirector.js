@@ -106,11 +106,22 @@ export class CombatDirector {
     if (this.superMeter < CONFIG.super.max) return;
     if (e.state === ES.DEFEATED || e.state === ES.INTRO || e.state === ES.INTERLUDE) return;
     this.superMeter = 0;
-    e.forceStagger(CONFIG.super.staggerMs, true);
-    Sfx.superBurst();
-    this.juice.screenFlash('gold', 0.6, 400);
-    this.juice.shake(CONFIG.juice.shakeHeavy);
-    this.hud.bigText('Strike of the Pendragon!', PALETTE.goldLight, 200, 40);
+    // A short cinematic: he raises the blazing sword, then brings it down.
+    this.superFx = { at: performance.now() };
+    e.forceStagger(CONFIG.super.staggerMs + 600, true);
+    this.juice.slowMo(0.4, 900);
+    this.hud.bigText('Strike of the Pendragon!', PALETTE.goldLight, 170, 40);
+    Sfx.glint(false);
+    Sfx.roar();
+    this.scene.time.delayedCall(560, () => {
+      const c = e.rig.chestPoint ? e.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H * 0.45 };
+      Sfx.superBurst();
+      Sfx.stagger();
+      this.juice.screenFlash('gold', 0.7, 500);
+      this.juice.shake(CONFIG.juice.shakeHeavy);
+      this.juice.sparksAt(c.x, c.y, 50);
+      this.juice.sparksAlong(c.x, c.y - 40, 0, 1, 30);
+    });
   }
 
   // ---------- blade lock ----------
