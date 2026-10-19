@@ -241,3 +241,13 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   exactly where they're aimed. It's worth a second look at the arms you disliked early on.
 - Overhead blows now cut down and across, so the blade stays visible from Gawain's viewpoint;
   follow-throughs no longer rise after level cuts; shields stay forward in strikes.
+
+## Brief 16, pose audit (v32)
+
+`docs/BRIEF-16-pose-audit.md`
+
+- A measuring tool in the lab (`__lab.audit()` in the browser console) plays every move of every
+  knight and reports hands and feet that miss their marks, feet through the floor, hands inside the
+  body and blades through heads.
+- It found that follow-throughs aimed the sword hand up to 73 cm beyond arm's length, and that shield
+  arms didn't turn with the body. Both are fixed; issues went from 41 to 11, all minor.

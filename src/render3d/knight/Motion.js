@@ -218,9 +218,20 @@ export function sampleClip(keys, time, span = keys[keys.length - 1][0]) {
 }
 
 // Push a pose's sword hand a little further round the shoulder (wind-up coil, follow-through).
+// Furthest a hand can be from its shoulder (upper arm + forearm + grip, a little short of locked).
+const MAX_REACH = 0.62;
+function clampReach(k, hand) {
+  const s = SHOULDER[k];
+  const d = [hand[0] - s[0], hand[1] - s[1], hand[2] - s[2]];
+  const l = Math.hypot(d[0], d[1], d[2]);
+  if (l <= MAX_REACH) return hand;
+  const f = MAX_REACH / l;
+  return [s[0] + d[0] * f, s[1] + d[1] * f, s[2] + d[2] * f];
+}
+
 function extend(p, from, amount) {
   const q = pose(p);
-  q.handR = mix('handR', from.handR, p.handR, 1 + amount);
+  q.handR = clampReach('handR', mix('handR', from.handR, p.handR, 1 + amount));
   q.bladeR = slerpDir(from.bladeR, p.bladeR, 1 + amount * 0.8, []);
   q.chest = add(p.chest, [0, (p.chest[1] - from.chest[1]) * amount, 0]);
   return q;
@@ -319,7 +330,7 @@ export function tauntPose(guard, kind, ms) {
       });
     case 'point':
       return pose(guard, {
-        handR: [-0.2, 1.38, 0.7], bladeR: [0.05, 0.08, 1], chest: [0.1, -0.35, 0], pelvisRot: [0, -0.35, 0],
+        handR: [-0.2, 1.38, 0.56], bladeR: [0.05, 0.08, 1], chest: [0.1, -0.35, 0], pelvisRot: [0, -0.35, 0],
       });
     case 'raise':
       return pose(guard, {
@@ -494,7 +505,13 @@ export class Animator {
     bendWrist(J.haR, ax, 1.35);
 
     // Shield arm: hand to its mark, shield face turned toward `faceL`, top kept up.
-    target = fig.localToWorld(tmp.fromArray(c.handL));
+    // The mark turns with the trunk (a shield arm is carried round by the body).
+    const yawT = c.chest[1] * 0.8;
+    const hx = c.handL[0] - c.pelvis[0];
+    const hz = c.handL[2] - c.pelvis[2];
+    target = fig.localToWorld(tmp.set(
+      c.pelvis[0] + hx * Math.cos(yawT) + hz * Math.sin(yawT), c.handL[1], c.pelvis[2] - hx * Math.sin(yawT) + hz * Math.cos(yawT),
+    ));
     const pole = tmp2.fromArray(c.poleL).normalize().applyQuaternion(qa);
     solveTwoBone(J.shL, J.elL, D.upper * size, reachB, target, pole);
     az.fromArray(c.faceL).normalize().applyQuaternion(qa);

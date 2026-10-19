@@ -433,7 +433,81 @@ function tick(now) {
     );
     camera.lookAt(c);
   }
-  renderer.render(scene, camera);
+  if (!auditing) renderer.render(scene, camera);
+}
+
+// ---------- pose audit ----------
+// Plays every move of every figure and measures what the eye might miss:
+// hands and feet that don't reach their marks, feet through the floor, hands
+// inside the body, the blade through his own head. Returns the worst cases.
+let auditing = false;
+function audit({ figures = null, step = 40 } = {}) {
+  const V = THREE.Vector3;
+  const rows = [];
+  const tmpA = new V();
+  const tmpB = new V();
+  const segDist = (p, a, b) => {
+    const ab = tmpA.subVectors(b, a);
+    const t = Math.max(0, Math.min(1, tmpB.subVectors(p, a).dot(ab) / (ab.lengthSq() || 1)));
+    return p.distanceTo(a.clone().addScaledVector(ab, t));
+  };
+  auditing = true;
+  const ids = figures || FIGURES.filter((f) => !f.native && !f.id.startsWith('q-') && f.id !== 'gawain-blend').map((f) => f.id);
+  for (const id of ids) {
+    figIndex = FIGURES.findIndex((f) => f.id === id);
+    placeFigures();
+    for (const [mv] of movesFor(FIGURES[figIndex])) {
+      setMove(mv);
+      playing = true;
+      speed = 1;
+      t = 0;
+      fresh = true;
+      const worst = { reachL: [0, 0], reachR: [0, 0], foot: [0, 0], handIn: [0, 0], bladeHead: [0, 0], wrist: [0, 0] };
+      let clock = last;
+      for (let ms = 0; ms < timeline.len - 20; ms += 16) {
+        clock += 16;
+        tick(clock);
+        if (ms % step > 15) continue;
+        const k = subject.k;
+        const J = k.J;
+        const m = k.mapPose ? k.mapPose(subject.anim.cur) : subject.anim.cur;
+        const w = (j) => j.getWorldPosition(new V());
+        const tgt = (h) => k.fig.localToWorld(new V(...m[h]));
+        const note = (key, v) => { if (v > worst[key][0]) worst[key] = [v, Math.round(t)]; };
+        // The shield mark turns with the trunk (see Animator.apply).
+        const yawT = m.chest[1] * 0.8;
+        const hx = m.handL[0] - m.pelvis[0];
+        const hz = m.handL[2] - m.pelvis[2];
+        const tl = k.fig.localToWorld(new V(m.pelvis[0] + hx * Math.cos(yawT) + hz * Math.sin(yawT), m.handL[1], m.pelvis[2] - hx * Math.sin(yawT) + hz * Math.cos(yawT)));
+        note('reachL', w(J.gripL).distanceTo(tl));
+        note('reachR', Math.max(0, w(J.gripR).distanceTo(tgt('handR')) - (k.dims ? k.dims.grip : 0.085) * 1.2));
+        note('foot', Math.max(0, -Math.min(w(J.ftL).y, w(J.ftR).y, w(J.knL).y - 0.05)));
+        const chest = w(J.chest);
+        const bs = (k.bodyScale || 1) * (subject.def.size || 1);
+        note('handIn', Math.max(0, 0.13 * bs - Math.min(w(J.gripL).distanceTo(chest), w(J.gripR).distanceTo(chest))));
+        if (k.weaponObj) {
+          const base = k.weaponObj.localToWorld(new V(0, 0, 0));
+          const tip = k.weaponObj.localToWorld(new V(0, -k.weaponLen, 0));
+          const head = w(J.head).add(new V(0, 0.1 * bs, 0));
+          note('bladeHead', Math.max(0, 0.12 * bs - segDist(head, base, tip.clone())));
+        }
+      }
+      rows.push({ fig: id, move: mv, ...worst });
+    }
+  }
+  auditing = false;
+  last = performance.now();
+  figIndex = 0;
+  placeFigures();
+  setMove('guard');
+  const limits = { reachL: 0.05, reachR: 0.06, foot: 0.02, handIn: 0.01, bladeHead: 0.01 };
+  const issues = [];
+  // Lying down, limbs sprawl where they fall; those poses are judged by eye.
+  rows.filter((r) => !['defeat', 'dead'].includes(r.move)).forEach((r) => Object.entries(limits).forEach(([k, lim]) => {
+    if (r[k][0] > lim) issues.push({ fig: r.fig, move: r.move, check: k, amount: +r[k][0].toFixed(3), atMs: r[k][1] });
+  }));
+  issues.sort((a, b) => b.amount - a.amount);
+  return { checked: rows.length, issues };
 }
 
 function loop(now) {
@@ -492,4 +566,4 @@ function sheet(moveId, times, cam = { yaw: 0.6, pitch: 0.12, dist: 3.2, y: 1.05 
   img.src = out.toDataURL('image/jpeg', 0.85);
 }
 
-window.__lab = { get subject() { return subject; }, sheet, setMove, get t() { return t; }, set t(v) { t = v; }, step: (ms) => tick(last + ms), FIGURES, select: (i) => { figIndex = i; figSel.value = i; buildMoves(); placeFigures(); setMove('guard'); }, setView: (v) => { view = v; orbit = { yaw: { front: 0, side: Math.PI / 2, back: Math.PI, game: 0.6 }[v], pitch: 0.12, dist: 3.4 }; partner.k.root.visible = v === 'game'; partner.cloths.forEach((c) => { c.mesh.visible = v === 'game'; }); }, pause: () => { playing = false; }, orbit: (yaw, pitch, dist, y) => { view = 'orbit'; orbit = { yaw, pitch, dist, y }; partner.k.root.visible = false; partner.cloths.forEach((c) => { c.mesh.visible = false; }); } };
+window.__lab = { get subject() { return subject; }, audit, sheet, setMove, get t() { return t; }, set t(v) { t = v; }, step: (ms) => tick(last + ms), FIGURES, select: (i) => { figIndex = i; figSel.value = i; buildMoves(); placeFigures(); setMove('guard'); }, setView: (v) => { view = v; orbit = { yaw: { front: 0, side: Math.PI / 2, back: Math.PI, game: 0.6 }[v], pitch: 0.12, dist: 3.4 }; partner.k.root.visible = v === 'game'; partner.cloths.forEach((c) => { c.mesh.visible = v === 'game'; }); }, pause: () => { playing = false; }, orbit: (yaw, pitch, dist, y) => { view = 'orbit'; orbit = { yaw, pitch, dist, y }; partner.k.root.visible = false; partner.cloths.forEach((c) => { c.mesh.visible = false; }); } };
