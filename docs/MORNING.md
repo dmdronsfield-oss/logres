@@ -333,3 +333,12 @@ keyboard only. Then I fixed what got in the way:
 - **Keyboard:** the remaining lessons (riposte, thrust, Pendragon strike, known strikes) and the death
   screen now name keys rather than taps and swipes.
 - **Book of Arms:** sealed entries show their names, so a new player can see what's still to find.
+
+## Brief 25, he reads you (v41)
+
+`docs/BRIEF-25-he-reads-you.md`
+
+- From the Black Knight on, foes notice habits. Answer 4 of 5 blows the same way and he calls it
+  ("He reads your dodge!"), then picks one of his own attacks that beats it. Always dodging left
+  brings a cut you can only dodge right; always blocking brings a heavy blow; always parrying
+  brings a feint. A player who varies their defence is rarely read. It's in the Book of Arms.

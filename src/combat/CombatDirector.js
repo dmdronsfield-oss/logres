@@ -206,6 +206,33 @@ export class CombatDirector {
     }
   }
 
+  // ---------- habits: he reads you ----------
+
+  // The player's last five answers to his blows.
+  noteAnswer(kind) {
+    const h = this.habits || (this.habits = []);
+    h.push(kind);
+    if (h.length > 5) h.shift();
+  }
+
+  // A habit is one answer in 4 of the last 5 ('dodge:left', 'dodge:right', 'block', 'parry').
+  habit() {
+    const h = this.habits || [];
+    if (h.length < 5) return null;
+    const counts = {};
+    h.forEach((k) => { counts[k] = (counts[k] || 0) + 1; });
+    return Object.keys(counts).find((k) => counts[k] >= 4) || null;
+  }
+
+  // He has picked an attack to beat the habit: call it out, so it's fair.
+  onRead(kind) {
+    this.habits = [];
+    const what = kind === 'block' ? 'shield' : kind === 'parry' ? 'parry' : 'dodge';
+    this.hud.bigText(`He reads your ${what}!`, '#ffb38a', 200, 36);
+    Sfx.jeer();
+    this._teach('readHint', 'He has READ your habit and will strike where it fails. Vary your answers: dodge both ways, block, parry.', 1, true);
+  }
+
   // ---------- outcomes ----------
 
   doParry() {
@@ -213,6 +240,7 @@ export class CombatDirector {
     const tip = e._tip();
     e.parried();
     this.stats.parries += 1;
+    this.noteAnswer('parry');
     this.juice.hitStop(CONFIG.juice.parryStopMs);
     this.juice.slowMo(CONFIG.juice.parrySlowScale, CONFIG.juice.parrySlowMs);
     this.juice.clash(tip.x, tip.y);
@@ -341,6 +369,8 @@ export class CombatDirector {
     const e = this.enemy;
     const tip = e._tip();
     let outcome;
+    if (p.state === PS.DODGING) this.noteAnswer(`dodge:${p.dodgeSide}`);
+    else if (p.state === PS.BLOCKING) this.noteAnswer('block');
     if (p.state === PS.DODGING && attack.dodge.includes(p.dodgeSide)) {
       const perfect = p.dodgeElapsed <= CONFIG.dodge.perfectMs;
       outcome = perfect ? 'perfect' : 'dodged';

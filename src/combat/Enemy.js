@@ -400,7 +400,7 @@ export class Enemy extends Fighter {
       this.scriptRecover = s.recoverMs || null;
       this.scripted = true;
     } else {
-      const c = pickWeighted(this.cfg.combos, this.lastCombo);
+      const c = this._readCombo() || pickWeighted(this.cfg.combos, this.lastCombo);
       this.lastCombo = c;
       seq = c.seq;
       this.scripted = false;
@@ -408,6 +408,36 @@ export class Enemy extends Fighter {
     this.combo = seq.map((id) => ({ id, ...this.def.attacks[id] }));
     this.afterFeint = afterFeint;
     this.telegraph(0);
+  }
+
+  // He reads you: when one answer dominates, he picks a combination of his own
+  // that beats it. At most once every three attacks; never the Saxon.
+  _readCombo() {
+    this.sinceRead = (this.sinceRead ?? 3) + 1;
+    if (this.def.reads === false || this.sinceRead < 3) return null;
+    const habit = this.director.habit?.();
+    if (!habit) return null;
+    const A = this.def.attacks;
+    const first = (c) => A[c.seq[0]];
+    const combos = this.cfg.combos;
+    let pool = [];
+    if (habit.startsWith('dodge:')) {
+      // A blow that can't be dodged to his favourite side (a cut from the other side, a thrust).
+      const side = habit.slice(6);
+      pool = combos.filter((c) => !first(c).dodge.includes(side) && !first(c).unblockable);
+    } else if (habit === 'block') {
+      // Through or over the shield: unblockable or heavy blows, or a long run to drain the pips.
+      pool = combos.filter((c) => c.seq.some((id) => A[id].unblockable || A[id].heavy || !A[id].parryable));
+      if (!pool.length) pool = combos.filter((c) => c.seq.length >= 2);
+    } else if (habit === 'parry') {
+      // A feint: he checks his swing, then strikes.
+      pool = combos.filter((c) => first(c).parryable);
+      this.forceFeint = pool.length > 0;
+    }
+    if (!pool.length) return null;
+    this.sinceRead = 0;
+    this.director.onRead?.(habit);
+    return pickWeighted(pool, null);
   }
 
   telegraph(i) {
@@ -418,7 +448,9 @@ export class Enemy extends Fighter {
     this.windowOpened = false;
     this.released = false;
     this.feintAt = null;
-    if (!this.scripted && !this.afterFeint && i === 0 && Math.random() < this.cfg.feintChance) {
+    const forced = this.forceFeint && i === 0;
+    this.forceFeint = false;
+    if (!this.scripted && !this.afterFeint && i === 0 && (forced || Math.random() < this.cfg.feintChance)) {
       const latest = this.telegraphTotal - CONFIG.parry.windowMs - 90;
       this.feintAt = Math.min(latest, this.telegraphTotal * (0.45 + Math.random() * 0.2));
     }

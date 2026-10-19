@@ -61,6 +61,7 @@ const PLATE = ['LeftShoulderMetal', 'GorgetMetal', 'ArmMetal', 'Ridges', 'Gauntl
 export const ENEMIES = [
   {
     id: 'saxon',
+    reads: false,   // the first foe doesn't read your habits
     taunt: 'bang',
     voice: { f0: 105, vowel: 'a' },
     armour: 'mail',
