@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v15';
+const VERSION = 'logres-v16';
 
 const CORE = [
   './',
@@ -15,6 +15,7 @@ const CORE = [
   './src/main.js',
   './src/config.js',
   './src/input/SwipeInput.js',
+  './src/input/Keys.js',
   './src/combat/Fighter.js',
   './src/combat/Player.js',
   './src/combat/Enemy.js',
@@ -37,6 +38,7 @@ const CORE = [
   './src/save/Save.js',
   './src/render3d/View3D.js',
   './src/render3d/Hall3D.js',
+  './src/render3d/Trail.js',
   './src/render3d/knight/Mat.js',
   './src/render3d/knight/Knight.js',
   './src/render3d/knight/Motion.js',
