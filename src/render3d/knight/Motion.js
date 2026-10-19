@@ -120,6 +120,9 @@ export const STATES = {
     handR: [-0.3, 0.98, 0.34], bladeR: [0.12, -0.42, 0.9], chest: [0.22, 0.1, 0], pelvis: [0, 0.88, 0.02],
     handL: [0.18, 1.02, 0.36], faceL: [0.1, -0.2, 1],
   },
+  // Taking your blow: on the shield (raised, angled into it) or on the blade, crosswise.
+  shieldBlock: { handL: [0.04, 1.42, 0.5], faceL: [-0.1, 0.15, 1], poleL: [1, -0.4, -0.2], chest: [0.12, 0.2, 0], pelvis: [0, 0.9, -0.04] },
+  bladeBlock: { handR: [-0.12, 1.48, 0.42], bladeR: [0.95, 0.25, 0.15], chest: [0.1, -0.1, 0], pelvis: [0, 0.9, -0.04] },
   // Blades bound: leaning in, sword hand high and forward, blade slanted across (both knights).
   lock: {
     pelvis: [0, 0.84, 0.14], pelvisRot: [0.14, -0.1, 0], chest: [0.32, 0.18, 0],
@@ -217,39 +220,52 @@ function extend(p, from, amount) {
   return q;
 }
 
+// How a weapon moves. Heavy: deep coil, big lean, a follow-through that drags the
+// body round. Quick: short coil, hands close, snapping back. Formal: the sword.
+export const STYLES = {
+  formal: { coil: 0.2, follow: 0.3, lean: 1, drop: 0.05, followMs: 200, settleMs: 420 },
+  heavy: { coil: 0.36, follow: 0.5, lean: 1.35, drop: 0.09, followMs: 260, settleMs: 560 },
+  quick: { coil: 0.08, follow: 0.14, lean: 0.75, drop: 0.03, followMs: 160, settleMs: 300 },
+};
+export const styleFor = (weapon) => (weapon === 'axe' || weapon === 'greataxe' ? 'heavy' : weapon === 'falchion' ? 'quick' : 'formal');
+
 // The marks for one blow, with weight shifts: back onto the rear foot to load, over the front foot to strike.
-export function swingMarks(guard, dir) {
+export function swingMarks(guard, dir, style = 'formal') {
+  const S = STYLES[style] || STYLES.formal;
   const [w, s] = SWINGS[dir] || SWINGS.S;
   const wind = pose(guard, w);
-  wind.pelvis = add(wind.pelvis, [0, 0.015, -0.09]);
-  const coil = extend(wind, guard, 0.2);
-  coil.pelvis = add(coil.pelvis, [0, 0.01, -0.05]);
+  wind.pelvis = add(wind.pelvis, [0, 0.015, -0.09 * S.lean]);
+  wind.chest = wind.chest.map((v) => v * S.lean);
+  const coil = extend(wind, guard, S.coil);
+  coil.pelvis = add(coil.pelvis, [0, 0.01, -0.05 * S.lean]);
   const anticip = pose(guard, { pelvis: add(guard.pelvis, [0, -0.025, 0.03]), chest: add(guard.chest, [0.07, 0, 0]) });
   const hit = pose(guard, s);
-  hit.pelvis = add(hit.pelvis, [0, -0.05, 0.13]);
-  hit.pelvisRot = add(hit.pelvisRot, [0.08, 0, 0]);
-  const follow = extend(hit, wind, 0.3);
-  follow.pelvis = add(hit.pelvis, [0, -0.01, 0.03]);
+  hit.pelvis = add(hit.pelvis, [0, -S.drop, 0.13 * S.lean]);
+  hit.pelvisRot = add(hit.pelvisRot, [0.08 * S.lean, 0, 0]);
+  hit.chest = hit.chest.map((v) => v * S.lean);
+  const follow = extend(hit, wind, S.follow);
+  follow.pelvis = add(hit.pelvis, [0, -0.01 * S.lean, 0.03 * S.lean]);
   return { anticip, wind, coil, hit, follow };
 }
 
 // Enemy wind-up across its telegraph (u: 0..1).
 // The wind-up is quick to its mark, then coils further and holds: a readable silhouette
 // and a beat of stillness before the release.
-export function windupPose(guard, dir, u) {
-  const m = swingMarks(guard, dir);
+export function windupPose(guard, dir, u, style) {
+  const m = swingMarks(guard, dir, style);
   return sampleClip([[0, guard], [0.12, m.anticip, 'inout'], [0.45, m.wind, 'out'], [0.8, m.coil, 'inout'], [1, m.coil, 'linear']], u, 1);
 }
 
 // Enemy blow, `ms` after the moment of impact (it was released ~110 ms earlier on screen).
-export function strikePose(guard, dir, ms) {
-  const m = swingMarks(guard, dir);
-  return sampleClip([[0, m.coil], [110, m.hit, 'snap'], [200, m.follow, 'out'], [420, m.follow, 'linear']], ms, 420);
+export function strikePose(guard, dir, ms, style) {
+  const m = swingMarks(guard, dir, style);
+  const S = STYLES[style] || STYLES.formal;
+  return sampleClip([[0, m.coil], [110, m.hit, 'snap'], [S.followMs, m.follow, 'out'], [S.settleMs, m.follow, 'linear']], ms, S.settleMs);
 }
 
 // Settling into the open, winded stance after a combo.
-export function recoverPose(guard, dir, ms) {
-  const m = swingMarks(guard, dir);
+export function recoverPose(guard, dir, ms, style) {
+  const m = swingMarks(guard, dir, style);
   const open = pose(guard, STATES.open);
   return sampleClip([[0, m.follow], [380, open, 'inout'], [800, open, 'linear']], ms, 800);
 }

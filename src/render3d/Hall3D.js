@@ -12,7 +12,7 @@ import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
 import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.js';
-import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose, tauntPose } from './knight/Motion.js';
+import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose, tauntPose, styleFor } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
 import { BladeTrail } from './Trail.js';
@@ -745,6 +745,7 @@ export class HallView extends World3D {
     let omega = 7;
     let wobble = 0;
     const dir = e.attack ? e.attack.direction : 'S';
+    const style = v.style || (v.style = styleFor(e.def.weapon));
     // Weight and distance: he sinks back to load, lunges in to strike, is driven back when hurt.
     let zWant = 0;
     let zRate = 7;
@@ -755,19 +756,19 @@ export class HallView extends World3D {
         const bash = e.attack && e.attack.bash;
         if (rem < RELEASE_MS && !e.feintAt) {
           const ms = ((RELEASE_MS - rem) / RELEASE_MS) * 110;
-          target = bash ? bashPose(guard, 'drive', ms) : strikePose(guard, dir, ms); omega = 48; zWant = bash ? 0.5 : 0.4; zRate = 22;
+          target = bash ? bashPose(guard, 'drive', ms) : strikePose(guard, dir, ms, style); omega = 48; zWant = bash ? 0.5 : 0.4; zRate = 22;
         } else {
           const u = Math.min(1, e.visualT() / Math.max(1, e.visualTotal() - RELEASE_MS));
-          target = bash ? bashPose(guard, 'wind', u) : windupPose(guard, dir, u); omega = 24; zWant = bash ? -0.25 : -0.14; zRate = 3;
+          target = bash ? bashPose(guard, 'wind', u) : windupPose(guard, dir, u, style); omega = 24; zWant = bash ? -0.25 : -0.14; zRate = 3;
         }
         break;
       }
       case ES.STRIKE:
-        target = e.attack && e.attack.bash ? bashPose(guard, 'drive', 110 + e.t) : strikePose(guard, dir, 110 + e.t);
+        target = e.attack && e.attack.bash ? bashPose(guard, 'drive', 110 + e.t) : strikePose(guard, dir, 110 + e.t, style);
         omega = 40; zWant = e.attack && e.attack.bash ? 0.52 : 0.45; zRate = 22; break;
-      case ES.GAP: target = strikePose(guard, dir, 380 + e.t); omega = 14; zWant = 0.25; break;
+      case ES.GAP: target = strikePose(guard, dir, 380 + e.t, style); omega = 14; zWant = 0.25; break;
       case ES.FEINT: omega = 16; zWant = -0.1; break;
-      case ES.RECOVER: target = recoverPose(guard, dir, e.t); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
+      case ES.RECOVER: target = recoverPose(guard, dir, e.t, style); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
@@ -779,6 +780,10 @@ export class HallView extends World3D {
       }
       case ES.IDLE:
         if (e.usesStances && e.stance) { target = pose(guard, e.stance === 'high' ? STATES.highGuard : STATES.lowGuard); omega = 9; }
+        // Your swipe clanged: he visibly takes it on his shield or his blade.
+        if (e.flinchAt && performance.now() - e.flinchAt < 320) {
+          target = pose(target, e.def.offhand && e.def.offhand !== 'holly' ? STATES.shieldBlock : STATES.bladeBlock); omega = 30;
+        }
         break;
       case ES.LOCKED: {
         // The struggle shows in the gap: his weight comes on as he wins, goes back as he loses.

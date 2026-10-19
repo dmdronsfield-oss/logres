@@ -166,3 +166,13 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **Your fall:** slow motion, the HUD clears, the music drops away, the crowd gasps, and the camera
   swings round to face Gawain as he goes down.
 - The tutorial still flows (bot-checked), and all duels pass.
+
+## Brief 9, weapons with weight (v25)
+
+`docs/BRIEF-09-weapons-with-weight.md`
+
+- **Swing styles:** axes (the Saxon, the Green Knight) coil deeper, lean further and follow through
+  with the whole body; the Brigand's falchion flicks with short, snapping cuts; the knights' swords
+  stay formal. The timing of each blow is unchanged; only how it looks differs.
+- **He blocks you, visibly:** when your swipe clangs off his guard, he takes it on his raised shield,
+  or crosswise on his blade if he has no shield.

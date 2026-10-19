@@ -660,6 +660,7 @@ export class Enemy extends Fighter {
   // and he answers with a fast counter-cut.
   guardFlinch() {
     const now = performance.now();
+    this.flinchAt = now;
     this.clangs = (this.clangs || []).filter((t) => now - t < 1200);
     this.clangs.push(now);
     if (this.clangs.length >= 2 && (this.state === ES.IDLE || this.state === ES.GAP || this.state === ES.FEINT) && !this.hold) {
