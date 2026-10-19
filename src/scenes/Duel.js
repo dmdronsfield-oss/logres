@@ -328,7 +328,7 @@ export class Duel extends Phaser.Scene {
         wins: s.wins + 1, currentRun, bestRun: Math.max(s.bestRun, currentRun), runStage, cycle, generation,
         tutorialDone: true,
       });
-      fadeTo(this, 'Victory', { enemyId: def.id, xp, levels, final, unlocks, stats });
+      fadeTo(this, 'Victory', { enemyId: def.id, xp, levels, final, unlocks, stats, fromWhite: true }, true);
     } else {
       const xp = Math.round(def.xp * CONFIG.progression.lossXpFraction);
       const levels = Save.addXp(xp);

@@ -696,8 +696,11 @@ export class HallView extends World3D {
     f.k.root.rotation.y = Math.PI;
     this.player = { body3d: true, ...f, hp: null, zoff: 0, zvel: 0 };
     // Your own blade is close to the lens: a fainter, shorter trail.
-    this.player.trailColor = { excalibur: 0xbfe0ff, clarent: 0xc8a060 }[sword.id] || 0x6f86b8;
-    this.player.trail = new BladeTrail(this.content, { color: this.player.trailColor, minSpeed: 4, life: sword.id === 'excalibur' ? 150 : 110 });
+    this.player.trailColor = { excalibur: 0xd8eeff, clarent: 0xf0c878 }[sword.id] || 0xa8c4ff;
+    // Your cuts leave a long, bright ribbon of light near the tip, as in Infinity Blade.
+    this.player.trail = new BladeTrail(this.content, {
+      color: this.player.trailColor, minSpeed: 4, life: sword.id === 'excalibur' ? 210 : 170, from: 0.5, over: 0.25, gain: 2.2, inner: 0.05, tail: 2.6,
+    });
     // The Pendragon's light: a gold lamp at the blade during the super.
     this.player.superLight = new THREE.PointLight(0xffd27a, 0, 7, 1.6);
     this.content.add(this.player.superLight);
@@ -1049,7 +1052,7 @@ export class HallView extends World3D {
     const base = k.weaponObj.localToWorld(this._tb.set(0, 0, 0));
     const tip = k.weaponObj.localToWorld(this._tt.set(0, -k.weaponLen, 0));
     v.trail.setColor(color);
-    v.trail.update(base, tip, performance.now());
+    v.trail.update(base, tip, this.gameT);
   }
 
   // ---------- per-frame ----------
@@ -1059,6 +1062,7 @@ export class HallView extends World3D {
     this.syncCanvas();
     const now = performance.now();
     this.time = now;
+    this.gameT = (this.gameT || 0) + dt;   // game time (slows with slow motion; steps with the test harness)
     this._watchPerformance(now);
     const cam = this.camera;
     const px = this.player ? this.player.k.root.position.x : 0;

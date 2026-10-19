@@ -379,6 +379,7 @@ export class Hud {
     const b = this.btn[id];
     if (!b) return;
     b.setScale(b.baseScale * (down ? 0.9 : 1));
+    if (down) b.pressedAt = this.realT;
     if (down) b.setTint(0xe8d8b0);
     else b.clearTint();
   }
@@ -542,6 +543,32 @@ export class Hud {
     this.scene.tweens.add({ targets: this.counter, alpha: 0, delay: 700, duration: 300 });
   }
 
+  // A one-word callout, after Infinity Blade: small, at the top centre under the
+  // bars, clear of the fighters; one at a time (a newer one replaces it), gone in
+  // under a second. kind: 'good' (yours), 'bad' (his), 'warn'.
+  callout(str, kind = 'good') {
+    const color = { good: '#fff0b8', bad: '#ff8a70', warn: '#ffc38a' }[kind] || '#fff0b8';
+    const y = VIEW.portrait ? 200 : 116;
+    if (this.calloutText) this.calloutText.destroy();
+    // Shown at once and timed on real time (update()), so hit-stop and slow motion
+    // can't hold it back.
+    const t = text(this.scene, VIEW.W / 2, y, str.toUpperCase(), {
+      fontSize: VIEW.portrait ? '24px' : '26px', fontStyle: '700', color, stroke: PALETTE.inkCss, strokeThickness: 4,
+    }).setDepth(DEPTH + 4);
+    t.bornAt = this.realT;
+    this.calloutText = t;
+  }
+
+  _updateCallout() {
+    const t = this.calloutText;
+    if (!t) return;
+    const age = this.realT - t.bornAt;
+    t.setScale(age < 90 ? 0.85 + 0.15 * (age / 90) : 1);
+    t.setAlpha(age < 620 ? 1 : Math.max(0, 1 - (age - 620) / 260));
+    if (age > 880) { t.destroy(); this.calloutText = null; }
+  }
+
+  // Big centre text: kept for rare moments (disarm, stagger, Pendragon, the end).
   bigText(str, color = PALETTE.goldLight, y = 210, size = 54) {
     if (VIEW.portrait) {
       y = Math.round(VIEW.H * 0.24 + (y - 200) * 0.8);
@@ -588,6 +615,7 @@ export class Hud {
   update(realDelta, debugInfo) {
     this.realT += realDelta;
     this._drawBars();
+    this._updateCallout();
     const k = 1 + Math.sin(this.realT / 130) * 0.09;
     for (const id of this.pulsing) {
       const b = this.btn[id];
@@ -595,6 +623,15 @@ export class Hud {
     }
     if (this.superReady) {
       this.btn.super.setScale(this.btn.super.baseScale * (1 + Math.sin(this.realT / 160) * 0.06));
+    }
+    // Ghosted at rest, after Infinity Blade: the roundels brighten while he attacks,
+    // when pressed, or when a lesson points at them.
+    const alert = this.vals && this.vals.alert;
+    for (const id of ['dodgeL', 'dodgeR', 'block', 'super']) {
+      const b = this.btn[id];
+      const lit = alert || this.pulsing.has(id) || (b.pressedAt !== undefined && this.realT - b.pressedAt < 600) || (id === 'super' && this.superReady);
+      const want = lit ? 0.95 : 0.48;
+      b.setAlpha(b.alpha + (want - b.alpha) * Math.min(1, realDelta / 90));
     }
     if (this.promptArrow.alpha > 0) {
       this.promptArrow.y = this.arrowY + Math.sin(this.realT / 120) * 10;

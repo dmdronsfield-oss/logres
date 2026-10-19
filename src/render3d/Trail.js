@@ -6,9 +6,17 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 const SEG = 20;
 
 export class BladeTrail {
-  constructor(scene, { color = 0xfff2c0, life = 170, minSpeed = 2.2 } = {}) {
+  // from: where on the blade the trail starts (0 hilt .. 1 tip); over: how far it
+  // runs past the tip (a fraction of the blade); gain: brightness; inner: how bright the
+  // inner edge is against the tip edge; tail: how fast it fades behind the blade.
+  constructor(scene, { color = 0xfff2c0, life = 170, minSpeed = 2.2, from = 0.35, over = 0, gain = 1, inner = 0.55, tail = 1.3 } = {}) {
     this.life = life;
     this.minSpeed = minSpeed;
+    this.from = from;
+    this.over = over;
+    this.gain = gain;
+    this.inner = inner;
+    this.tail = tail;
     this.samples = [];
     const g = new THREE.BufferGeometry();
     this.pos = new Float32Array((SEG + 1) * 2 * 3);
@@ -62,15 +70,18 @@ export class BladeTrail {
       const b = s[j + 1];
       const k = i * 2;
       for (let c = 0; c < 3; c++) {
-        // Only the outer two-thirds of the blade leaves a trail.
-        const ba = a.base.getComponent(c) + (a.tip.getComponent(c) - a.base.getComponent(c)) * 0.35;
-        const bb = b.base.getComponent(c) + (b.tip.getComponent(c) - b.base.getComponent(c)) * 0.35;
+        // The band runs from `from` along the blade to a little past the tip (`over`).
+        const at = (p, f) => p.base.getComponent(c) + (p.tip.getComponent(c) - p.base.getComponent(c)) * f;
+        const ba = at(a, this.from);
+        const bb = at(b, this.from);
+        const ta = at(a, 1 + this.over);
+        const tb = at(b, 1 + this.over);
         this.pos[k * 3 + c] = ba + (bb - ba) * u;
-        this.pos[(k + 1) * 3 + c] = a.tip.getComponent(c) + (b.tip.getComponent(c) - a.tip.getComponent(c)) * u;
+        this.pos[(k + 1) * 3 + c] = ta + (tb - ta) * u;
       }
       const age = i / SEG;               // 0 oldest .. 1 newest
-      const al = Math.pow(age, 1.3) * this.strength;
-      this.col.set([1, 1, 1, al * 0.55], k * 4);
+      const al = Math.pow(age, this.tail) * this.strength * this.gain;
+      this.col.set([1, 1, 1, Math.min(1, al * this.inner)], k * 4);
       this.col.set([1, 1, 1, Math.min(1, al * 1.4)], (k + 1) * 4);
     }
     const g = this.mesh.geometry;

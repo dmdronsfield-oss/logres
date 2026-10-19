@@ -27,10 +27,12 @@ export function refreshSafeArea(scene) {
   VIEW.safeB = Math.min(20, overB * k);
 }
 
-export function fadeTo(scene, key, data) {
+// white: fade out to white (a won duel going to Victory, which fades in from white).
+export function fadeTo(scene, key, data, white = false) {
   if (scene._leaving) return;
   scene._leaving = true;
-  scene.cameras.main.fadeOut(260, 26, 20, 16);
+  if (white) scene.cameras.main.fadeOut(480, 255, 255, 255);
+  else scene.cameras.main.fadeOut(260, 26, 20, 16);
   scene.cameras.main.once('camerafadeoutcomplete', () => scene.scene.start(key, data));
 }
 

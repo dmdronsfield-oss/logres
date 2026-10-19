@@ -1,5 +1,5 @@
 import { CONFIG, PALETTE, VIEW } from '../config.js';
-import { canvasTex, text, star } from '../art/Tex.js';
+import { canvasTex, text } from '../art/Tex.js';
 import { Save } from '../save/Save.js';
 import { comfort } from '../ui/Comfort.js';
 
@@ -27,10 +27,41 @@ export class Juice {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 10, 10);
     });
-    canvasTex(scene, 'clashstar', 90, 90, (ctx) => {
-      star(ctx, 45, 45, 8, 44, 10);
-      ctx.fillStyle = 'rgba(255,246,207,0.95)';
-      ctx.fill();
+
+    // The parry burst (after Infinity Blade): a white core with blue-white spikes,
+    // then thin speed lines running out from the point where the blades met.
+    canvasTex(scene, 'parrystar', 220, 220, (ctx) => {
+      const c = 110;
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + (i % 2) * 0.2;
+        const len = i % 2 ? 78 : 106;
+        const w = i % 2 ? 7 : 10;
+        const g = ctx.createLinearGradient(c, c, c + Math.cos(a) * len, c + Math.sin(a) * len);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.5, 'rgba(190,225,255,0.85)');
+        g.addColorStop(1, 'rgba(150,200,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(c + Math.cos(a + Math.PI / 2) * w, c + Math.sin(a + Math.PI / 2) * w);
+        ctx.lineTo(c + Math.cos(a) * len, c + Math.sin(a) * len);
+        ctx.lineTo(c + Math.cos(a - Math.PI / 2) * w, c + Math.sin(a - Math.PI / 2) * w);
+        ctx.closePath();
+        ctx.fill();
+      }
+      const core = ctx.createRadialGradient(c, c, 0, c, c, 46);
+      core.addColorStop(0, 'rgba(255,255,255,1)');
+      core.addColorStop(0.45, 'rgba(225,240,255,0.9)');
+      core.addColorStop(1, 'rgba(170,210,255,0)');
+      ctx.fillStyle = core;
+      ctx.fillRect(c - 46, c - 46, 92, 92);
+    });
+    canvasTex(scene, 'speedline', 96, 4, (ctx) => {
+      const g = ctx.createLinearGradient(0, 0, 96, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.35, 'rgba(255,255,255,0.95)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 1, 96, 2);
     });
 
     const sparkCfg = {
@@ -108,7 +139,10 @@ export class Juice {
 
   screenFlash(kind = 'red', alpha = 0.35, ms = 220) {
     if (comfort()) alpha = Math.min(alpha, 0.12);
-    const r = kind === 'red' ? this.redFlash : this.goldFlash;
+    if (kind === 'white' && !this.whiteFlash) {
+      this.whiteFlash = this.scene.add.rectangle(VIEW.W / 2, VIEW.H / 2, VIEW.W + 400, VIEW.H + 400, 0xffffff, 0).setDepth(this.goldFlash.depth);
+    }
+    const r = kind === 'red' ? this.redFlash : kind === 'white' ? this.whiteFlash : this.goldFlash;
     r.setAlpha(alpha);
     this.scene.tweens.add({ targets: r, alpha: 0, duration: ms });
   }
@@ -130,14 +164,28 @@ export class Juice {
     this.cutSparks.explode(n, x, y);
   }
 
-  clash(x, y) {
-    this.sparksAt(x, y, 34);
-    const s = this.scene.add.image(x, y, 'clashstar').setDepth(26).setBlendMode(Phaser.BlendModes.ADD)
-      .setScale(0.3 / VIEW.RES);
-    this.scene.tweens.add({
-      targets: s, scale: 2.2 / VIEW.RES, alpha: 0, angle: 30, duration: 320, ease: 'Cubic.easeOut',
-      onComplete: () => s.destroy(),
-    });
+  // Parry: a burst at the point of contact, then speed lines from it.
+  parryBurst(x, y, big = 1) {
+    const R = VIEW.RES;
+    const calm = comfort();
+    this.sparksAt(x, y, 14);
+    const s = this.scene.add.image(x, y, 'parrystar').setDepth(26).setBlendMode(Phaser.BlendModes.ADD)
+      .setScale(0.35 / R).setAngle(Math.random() * 360).setAlpha(calm ? 0.55 : 1);
+    this.scene.tweens.add({ targets: s, scale: (1.25 * big) / R, duration: 90, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: s, alpha: 0, delay: 110, duration: 170, onComplete: () => s.destroy() });
+    if (calm) return;
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+      const r0 = (36 + Math.random() * 20) / R;
+      const r1 = ((230 + Math.random() * 90) * big) / R;
+      const l = this.scene.add.image(x + Math.cos(a) * r0, y + Math.sin(a) * r0, 'speedline').setDepth(26)
+        .setBlendMode(Phaser.BlendModes.ADD).setOrigin(0, 0.5).setRotation(a).setScale(1 / R, 1 / R).setAlpha(0);
+      this.scene.tweens.add({
+        targets: l, x: x + Math.cos(a) * r1, y: y + Math.sin(a) * r1, scaleX: 2.4 / R, alpha: { from: 1, to: 0 },
+        delay: 90, duration: 280, ease: 'Quad.easeOut', onComplete: () => l.destroy(),
+      });
+    }
   }
 
   // A red flash on the edge of the screen a blow came from (its direction of travel

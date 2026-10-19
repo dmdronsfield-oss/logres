@@ -363,3 +363,15 @@ keyboard only. Then I fixed what got in the way:
 
 - Removed every cape at your request: Gawain's lion cape, the foes' capes and the Green Knight's
   leafy cloak, in the game and in the animation lab.
+
+## Brief 28, lessons from Infinity Blade (v45)
+
+`docs/BRIEF-28-infinity-blade-lessons.md` (from `docs/INFINITY-BLADE-STUDY.md`)
+
+- **Quieter words:** "Parry", "Perfect block" and the rest are now one small word under the health
+  bars, one at a time, gone in under a second. Big centre text is kept for rare moments.
+- **Parry burst:** a white starburst with blue-white spikes where the blades meet, then speed lines
+  running out. No more gold wash over the whole screen.
+- **Brighter blade trails** on your cuts.
+- **Ghosted buttons** that brighten when he attacks or you press them.
+- **The finish:** a white flash on the killing blow, and a fade to white into Victory.

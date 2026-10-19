@@ -59,7 +59,7 @@ export class CombatDirector {
       Sfx.clang();
       p.clangAt = performance.now();
       this.hud.hideHint();
-      this.hud.bigText(how === 'counter' ? 'He turns your blade!' : 'He slips away!', how === 'counter' ? PALETTE.vermilionCss : '#fff3c4', 170, 34);
+      this.hud.callout(how === 'counter' ? 'He turns your blade' : 'He slips away', how === 'counter' ? 'bad' : 'warn');
       this._teach('limitHint', 'Some foes won\'t stand for it: when the gold glow FLICKERS, stop cutting before he recovers.', 1, true);
     } else if (e.isOpen()) {
       this.doHit(dir);
@@ -94,7 +94,7 @@ export class CombatDirector {
       const rem = e.telegraphRemaining();
       if (rem > CONFIG.dodge.perfectMs + 60 && rem <= CONFIG.dodge.durationMs + 40) {
         e.delayStrike(CONFIG.dodge.durationMs + CONFIG.enemy.earlyDodgeDelayMs);
-        this.hud.bigText('Too soon!', PALETTE.vermilionCss, 200, 34);
+        this.hud.callout('Too soon', 'bad');
       }
     }
     this.tutorial?.onDodge?.(side);
@@ -141,8 +141,7 @@ export class CombatDirector {
     e.lock();
     this.player.setBlock(false);
     this.juice.hitStop(140);
-    this.juice.clash(tip.x, tip.y);
-    this.juice.screenFlash('gold', 0.3, 200);
+    this.juice.parryBurst(tip.x, tip.y, 1.3);
     this.juice.shake(CONFIG.juice.shakeTaken);
     this.juice.vibrate(CONFIG.juice.vibrateParryMs);
     Sfx.parry();
@@ -228,7 +227,7 @@ export class CombatDirector {
   onRead(kind) {
     this.habits = [];
     const what = kind === 'block' ? 'shield' : kind === 'parry' ? 'parry' : 'dodge';
-    this.hud.bigText(`He reads your ${what}!`, '#ffb38a', 200, 36);
+    this.hud.callout(`He reads your ${what}!`, 'warn');
     Sfx.jeer();
     this._teach('readHint', 'He has READ your habit and will strike where it fails. Vary your answers: dodge both ways, block, parry.', 1, true);
   }
@@ -243,13 +242,12 @@ export class CombatDirector {
     this.noteAnswer('parry');
     this.juice.hitStop(CONFIG.juice.parryStopMs);
     this.juice.slowMo(CONFIG.juice.parrySlowScale, CONFIG.juice.parrySlowMs);
-    this.juice.clash(tip.x, tip.y);
-    this.juice.screenFlash('gold', 0.25, 160);
+    this.juice.parryBurst(tip.x, tip.y);
     this.juice.shake(CONFIG.juice.shakeHit);
     this.juice.vibrate(CONFIG.juice.vibrateParryMs);
     Sfx.parry();
     Sfx.cheer();
-    this.hud.bigText('Parry!', PALETTE.goldLight, 200, 50);
+    this.hud.callout('Parry');
     this.addSuper(CONFIG.super.fromParry);
     this.addStagger(CONFIG.stagger.fromParry);
     // Riposte: the return cut along his blow's own line.
@@ -297,7 +295,7 @@ export class CombatDirector {
     this.stats.hits += 1;
     if (riposte) {
       this.stats.ripostes = (this.stats.ripostes || 0) + 1;
-      this.hud.bigText('Riposte!', '#fff6cf', 200, 46);
+      this.hud.callout('Riposte');
       this.juice.hitStop(CONFIG.juice.comboStopMs);
       this.juice.screenFlash('gold', 0.3, 200);
     }
@@ -372,7 +370,7 @@ export class CombatDirector {
     this.juice.shake(CONFIG.juice.shakeHit);
     this.juice.sparksAt(c.x, c.y, 10, 'red');
     this.juice.damageNumber(c.x, c.y - 40, dmg, { color: PALETTE.goldLight, size: 28 });
-    this.hud.bigText('Through his guard!', '#fff3c4', 160, 32);
+    this.hud.callout('Through his guard');
     Sfx.hitArmour(e.def.armour || 'mail');
     this.addSuper(CONFIG.super.fromHit);
     this.hud.hideGap();
@@ -394,7 +392,7 @@ export class CombatDirector {
       outcome = perfect ? 'perfect' : 'dodged';
       this.stats.dodges += 1;
       if (perfect) {
-        this.hud.bigText('Perfect dodge!', '#fff6cf', 200, 36);
+        this.hud.callout('Perfect dodge');
         this.juice.slowMo(0.35, 240);
         this.juice.screenFlash('gold', 0.12, 140);
         this.addStagger(CONFIG.stagger.fromPerfectDodge);
@@ -414,7 +412,7 @@ export class CombatDirector {
       this.juice.hitStop(CONFIG.juice.takenStopMs);
       this.juice.shake(CONFIG.juice.shakeHeavy);
       this.juice.screenFlash('red', 0.45, 260);
-      this.hud.bigText('Guard broken!', PALETTE.vermilionCss, 200, 38);
+      this.hud.callout('Guard broken', 'bad');
       const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
       this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
       this.hitCount = 0;
@@ -431,7 +429,7 @@ export class CombatDirector {
       this.juice.shake(CONFIG.juice.shakeHit);
       this.juice.screenFlash('gold', 0.2, 160);
       this.juice.sparksAt(tip.x, tip.y, 26);
-      this.hud.bigText('Perfect block!', '#fff6cf', 200, 40);
+      this.hud.callout('Perfect block');
       this.addStagger(CONFIG.stagger.fromPerfectBlock);
       this.addSuper(CONFIG.super.fromPerfectBlock);
     } else if (p.state === PS.BLOCKING && p.pips > 0) {
@@ -446,11 +444,11 @@ export class CombatDirector {
       this._teach('perfectBlockHint', 'Raise the shield at the LAST instant for a perfect block: no pip spent, and he is thrown open.', 2);
       if (p.pips === 0) {
         Sfx.shieldBreak();
-        this.hud.bigText('Shield spent!', PALETTE.vermilionCss, 200, 36);
+        this.hud.callout('Shield spent', 'bad');
       }
     } else {
       outcome = 'hit';
-      if (p.state === PS.BLOCKING) this.hud.bigText('Shield spent!', PALETTE.vermilionCss, 200, 36);
+      if (p.state === PS.BLOCKING) this.hud.callout('Shield spent', 'bad');
       const dmg = Math.round(attack.damage * e.dmgMult);
       this.stats.taken += dmg;
       const dead = p.takeHit(dmg);
@@ -522,14 +520,14 @@ export class CombatDirector {
   }
 
   onGloat() {
-    this.hud.bigText('He gloats! Strike!', '#fff3c4', 170, 38);
+    this.hud.callout('He gloats! Strike!', 'warn');
     Sfx.jeer();
     this._teach('gloatHint', 'Land two blows on you and he GLOATS. While he does he is open: make him pay.', 1, true);
   }
 
   // A perfect dodge or perfect block broke his attack.
   onCounter() {
-    this.hud.bigText('Counter!', '#fff6cf', 160, 44);
+    this.hud.callout('Counter');
     Sfx.windowOpen();
     this._teach('counterHint', 'A perfect dodge or block breaks his attack. He is open: strike!');
   }
@@ -551,7 +549,7 @@ export class CombatDirector {
   }
 
   onEnemyCounter() {
-    this.hud.bigText('His counter!', PALETTE.vermilionCss, 170, 36);
+    this.hud.callout('His counter', 'bad');
     this._teach('spamHint', 'Striking at his guard only clangs, and he answers. Strike when he is OPEN.');
   }
 
@@ -613,7 +611,8 @@ export class CombatDirector {
     this.finisher = { at: performance.now(), green };
     this.juice.hitStop(160);
     this.juice.slowMo(0.22, 1700);
-    this.juice.screenFlash('gold', 0.55, 700);
+    // The killing blow lands in a white flash (after Infinity Blade).
+    this.juice.screenFlash('white', 0.8, 650);
     this.juice.shake(CONFIG.juice.shakeHeavy);
     this.hud.cinematic(true);
     this.hud.hideHint();
@@ -673,6 +672,7 @@ export class CombatDirector {
       this.hud.placeHint(c.x, c.y);
     }
     this.hud.set({
+      alert: e.state === ES.TELEGRAPH || e.state === ES.STRIKE || e.state === ES.GAP,
       enemy: e.healthFrac,
       player: p.healthFrac,
       stagger: e.state === ES.STAGGERED ? e.openFraction() : e.stagger / CONFIG.stagger.max,

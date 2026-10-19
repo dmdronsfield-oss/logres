@@ -73,7 +73,8 @@ export class Victory extends Phaser.Scene {
     text(this, on.x, on.y + (P ? 54 : 42), `vs ${next.name}`, { fontSize: '15px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 4 });
     menuButton(this, camp.x, camp.y, 220, 56, 'To camp', () => fadeTo(this, 'Title'), { size: 22 });
 
-    this.cameras.main.fadeIn(300, 26, 20, 16);
+    if (data.fromWhite) this.cameras.main.fadeIn(700, 255, 255, 255);
+    else this.cameras.main.fadeIn(300, 26, 20, 16);
     Music.play('victory');
     this.time.delayedCall(200, () => Sfx.bell());
   }
