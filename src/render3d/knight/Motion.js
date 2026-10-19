@@ -240,9 +240,9 @@ function extend(p, from, amount) {
 // How a weapon moves. Heavy: deep coil, big lean, a follow-through that drags the
 // body round. Quick: short coil, hands close, snapping back. Formal: the sword.
 export const STYLES = {
-  formal: { coil: 0.2, follow: 0.3, lean: 1, drop: 0.05, followMs: 200, settleMs: 420 },
-  heavy: { coil: 0.36, follow: 0.5, lean: 1.35, drop: 0.09, followMs: 260, settleMs: 560 },
-  quick: { coil: 0.08, follow: 0.14, lean: 0.75, drop: 0.03, followMs: 160, settleMs: 300 },
+  formal: { coil: 0.2, follow: 0.3, lean: 1, drop: 0.05, followMs: 260, settleMs: 520 },
+  heavy: { coil: 0.36, follow: 0.5, lean: 1.35, drop: 0.09, followMs: 340, settleMs: 700 },
+  quick: { coil: 0.08, follow: 0.14, lean: 0.75, drop: 0.03, followMs: 190, settleMs: 360 },
 };
 export const styleFor = (weapon) => (weapon === 'axe' || weapon === 'greataxe' ? 'heavy' : weapon === 'falchion' ? 'quick' : 'formal');
 
@@ -286,7 +286,10 @@ export function windupPose(guard, dir, u, style) {
 export function strikePose(guard, dir, ms, style) {
   const m = swingMarks(guard, dir, style);
   const S = STYLES[style] || STYLES.formal;
-  return sampleClip([[0, m.coil], [110, m.hit, 'snap'], [S.followMs, m.follow, 'out'], [S.settleMs, m.follow, 'linear']], ms, S.settleMs);
+  // Weight after the impact: the blade carries on past the follow-through mark, then the body
+  // settles back onto it (the impact itself stays exactly on the beat).
+  const carry = extend(m.follow, m.hit, 0.22);
+  return sampleClip([[0, m.coil], [110, m.hit, 'snap'], [S.followMs * 0.75, carry, 'out'], [S.followMs * 1.35, m.follow, 'inout'], [S.settleMs, m.follow, 'linear']], ms, S.settleMs);
 }
 
 // Settling into the open, winded stance after a combo.
@@ -344,25 +347,35 @@ export function tauntPose(guard, kind, ms) {
 }
 
 // Your knight's swing (dir already mirrored into his frame). Null when finished.
-// Your cut, timed to the game: the blade passes across his front at the foe at 85 ms
-// (CONFIG.player.contactMs, when the hit lands); the arm is free again at 250 ms
-// (CONFIG.player.attackMs). One clean arc: a quick draw back to the wind-up, straight
-// through the front (the 'through' key keeps the blade from swinging round behind the
-// head between opposite marks), on to the far side, and back to guard.
+// Your cut, timed to the game, with weight: a wind-up that loads the body (to 110 ms),
+// a deeper coil and a beat of stillness (to 150 ms), then the drive straight across the
+// front, accelerating, to the moment of contact at 175 ms (CONFIG.player.contactMs), on
+// through the far side, a heavy follow-through that carries past and settles (to 330 ms),
+// and back to guard at 420 ms (CONFIG.player.attackMs). The 'through' key keeps the blade
+// from swinging round behind the head between opposite marks.
+const visible = (b) => {
+  // Seen from behind, a blade pointing back at the camera hides behind his head:
+  // keep wind-ups raised or out to the side, where the start of the cut can be read.
+  if (b[2] >= -0.15) return b;
+  const v = [b[0], b[1] + (-0.15 - b[2]) * 1.2, -0.15];
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return v.map((x) => x / l);
+};
 export function playerSwingPose(guard, dir, ms) {
-  if (ms > 250) return null;
+  if (ms > 420) return null;
   const m = swingMarks(guard, dir);
   const keep = (p) => { const q = pose(p); q.footL = guard.footL.slice(); q.footR = guard.footR.slice(); return q; };
   const wind = keep(m.wind);
-  // Seen from behind, a wind-up pointing back at the camera hides the blade behind his head:
-  // keep it raised or out to the side, where the start of the cut can be read.
-  if (wind.bladeR[2] < -0.15) {
-    const b = [wind.bladeR[0], wind.bladeR[1] + (-0.15 - wind.bladeR[2]) * 1.2, -0.15];
-    const l = Math.hypot(b[0], b[1], b[2]) || 1;
-    wind.bladeR = b.map((v) => v / l);
-  }
-  const hit = keep(m.hit);
-  const follow = keep(m.follow);
+  wind.bladeR = visible(wind.bladeR);
+  const coil = keep(extend(m.wind, guard, 0.25));
+  coil.bladeR = visible(coil.bladeR);
+  coil.pelvis = add(coil.pelvis, [0, -0.015, -0.03]);
+  const hit = pose(m.hit);
+  hit.footR = guard.footR.slice();
+  const follow = pose(m.follow);
+  follow.footR = guard.footR.slice();
+  const carry = pose(extend(m.follow, m.hit, 0.25));
+  carry.footR = guard.footR.slice();
   const thru = pose(hit);
   const half = (a, b) => a.map((v, i) => (v + b[i]) / 2);
   const bl = half(wind.bladeR, hit.bladeR).map((v, i) => v + [0, 0, 1.1][i]);
@@ -371,7 +384,10 @@ export function playerSwingPose(guard, dir, ms) {
   thru.handR = clampReach('handR', half(wind.handR, hit.handR).map((v, i) => v + [0, 0, 0.22][i]));
   thru.chest = half(wind.chest, hit.chest);
   thru.pelvisRot = half(wind.pelvisRot, hit.pelvisRot);
-  return sampleClip([[0, guard], [55, wind, 'out'], [85, thru, 'linear'], [120, hit, 'out'], [165, follow, 'out'], [250, guard, 'inout']], ms, 250);
+  return sampleClip([
+    [0, guard], [110, wind, 'out'], [150, coil, 'inout'], [175, thru, 'in'], [205, hit, 'out'],
+    [290, carry, 'out'], [330, follow, 'inout'], [420, guard, 'inout'],
+  ], ms, 420);
 }
 
 // ---------- the animator ----------

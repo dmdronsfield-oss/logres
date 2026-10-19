@@ -977,7 +977,8 @@ export class HallView extends World3D {
     k.root.position.x = rootX;
     // Step into your cut (toward him is -z); recoil off his guard on a clang.
     let zWant = lock ? -0.3 - (lock.v - 0.5) * 0.35 : 0;
-    if (!lock && t >= 0 && t < 260 && pl.swingDir && pl.state !== PS.DEAD) zWant = t < 60 ? 0.06 : -0.22;
+    // Weight back onto the rear foot in the wind-up, then the body drives forward into the cut.
+    if (!lock && t >= 0 && t < 400 && pl.swingDir && pl.state !== PS.DEAD) zWant = t < 150 ? 0.08 : -0.26;
     if (pl.state === PS.STUNNED) zWant = 0.25;
     const sdt = dt / 1000;
     v.zoff += (zWant - v.zoff) * Math.min(1, sdt * (zWant < v.zoff ? 18 : 7));
@@ -1007,7 +1008,7 @@ export class HallView extends World3D {
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
     // The streak marks the cut itself: from the draw-back to the far side, not the wind-up or the return.
-    const cutting = pl.state === PS.ATTACKING && pl.stateT >= 50 && pl.stateT <= 140;
+    const cutting = pl.state === PS.ATTACKING && pl.stateT >= 140 && pl.stateT <= 250;
     this._trail(v, pl.state === PS.DEAD || lock || !cutting ? null : v.trailColor);
     this._superGlow(v);
     this._wear(v, pl.healthFrac);

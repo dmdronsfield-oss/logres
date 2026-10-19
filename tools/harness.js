@@ -88,7 +88,7 @@ export function bot(frames, skill = 1) {
       }
     } else if (e.state === 'Idle' && e.gapDirs && e.gapDirs().length && Math.random() < 0.02 * skill) {
       d.swipe.keySwipe(Math.random() < skill ? e.gapDirs()[0] : DIRS[(Math.random() * 8) | 0]);
-    } else if (e.isOpen() && (d.player.state !== 'Attacking' || d.player.stateT > 130) && Math.random() < 0.12) {   // measured: a swipe once the cut is nearly done
+    } else if (e.isOpen() && (d.player.state !== 'Attacking' || d.player.stateT > 230) && Math.random() < 0.12) {   // measured: a swipe once the cut is nearly done
       const h = d.director.riposte ? d.director.riposte.dir
         : d.director.comboHint ? d.director.comboHint.combo.seq[d.director.comboHint.step] : DIRS[(Math.random() * 8) | 0];
       d.swipe.keySwipe(h);

@@ -423,3 +423,12 @@ keyboard only. Then I fixed what got in the way:
   It loops quietly on the menus, starts on your first tap and fades out as you ride into a duel.
   It respects the Music setting.
 - **Credits:** a new section at the end of the Book of Arms lists the work by others in the game.
+
+## Brief 32, weight (v51)
+
+`docs/BRIEF-32-weight.md`
+
+- **Your cut is weightier:** a real wind-up with a beat of stillness, then the drive through
+  contact, a follow-through that carries on past, and a settle before guard. 0.42 s in all.
+- **The foes' blows** carry past and settle more slowly after the impact, which stays on the beat.
+- Damage was retuned for the slower, heavier cuts; a full bot playthrough keeps the difficulty curve.
