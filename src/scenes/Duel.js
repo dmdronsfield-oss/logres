@@ -87,7 +87,7 @@ export class Duel extends Phaser.Scene {
     this.director.enemy = this.enemy;
 
     this.tutorial = !s.tutorialDone && s.runStage === 0 ? new Tutorial(this.director, this.hud) : null;
-    if (!this.tutorial) this.hud.banner(`${def.name}, ${def.epithet}`, 1900);
+    if (!this.tutorial) this.hud.banner(`${def.name}, ${def.epithet}`, this.w3 ? 2800 : 1900);
 
     this._setupInput();
 

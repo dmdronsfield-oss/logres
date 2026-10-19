@@ -512,13 +512,22 @@ export class CombatDirector {
     t.delayedCall(green ? 5200 : 3400, () => this.scene.endDuel(true));
   }
 
+  // Your fall: slow motion, the HUD clears, the camera comes round to face you.
   playerDefeated() {
     if (this.over) return;
     this.over = true;
-    this.juice.slowMo(0.4, 700);
+    this.fallen = { at: performance.now() };
+    this.juice.slowMo(0.3, 1500);
+    this.hud.cinematic(true);
+    this.hud.hideHint();
+    this.hud.hideGap();
+    this.hud.hideBanner(true);
+    if (this.lock) { this.lock = null; this.hud.showLock(false); }
     Sfx.defeat();
-    this.hud.bigText('You fall…', '#ff9a85', 220, 56);
-    this.scene.time.delayedCall(1900, () => this.scene.endDuel(false));
+    Sfx.gasp();
+    Music.play('silence');
+    this.scene.time.delayedCall(900, () => this.hud.bigText('You fall…', '#ff9a85', 220, 56));
+    this.scene.time.delayedCall(2800, () => this.scene.endDuel(false));
   }
 
   update(realDt) {

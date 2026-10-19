@@ -154,3 +154,15 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   a red one.
 - **Graphics: High / Medium / Low** in the pause menu. It takes effect at once, is remembered, and
   stops the automatic step-down from overriding your choice.
+
+## Brief 8, entrances and exits (v24)
+
+`docs/BRIEF-08-entrances-and-exits.md`
+
+- **The challenge:** each duel opens on a wide, high view of the hall that sweeps down behind Gawain as
+  his foe walks in and issues his challenge. The Saxon beats his axe on his shield, the Black Knight
+  salutes, the Brigand points his falchion at you, the Red Knight raises his sword, and the Green
+  Knight spreads his arms and laughs. The crowd stirs.
+- **Your fall:** slow motion, the HUD clears, the music drops away, the crowd gasps, and the camera
+  swings round to face Gawain as he goes down.
+- The tutorial still flows (bot-checked), and all duels pass.

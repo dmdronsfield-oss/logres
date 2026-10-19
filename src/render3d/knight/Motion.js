@@ -270,6 +270,37 @@ export function bashPose(guard, phase, u) {
   return sampleClip([[0, back], [110, drive, 'snap'], [420, drive, 'linear']], u, 420);
 }
 
+// His challenge as he arrives (ms since it began).
+export function tauntPose(guard, kind, ms) {
+  switch (kind) {
+    case 'bang': {
+      // Axe haft beaten on the shield, three times.
+      const beat = Math.abs(Math.sin((ms / 260) * Math.PI));
+      return pose(guard, {
+        handR: [-0.05, 1.25 + beat * 0.3, 0.42 - beat * 0.1], bladeR: [0.6, 0.6, 0.3], handL: [0.14, 1.15, 0.42],
+        faceL: [0.1, 0, 1], chest: [0.15, 0.2, 0],
+      });
+    }
+    case 'salute':
+      return pose(guard, {
+        handR: [-0.05, 1.5, 0.28], bladeR: [0, 1, 0.05], chest: [-0.05, 0, 0], pelvis: [0, 0.97, 0],
+        footL: [0.12, 0.05, 0.1], footR: [-0.12, -0.05, -0.1],
+      });
+    case 'point':
+      return pose(guard, {
+        handR: [-0.2, 1.38, 0.7], bladeR: [0.05, 0.08, 1], chest: [0.1, -0.35, 0], pelvisRot: [0, -0.35, 0],
+      });
+    case 'raise':
+      return pose(guard, {
+        handR: [-0.22, 2.05, 0.1], bladeR: [0.05, 1, 0.1], chest: [-0.25, 0, 0], pelvis: [0, 0.98, 0],
+      });
+    case 'laugh':
+      return pose(guard, STATES.roar);
+    default:
+      return guard;
+  }
+}
+
 // Your knight's swing (dir already mirrored into his frame). Null when finished.
 export function playerSwingPose(guard, dir, ms) {
   if (ms > 360) return null;

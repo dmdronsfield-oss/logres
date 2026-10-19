@@ -50,6 +50,7 @@ const thrust = (t, dmg, rec, extra = {}) => ({
 export const ENEMIES = [
   {
     id: 'saxon',
+    taunt: 'bang',
     name: 'Saxon Raider',
     epithet: 'come over the grey sea',
     scene: 'forest',
@@ -91,6 +92,7 @@ export const ENEMIES = [
   },
   {
     id: 'black',
+    taunt: 'salute',
     name: 'The Black Knight',
     epithet: 'who holds the ford',
     scene: 'hall',
@@ -133,6 +135,7 @@ export const ENEMIES = [
   },
   {
     id: 'brigand',
+    taunt: 'point',
     name: 'The Brigand Captain',
     epithet: 'of the Wirral road',
     scene: 'road',
@@ -172,6 +175,7 @@ export const ENEMIES = [
   },
   {
     id: 'red',
+    taunt: 'raise',
     name: 'The Red Knight',
     epithet: 'of the Red Lands',
     scene: 'field',
@@ -213,6 +217,7 @@ export const ENEMIES = [
   },
   {
     id: 'green',
+    taunt: 'laugh',
     name: 'The Green Knight',
     epithet: 'of the Green Chapel',
     scene: 'chapel',

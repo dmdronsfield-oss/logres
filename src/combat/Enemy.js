@@ -113,11 +113,14 @@ export class Enemy extends Fighter {
 
     this.state = ES.INTRO;
     this.t = 0;
+    // The 3D hall gives him a proper entrance: walk in, then his challenge.
+    this.introMs = scene.w3 ? 2700 : 900;
+    this.tauntDone = false;
     this.swayT = Math.random() * 1000;
     this.pose('guard', 1);
     // Walk in from the distance.
     this.rig.root.setScale(this.size * 0.75).setAlpha(0);
-    scene.tweens.add({ targets: this.rig.root, scale: this.size, alpha: 1, duration: 800, ease: 'Cubic.easeOut' });
+    scene.tweens.add({ targets: this.rig.root, scale: this.size, alpha: 1, duration: this.introMs > 900 ? 1300 : 800, ease: 'Cubic.easeOut' });
   }
 
   // Objects that slide with the world when the player dodges.
@@ -284,7 +287,11 @@ export class Enemy extends Fighter {
 
     switch (this.state) {
       case ES.INTRO:
-        if (this.t >= 900) {
+        if (!this.tauntDone && this.introMs > 900 && this.t >= this.introMs * 0.52) {
+          this.tauntDone = true;
+          this._tauntSound();
+        }
+        if (this.t >= this.introMs) {
           // Make sure the walk-in finished even if its tween was starved of frames.
           this.scene.tweens.killTweensOf(this.rig.root);
           this.rig.root.setAlpha(1).setScale(this.size);
@@ -576,6 +583,16 @@ export class Enemy extends Fighter {
       fontSize: '24px', fontStyle: '700', color: '#f6dc8a', stroke: '#2a1d14', strokeThickness: 5,
     }).setDepth(41);
     this.scene.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+  }
+
+  _tauntSound() {
+    const k = this.def.taunt;
+    const t = this.scene.time;
+    if (k === 'bang') [0, 260, 520].forEach((d) => t.delayedCall(d, () => Sfx.block()));
+    else if (k === 'salute') Sfx.windowOpen();
+    else if (k === 'raise') Sfx.glint(false);
+    else if (k === 'laugh') Sfx.laugh();
+    t.delayedCall(250, () => Sfx.cheer());
   }
 
   // Blades bound together (a last-instant parry); the director runs the struggle.

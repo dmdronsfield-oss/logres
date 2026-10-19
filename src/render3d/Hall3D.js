@@ -12,7 +12,7 @@ import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
 import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.js';
-import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose } from './knight/Motion.js';
+import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose, tauntPose } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Cloth } from './knight/Cloth.js';
 import { BladeTrail } from './Trail.js';
@@ -771,6 +771,12 @@ export class HallView extends World3D {
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
+      case ES.INTRO: {
+        // Walk in, then his challenge, then into guard.
+        const t0 = e.introMs * 0.52;
+        if (e.t > t0 && e.t < e.introMs * 0.9) { target = tauntPose(guard, e.def.taunt, e.t - t0); omega = 12; }
+        break;
+      }
       case ES.IDLE:
         if (e.usesStances && e.stance) { target = pose(guard, e.stance === 'high' ? STATES.highGuard : STATES.lowGuard); omega = 9; }
         break;
@@ -957,10 +963,39 @@ export class HallView extends World3D {
     }
     cam.up.set(0, 1, 0);
     const fin = duel.director && duel.director.finisher;
+    const fall = duel.director && duel.director.fallen;
+    const intro = ee && ee.state === ES.INTRO && ee.introMs > 900 ? 1 - Math.min(1, ee.t / ee.introMs) : 0;
     // Blade lock: ease round into a two-shot so the bind is in view, and back after.
     const locked = !fin && duel.director && duel.director.lock;
     this.lockCam = (this.lockCam || 0) + ((locked ? 1 : 0) - (this.lockCam || 0)) * Math.min(1, (dt || 16) / (locked ? 160 : 260));
-    if (this.lockCam > 0.002 && !fin) {
+    if (fall) {
+      // Your fall: round to face Gawain as he goes down.
+      const u = Math.min(1, (now - fall.at) / 1600);
+      const s = u * u * (3 - 2 * u);
+      const pv = this._pv || (this._pv = new THREE.Vector3());
+      pv.set(px, 0, PLAYER_Z);
+      const dx = cam.position.x - pv.x;
+      const dz = cam.position.z - pv.z;
+      const th = s * 2.2;
+      const r = 1 - s * 0.35;
+      cam.position.x = pv.x + (dx * Math.cos(th) - dz * Math.sin(th)) * r;
+      cam.position.z = pv.z + (dx * Math.sin(th) + dz * Math.cos(th)) * r;
+      cam.position.y -= s * 0.75;
+      cam.lookAt(px * (1 - s) + this.camTarget.x * (1 - s), this.camTarget.y * (1 - s) + 0.8 * s, this.camTarget.z * (1 - s) + PLAYER_Z * s);
+    } else if (intro > 0.001 && !fin) {
+      // The entrance: from high and wide over the hall, sweeping down behind Gawain.
+      const s = intro * intro * (3 - 2 * intro);
+      const piv = this._piv || (this._piv = new THREE.Vector3());
+      piv.set(0, 0, MID_Z);
+      const dx = cam.position.x - piv.x;
+      const dz = cam.position.z - piv.z;
+      const th = s * 0.8;
+      const r = 1 + s * 0.7;
+      cam.position.x = piv.x + (dx * Math.cos(th) - dz * Math.sin(th)) * r;
+      cam.position.z = piv.z + (dx * Math.sin(th) + dz * Math.cos(th)) * r;
+      cam.position.y += s * 1.4;
+      cam.lookAt(this.camTarget.x * (1 - s), this.camTarget.y - s * 0.2, this.camTarget.z);
+    } else if (this.lockCam > 0.002 && !fin) {
       const s = this.lockCam * this.lockCam * (3 - 2 * this.lockCam);
       const piv = this._piv || (this._piv = new THREE.Vector3());
       piv.set(-0.2, 0, MID_Z);
