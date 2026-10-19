@@ -14,11 +14,11 @@ A 2D swipe-duel sword-fighting game set in Arthurian Britain. It plays in a phon
 
 **Animation lab:** https://dmdronsfield-oss.github.io/logres/lab/ (every move for every knight on a loop, at ¼ or ⅒ speed, with a scrubber and front, side, back and in-game views; tell me what to fix by move name and time)
 
-Open it on your phone and turn the phone sideways. To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.
+Open it on your phone, held either way: the side view (`/side/`) has a portrait layout as well as landscape (the other pages are landscape only). To play it like an app, choose **Add to Home Screen** (Safari: the Share button; Chrome: the ⋮ menu). It then opens full-screen and works offline.
 
 ## How to play
 
-You face one enemy at a time. Watch his weapon: a **gold glint** marks where a blow begins. When the glint **flares**, the blow is about to land.
+You face one enemy at a time. Watch his weapon: a **gold glint** marks where a blow begins, an arrow shows which way it will travel, and a **ring closes on the glint**, landing on it at the moment of impact. The ring turns **white** while the blow can be parried; a whoosh sounds as he releases it.
 
 | Action | How | Notes |
 |---|---|---|
@@ -26,16 +26,20 @@ You face one enemy at a time. Watch his weapon: a **gold glint** marks where a b
 | Dodge | Left / right roundels | Sideways slashes must be dodged *against* the blade's travel. Overhead blows can be dodged either way. Thrusts can't be dodged. |
 | Block | Hold the shield roundel | Stops anything, but each block costs a shield pip. Pips come back over time. You can't swipe while blocking. |
 | Parry | Swipe *against* the blow as the glint flares | Breaks his guard and fills his stagger meter. Swipe up against an overhead, left against a left-to-right slash, and sideways against a thrust. A **red glint** can't be parried. |
-| Super | Tap the star (top-left) when its ring is full | Stuns him and doubles your damage for a moment. |
+| Perfect block | Raise the shield at the last instant | Costs no pip, fills his stagger meter and breaks his attack. |
+| Riposte | After a parry, swipe along the white arrow | Double damage. |
+| Super | Tap the star when its ring is full | Stuns him and doubles your damage for a moment. |
 
 - Parries, perfect dodges and blocks fill his **stagger meter** (the gold bar under his health). When it fills, he's open for two seconds and takes extra damage.
-- **Known strikes:** swipe a sequence during one opening for a bonus blow. The combos are listed on the title screen.
+- **Counters:** a perfect dodge or perfect block breaks his combo and leaves him open.
+- **Known strikes:** while he is open, gold arrows walk you through a strike sequence; finish it for a heavy bonus blow. The sequences are listed on the title screen.
+- **The finishing blow** plays in slow motion while the crowd roars. Some foes don't stay down.
 - **Bloodline:** when you fall, your son takes up the oath with your gear and experience, and the run starts over. Beating the Green Knight starts a harder cycle.
 - New swords and shields unlock at generation milestones. Choose your gear in camp (the title screen).
 
 The first duel is a guided tutorial.
 
-**Desktop testing:** drag with the mouse to swipe, ← → to dodge, hold Space to block, S for super, Esc to pause.
+**Keyboard (desktop):** arrow keys strike in their direction (press two together for a diagonal, or use the numpad for all eight), **A / D** dodge, hold **S** or **Space** to block, **W** or **Enter** for the super, **Esc** or **P** to pause. In camp, **Enter** rides out, **← →** change sword and **↑ ↓** change shield. Dragging with the mouse also swipes.
 
 **Debug overlay:** tap the top-right corner five times during a duel to see FPS, enemy state and timing windows.
 
