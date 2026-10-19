@@ -176,3 +176,15 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   stay formal. The timing of each blow is unchanged; only how it looks differs.
 - **He blocks you, visibly:** when your swipe clangs off his guard, he takes it on his raised shield,
   or crosswise on his blade if he has no shield.
+
+## Brief 10, coherence pass (v26)
+
+`docs/BRIEF-10-coherence.md`, results included.
+
+- **Lessons wait their turn:** urgent ones show at once; the rest queue for a quiet moment and never
+  cover an incoming blow.
+- **Difficulty re-tuned from a fresh save:** fights were far too short (the Saxon fell after one of
+  his own blows). Foes now have more health and the Green Knight hits harder. Duels run about 12 to
+  40 seconds, and the Red Knight can now kill a careless knight.
+- **Portrait fixes:** the blade-lock camera keeps both knights whole on a narrow screen, and blade
+  trails switch off while blades are bound.

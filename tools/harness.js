@@ -88,7 +88,7 @@ export function bot(frames, skill = 1) {
       }
     } else if (e.state === 'Idle' && e.gapDirs && e.gapDirs().length && Math.random() < 0.02 * skill) {
       d.swipe.keySwipe(Math.random() < skill ? e.gapDirs()[0] : DIRS[(Math.random() * 8) | 0]);
-    } else if (e.isOpen() && Math.random() < 0.1) {
+    } else if (e.isOpen() && Math.random() < 0.06) {   // ~3.5 swipes a second, about human
       const h = d.director.riposte ? d.director.riposte.dir
         : d.director.comboHint ? d.director.comboHint.combo.seq[d.director.comboHint.step] : DIRS[(Math.random() * 8) | 0];
       d.swipe.keySwipe(h);

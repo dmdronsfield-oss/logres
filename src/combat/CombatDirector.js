@@ -121,7 +121,7 @@ export class CombatDirector {
     this.hud.bigText('Blade lock!', '#fff6cf', 170, 46);
     this.hud.showLock(true);
     Music.play('stand');
-    this._teach('lockHint', 'BLADE LOCK! Tap fast, anywhere (or any key), to drive him back!');
+    this._teach('lockHint', 'BLADE LOCK! Tap fast, anywhere (or any key), to drive him back!', 1, true);
   }
 
   lockTap() {
@@ -200,7 +200,7 @@ export class CombatDirector {
     const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
     this.riposte = { dir: back, until: performance.now() + CONFIG.parriedOpenMs };
     this.hud.showHint(back, 'Riposte!', 'riposte');
-    this._teach('ripHint', 'RIPOSTE: swipe along the white arrow for double damage.');
+    this._teach('ripHint', 'RIPOSTE: swipe along the white arrow for double damage.', 1, true);
     this.tutorial?.onParry?.();
   }
 
@@ -400,15 +400,37 @@ export class CombatDirector {
   }
 
   // One-time lessons for the deeper moves, shown once the tutorial is over.
-  // `after` = only on the nth time the situation arises.
-  _teach(flag, msg, after = 1) {
+  // `after` = only on the nth time the situation arises. Urgent lessons (about the
+  // blow coming now) show at once; the rest queue and wait for a quiet moment.
+  _teach(flag, msg, after = 1, urgent = false) {
     if (this.tutorial && this.tutorial.step !== 'free') return;
     if (Save.data[flag]) return;
     this._seen = this._seen || {};
     this._seen[flag] = (this._seen[flag] || 0) + 1;
     if (this._seen[flag] < after) return;
-    Save.set({ [flag]: true });
-    this.hud.banner(msg, 3400);
+    this.lessons = this.lessons || [];
+    if (urgent) {
+      Save.set({ [flag]: true });
+      this.lessons = this.lessons.filter((l) => l.flag !== flag);
+      this.hud.banner(msg, 3400);
+      this.lessonAt = performance.now();
+    } else if (!this.lessons.some((l) => l.flag === flag)) {
+      this.lessons.push({ flag, msg });
+    }
+  }
+
+  // A quiet moment: he's open, roaring, or has a while yet before his next blow.
+  _nextLesson() {
+    const e = this.enemy;
+    const now = performance.now();
+    if (!this.lessons || !this.lessons.length || now - (this.lessonAt || 0) < 4500 || this.lock) return;
+    const quiet = e.isOpen() || e.state === ES.INTERLUDE || (e.state === ES.IDLE && e.idleDur - e.t > 900);
+    if (!quiet) return;
+    const l = this.lessons.shift();
+    if (Save.data[l.flag]) return;
+    Save.set({ [l.flag]: true });
+    this.hud.banner(l.msg, 3400);
+    this.lessonAt = now;
   }
 
   // A perfect dodge or perfect block broke his attack.
@@ -442,8 +464,8 @@ export class CombatDirector {
   onTelegraph(attack) {
     this.tutorial?.onTelegraph?.(attack);
     if (this.tutorial && this.tutorial.step !== 'free') return;
-    if (attack.bash) this._teach('bashHint', 'SHIELD BASH! It cannot be parried or blocked. DODGE it!');
-    if (attack.hesitate) this._teach('hesitateHint', 'He HESITATES at the top. Wait for the ring to move again.');
+    if (attack.bash) this._teach('bashHint', 'SHIELD BASH! It cannot be parried or blocked. DODGE it!', 1, true);
+    if (attack.hesitate) this._teach('hesitateHint', 'He HESITATES at the top. Wait for the ring to move again.', 1, true);
     // One-time explanations for attack types the tutorial doesn't cover.
     if (!attack.parryable && !attack.unblockable && !Save.data.redHintShown) {
       Save.set({ redHintShown: true });
@@ -533,6 +555,7 @@ export class CombatDirector {
   update(realDt) {
     const e = this.enemy;
     const p = this.player;
+    if (!this.over) this._nextLesson();
     if (this.lock) this._updateLock(realDt);
     if (this.buffered) {
       if (performance.now() - this.buffered.at > CONFIG.swipe.bufferMs) this.buffered = null;

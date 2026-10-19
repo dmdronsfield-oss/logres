@@ -834,7 +834,7 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
-    this._trail(v, e.state === ES.DEFEATED ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
+    this._trail(v, e.state === ES.DEFEATED || e.state === ES.LOCKED ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
     // Gold shimmer while he is open: the moment to strike.
     const now = performance.now();
     const openNow = e.isOpen() && e.state !== ES.DEFEATED;
@@ -923,7 +923,7 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
-    this._trail(v, pl.state === PS.DEAD ? null : 0x6f86b8);
+    this._trail(v, pl.state === PS.DEAD || lock ? null : 0x6f86b8);
   }
 
   _trail(v, color) {
@@ -1006,11 +1006,12 @@ export class HallView extends World3D {
       piv.set(-0.2, 0, MID_Z);
       const dx = cam.position.x - piv.x;
       const dz = cam.position.z - piv.z;
-      const th = -s * (VIEW.portrait ? 0.45 : 0.75);
-      const r = 1 - s * 0.3;
+      // Upright screens are narrow: a gentler swing that keeps both knights whole.
+      const th = -s * (VIEW.portrait ? 0.32 : 0.75);
+      const r = 1 - s * (VIEW.portrait ? 0.04 : 0.3);
       cam.position.x = piv.x + (dx * Math.cos(th) - dz * Math.sin(th)) * r;
       cam.position.z = piv.z + (dx * Math.sin(th) + dz * Math.cos(th)) * r;
-      cam.position.y -= s * 0.2;
+      cam.position.y -= s * (VIEW.portrait ? 0.05 : 0.2);
       cam.lookAt(this.camTarget.x * (1 - s) - 0.2 * s, this.camTarget.y + s * 0.12, this.camTarget.z * (1 - s) + MID_Z * s);
     } else if (fin) {
       // Kill cam: swing round to the side of the duel and drop a little, on him.
