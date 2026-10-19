@@ -111,7 +111,9 @@ export class Codex extends Phaser.Scene {
     [
       'Knight armour: "Medieval Knight Armor (Low-poly / Rigged)" by INKXO, CC BY 4.0 (sketchfab.com).',
       'Menu music: "Wendale Abbey" by Yubatake, CC BY 4.0 (OpenGameArt.org).',
-      'Everything else (art, motion, sound) is made in code for Logres.',
+      'Steel on steel: "Medieval sound effects - Weapon impacts" by Ben Jaszczak & Brian Nelson, CC0 (OpenGameArt.org).',
+      'Armour, shield, footsteps, cloth and pages: Impact Sounds and RPG Audio by Kenney (kenney.nl), CC0.',
+      'Everything else (art, motion, voices, crowd and music) is made in code for Logres.',
     ].forEach((line) => {
       const t = text(this, x0, y, line, { fontSize: '14px', color: PALETTE.inkCss, wordWrap: { width: wrap }, originX: 0, originY: 0, align: 'left' });
       col.add(t);
@@ -140,7 +142,7 @@ export class Codex extends Phaser.Scene {
     this.input.on('pointerup', () => { dragY = null; });
     this.input.on('wheel', (p, objs, dx, dy) => setScroll(this.scrollY + dy * 0.6));
 
-    const close = () => { Sfx.click(); fadeTo(this, 'Title'); };
+    const close = () => { Sfx.book('close'); fadeTo(this, 'Title'); };
     menuButton(this, W / 2, H - 36, 200, 44, 'Close', close, { size: 20 }).setDepth(12);
     bindMenuKeys(this, {
       Escape: close, Enter: close,
@@ -148,6 +150,7 @@ export class Codex extends Phaser.Scene {
       PageDown: () => setScroll(this.scrollY + viewH * 0.8), PageUp: () => setScroll(this.scrollY - viewH * 0.8),
     });
     Music.play('abbey');
+    Sfx.book('open');
     this.cameras.main.fadeIn(250, 26, 20, 16);
   }
 }

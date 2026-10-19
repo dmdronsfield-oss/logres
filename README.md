@@ -73,3 +73,5 @@ Armour reference for the knights: English harness c.1370-1400 (the Black Prince'
 Bump `VERSION` in `service-worker.js` and push to `main`. GitHub Pages redeploys automatically, and installed copies pick up the new version on their next launch.
 
 **Menu music:** "Wendale Abbey" by Yubatake (CC BY 4.0, https://opengameart.org/content/wendale-abbey), converted to MP3 (`assets/audio/`). **Loading and menu image:** the Sacra di San Michele above the clouds (`assets/art/loading.jpg`), supplied by the project owner.
+
+**Sound clips:** steel on steel from "Medieval sound effects - Weapon impacts" by Ben Jaszczak & Brian Nelson (CC0, https://opengameart.org/node/146863); armour, shield, footsteps, cloth and pages from Kenney's Impact Sounds and RPG Audio (CC0, https://kenney.nl). Trimmed and converted in `assets/audio/sfx/` (see its CREDITS.txt). Voices, crowd, whooshes and the duel music are still synthesised.

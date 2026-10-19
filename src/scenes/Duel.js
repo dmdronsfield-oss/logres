@@ -105,6 +105,8 @@ export class Duel extends Phaser.Scene {
     });
 
     Music.play('duel');
+    // Steel drawn as the duel begins.
+    this.time.delayedCall(700, () => Sfx.draw());
     Sfx.crowd(true);
     this.events.once('shutdown', () => Sfx.crowd(false));
     this.heartT = 0;

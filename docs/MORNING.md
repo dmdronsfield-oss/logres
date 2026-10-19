@@ -432,3 +432,15 @@ keyboard only. Then I fixed what got in the way:
   contact, a follow-through that carries on past, and a settle before guard. 0.42 s in all.
 - **The foes' blows** carry past and settle more slowly after the impact, which stays on the beat.
 - Damage was retuned for the slower, heavier cuts; a full bot playthrough keeps the difficulty curve.
+
+## Real sounds (v52)
+
+- **Real recordings** now carry the most important sounds:
+  - Steel on steel (parries, blades turned, the blade lock): real weapon recordings (CC0).
+  - Cuts landing on plate, mail or leather; shield blocks and a splintering shield; footsteps on
+    stone; cloth on dodges; a sword drawn as each duel begins; a blade clattering to the floor
+    on a disarm; the pages of the Book of Arms (Kenney, CC0).
+- 34 trimmed clips, 175 KB in all, loaded in the background on your first tap. Each varies slightly
+  in pitch and level so repeats don't sound identical.
+- The voices, crowd, whooshes and duel music are still synthesised.
+- I couldn't listen to them myself, so tell me which ones jar.

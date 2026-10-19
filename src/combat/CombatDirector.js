@@ -165,7 +165,7 @@ export class CombatDirector {
     this.juice.parryBurst(tip.x, tip.y, 1.3);
     this.juice.shake(CONFIG.juice.shakeTaken);
     this.juice.vibrate(CONFIG.juice.vibrateParryMs);
-    Sfx.parry();
+    Sfx.clashHeavy();
     this.hud.bigText('Blade lock!', '#fff6cf', 170, 46);
     this.hud.showLock(true);
     Music.play('stand');
@@ -292,7 +292,7 @@ export class CombatDirector {
     this.hud.bigText('Disarmed!', '#fff6cf', 200, 52);
     this.juice.slowMo(0.3, 380);
     Sfx.cheer();
-    this.scene.time.delayedCall(820, () => Sfx.hitArmour('plate'));
+    this.scene.time.delayedCall(820, () => Sfx.clatter());
     this._teach('disarmHint', 'DISARMED! Three parries in a row struck the blade from his hand. Cut him down before he takes it up!', 1, true);
   }
 

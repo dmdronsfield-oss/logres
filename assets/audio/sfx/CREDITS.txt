@@ -1,0 +1,11 @@
+Sound clips in this folder (trimmed, normalised, converted to mono MP3):
+
+clash_*, clash_heavy_*
+  "Medieval sound effects - Weapon impacts" by Ben Jaszczak & Brian Nelson
+  https://opengameart.org/node/146863  -  CC0 1.0 (public domain)
+
+hit_plate_*, hit_mail_*, hit_leather_*, block_shield_*, step_*, clatter_*, shield_break_*
+  "Impact Sounds" by Kenney (www.kenney.nl)  -  CC0 1.0
+
+cloth_*, draw_*, book_*
+  "RPG Audio" by Kenney (www.kenney.nl)  -  CC0 1.0
