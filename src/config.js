@@ -118,8 +118,8 @@ export const CONFIG = {
     damageMult: 2,
   },
 
-  parriedOpenMs: 900,
-  disarm: { parries: 3, openMs: 2600 },   // parries in a row to disarm him; how long he's open       // enemy is open this long after being parried (if not staggered)
+  parriedOpenMs: 900,       // enemy is open this long after being parried (if not staggered)
+  disarm: { parries: 3, openMs: 2600 },   // parries in a row to disarm him; how long he's open
 
   combos: [
     { id: 'cross', name: 'Pendragon Cross', seq: ['E', 'W', 'S'], damage: 30 },
