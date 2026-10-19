@@ -6,6 +6,8 @@ import { Sfx } from '../audio/Sfx.js';
 import { Save } from '../save/Save.js';
 import { Music } from '../audio/Music.js';
 
+const GAWAIN_VOICE = { f0: 118, vowel: 'u' };
+
 // Referee between the player and the enemy: applies the combat rules,
 // meters, combos and feedback, and decides the outcome of the duel.
 export class CombatDirector {
@@ -79,6 +81,7 @@ export class CombatDirector {
     const p = this.player;
     if (!p.startDodge(side)) return;
     Sfx.dodge();
+    Sfx.scuff();
     this.scene.dodgeShift(side);
     const e = this.enemy;
     // Punish an early dodge by waiting it out.
@@ -266,7 +269,8 @@ export class CombatDirector {
     this.juice.sparksAt(hx, hy, 8, 'red');
     this.juice.sparksAlong(hx, hy, dx, dy, 18);
     this.juice.damageNumber(hx, hy - 40, dmg, { color: mult > 1 ? '#fff6cf' : PALETTE.goldLight, size: mult > 1 ? 40 : 32 });
-    Sfx.hit();
+    Sfx.hitArmour(e.def.armour || 'mail');
+    if (Math.random() < 0.45) Sfx.voice(e.def.voice, 'pain');
     this.hud.showCounter(this.hitCount);
     this.addSuper(CONFIG.super.fromHit);
     this.tutorial?.onHit?.();
@@ -319,7 +323,7 @@ export class CombatDirector {
     this.juice.sparksAt(c.x, c.y, 10, 'red');
     this.juice.damageNumber(c.x, c.y - 40, dmg, { color: PALETTE.goldLight, size: 28 });
     this.hud.bigText('Through his guard!', '#fff3c4', 160, 32);
-    Sfx.hit();
+    Sfx.hitArmour(e.def.armour || 'mail');
     this.addSuper(CONFIG.super.fromHit);
     this.hud.hideGap();
     if (e.takeHit(dmg, dir)) { this.enemyDefeated(); return; }
@@ -399,6 +403,7 @@ export class CombatDirector {
       const dead = p.takeHit(dmg);
       Sfx.hurt();
       Sfx.gasp();
+      Sfx.voice(GAWAIN_VOICE, 'pain');
       // Pride: two of his blows in a row and he'll gloat.
       this.hitsInRow = (this.hitsInRow || 0) + 1;
       if (this.hitsInRow >= 2) { e.gloatPending = true; this.hitsInRow = 0; }
@@ -530,6 +535,7 @@ export class CombatDirector {
       e.stagger = 0;
       e.forceStagger(CONFIG.stagger.durationMs, false);
       Sfx.stagger();
+      Sfx.voice(e.def.voice, 'stagger');
       this.juice.shake(CONFIG.juice.shakeTaken);
       this.hud.bigText('Staggered!', '#fff6cf', 200, 52);
       this.tutorial?.onStagger?.();

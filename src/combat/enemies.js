@@ -62,6 +62,8 @@ export const ENEMIES = [
   {
     id: 'saxon',
     taunt: 'bang',
+    voice: { f0: 105, vowel: 'a' },
+    armour: 'mail',
     restless: 1.0,
     name: 'Saxon Raider',
     epithet: 'come over the grey sea',
@@ -107,6 +109,8 @@ export const ENEMIES = [
   {
     id: 'black',
     taunt: 'salute',
+    voice: { f0: 92, vowel: 'o', muffle: true },
+    armour: 'plate',
     restless: 0.55,
     name: 'The Black Knight',
     epithet: 'who holds the ford',
@@ -151,6 +155,8 @@ export const ENEMIES = [
   {
     id: 'brigand',
     taunt: 'point',
+    voice: { f0: 150, vowel: 'ae' },
+    armour: 'leather',
     restless: 1.7,
     openLimit: { cuts: 3, react: 'hop' },
     name: 'The Brigand Captain',
@@ -195,6 +201,8 @@ export const ENEMIES = [
   {
     id: 'red',
     taunt: 'raise',
+    voice: { f0: 128, vowel: 'a' },
+    armour: 'plate',
     restless: 0.85,
     openLimit: { cuts: 3, react: 'counter' },
     name: 'The Red Knight',
@@ -239,6 +247,8 @@ export const ENEMIES = [
   {
     id: 'green',
     taunt: 'laugh',
+    voice: { f0: 66, vowel: 'o' },
+    armour: 'plate',
     restless: 0.45,
     name: 'The Green Knight',
     epithet: 'of the Green Chapel',

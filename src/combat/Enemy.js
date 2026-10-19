@@ -318,6 +318,7 @@ export class Enemy extends Fighter {
         if (!this.released && rem <= 90 && !this.feintAt) {
           this.released = true;
           Sfx.whoosh(!!this.attack.heavy);
+          Sfx.step(true);
         }
         if (rem <= 0) this.impact();
         break;
@@ -426,6 +427,9 @@ export class Enemy extends Fighter {
     this.glint.setTexture(red ? 'glint_red' : 'glint_gold').setVisible(true).setAlpha(0);
     this.rig.setWeaponTint(red ? 0xff7a6a : null);
     Sfx.glint(red);
+    // His battle cry: always on heavy or unparryable blows, often otherwise.
+    const heavy = this.attack.heavy || !this.attack.parryable;
+    if (heavy || Math.random() < 0.65) Sfx.voice(this.def.voice, heavy ? 'heavy' : 'cry');
     this.director.onTelegraph?.(this.attack);
   }
 

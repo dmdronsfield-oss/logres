@@ -297,3 +297,16 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   easier than the Saxon, and the Red Knight was harder than the Green Knight. Retuned: the Black
   Knight hits harder, the Red Knight a little softer, and the Green Knight is now the toughest (more
   health, heavier blows). The curve now rises to the finale.
+
+## Brief 22, voices and steel (v38)
+
+`docs/BRIEF-22-voices-and-steel.md`
+
+- **Battle cries:** each foe shouts as he winds up (always for heavy and unparryable blows), in his own
+  synthesised voice: the Saxon gruff, the Black Knight muffled by his helm, the Brigand sharp, the Red
+  Knight ringing, the Green Knight deep. He grunts when cut and cries out when staggered; Gawain
+  grunts when hit.
+- **Armour sounds:** cuts ring on plate, chink on mail and thud on leather, by foe.
+- **Footfalls** on his lunges, and a scuff when you dodge.
+- I couldn't listen to these myself (the code runs cleanly). Formant voices can sound robotic, so tell
+  me if they grate and I'll tone them down or take them out.

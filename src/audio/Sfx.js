@@ -152,6 +152,72 @@ class SfxEngine {
     }
   }
 
+  // A voice by formant synthesis: a buzzing glottal source shaped by the vowel's
+  // resonances. v = { f0, vowel, muffle }, kind = cry | heavy | pain | stagger.
+  voice(v, kind = 'cry') {
+    if (!this._ok() || !v) return;
+    const VOW = { a: [730, 1090, 2440], o: [500, 860, 2400], e: [600, 1750, 2600], u: [350, 750, 2300], ae: [660, 1720, 2410] };
+    const F = VOW[v.vowel] || VOW.a;
+    const len = { cry: 0.26, heavy: 0.42, pain: 0.2, stagger: 0.5 }[kind] || 0.3;
+    const loud = { cry: 0.22, heavy: 0.32, pain: 0.2, stagger: 0.26 }[kind] || 0.2;
+    const f0 = v.f0 * (kind === 'pain' ? 1.25 : kind === 'stagger' ? 1.1 : 1) * (0.96 + Math.random() * 0.08);
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createOscillator();
+    src.type = 'sawtooth';
+    src.frequency.setValueAtTime(f0 * (kind === 'heavy' ? 0.9 : 1), t);
+    src.frequency.linearRampToValueAtTime(f0 * (kind === 'stagger' ? 0.6 : kind === 'heavy' ? 1.1 : 0.85), t + len);
+    const out = this.ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(loud, t + 0.03);
+    out.gain.setValueAtTime(loud, t + len * 0.5);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    const tail = this.ctx.createBiquadFilter();
+    tail.type = 'lowpass';
+    tail.frequency.value = v.muffle ? 1100 : 3600;
+    F.forEach((fr, i) => {
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = fr;
+      bp.Q.value = 6 + i * 2;
+      const g = this.ctx.createGain();
+      g.gain.value = [1, 0.6, 0.25][i];
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(tail);
+    });
+    tail.connect(out);
+    out.connect(this.master);
+    src.start(t);
+    src.stop(t + len + 0.05);
+    // Breath on the front of the shout.
+    this.noise(0.08, { gain: loud * 0.4, filter: 'bandpass', freq: F[1], q: 1 });
+  }
+
+  // What a cut lands on: plate rings, mail chinks, leather thuds.
+  hitArmour(kind) {
+    if (kind === 'plate') {
+      const k = 0.9 + Math.random() * 0.2;
+      [880, 1390, 2210, 3170].forEach((f, i) => this.tone(f * k, 0.35 - i * 0.06, { gain: 0.09 - i * 0.015 }));
+      this.tone(140, 0.14, { gain: 0.4, freqEnd: 70 });
+      this.noise(0.06, { gain: 0.35, filter: 'highpass', freq: 2500 });
+    } else if (kind === 'mail') {
+      for (let i = 0; i < 6; i++) this.noise(0.03, { gain: 0.18, filter: 'highpass', freq: 3000 + Math.random() * 3000, delay: i * 0.012 + Math.random() * 0.01 });
+      this.tone(160, 0.12, { gain: 0.35, freqEnd: 80 });
+    } else {
+      this.noise(0.14, { gain: 0.5, filter: 'lowpass', freq: 700 });
+      this.tone(120, 0.16, { gain: 0.45, freqEnd: 60 });
+    }
+  }
+
+  step(heavy = false) {
+    this.tone(heavy ? 60 : 75, heavy ? 0.18 : 0.12, { gain: heavy ? 0.4 : 0.25, freqEnd: 40 });
+    this.noise(0.06, { gain: heavy ? 0.2 : 0.12, filter: 'lowpass', freq: 500 });
+  }
+
+  scuff() {
+    this.noise(0.18, { gain: 0.14, attack: 0.02, filter: 'bandpass', freq: 1800, freqEnd: 900, q: 0.8 });
+  }
+
   // The galleries jeer a gloating foe.
   jeer() {
     this.noise(0.9, { gain: 0.12, attack: 0.1, filter: 'bandpass', freq: 300, freqEnd: 220, q: 0.8 });
