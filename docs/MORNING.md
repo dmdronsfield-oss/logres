@@ -358,3 +358,8 @@ keyboard only. Then I fixed what got in the way:
 
 - The gold strike arrow no longer hides the foe during openings. It's slimmer and slightly
   see-through, and its label ("Pendragon Cross 1/3") moved off his body to the side.
+
+## No capes (v44)
+
+- Removed every cape at your request: Gawain's lion cape, the foes' capes and the Green Knight's
+  leafy cloak, in the game and in the animation lab.

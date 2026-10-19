@@ -2,8 +2,6 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 import { RoomEnvironment } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js';
 import { buildKnight } from '../render3d/knight/Knight.js';
 import { Animator, GUARD, STATES, pose, windupPose, strikePose, recoverPose, playerSwingPose, mirrorDir, styleFor, bashPose, tauntPose } from '../render3d/knight/Motion.js';
-import { Cloth } from '../render3d/knight/Cloth.js';
-import { drapeTex } from '../render3d/knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from '../render3d/knight/Looks.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { loadQuaternius, loadGawain, loadInkxo, buildSkinnedKnight } from '../render3d/knight/Skinned.js';
@@ -254,16 +252,7 @@ function makeFigure(def) {
       spheres[`thigh${s}`].c.copy(tmp).lerp(spheres[`knee${s}`].c, 0.5);
     }
   };
-  const cloths = [];
-  const along = (jnt, x0, x1, y, z, cols) => (c, out) => jnt.localToWorld(out.set(x0 + ((x1 - x0) * c) / (cols - 1), y, z));
-  const drape = (map, alpha) => new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.92, envMapIntensity: 0.25, transparent: alpha, alphaTest: alpha ? 0.45 : 0 });
-  const L = def.look;
-  if (L.leafy) {
-    cloths.push(new Cloth({ cols: 9, rows: 12, width: 1.0, height: 1.55, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, 0.36, -0.36, 0.21, -0.12, 9), colliders: () => list }));
-    cloths.push(new Cloth({ cols: 7, rows: 5, width: 0.6, height: 0.45, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, -0.3, 0.3, 0.22, 0.14, 7), colliders: () => list }));
-  } else if (L.cape) {
-    cloths.push(new Cloth({ cols: 7, rows: 10, width: 0.54, height: 1.2, material: drape(drapeTex(L.cape, L.trim, L.capeCharge, L.chargeColor, 'cape')), pin: along(J.chest, 0.21, -0.21, 0.19, -0.15, 7), colliders: () => list }));
-  }
+  const cloths = [];   // no capes or cloaks (as in the game)
   cloths.forEach((c) => scene.add(c.mesh));
   return {
     def, k, anim, cloths, updateSpheres,

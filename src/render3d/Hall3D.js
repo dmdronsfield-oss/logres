@@ -14,9 +14,7 @@ import { buildKnight } from './knight/Knight.js';
 import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.js';
 import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose, tauntPose, styleFor } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
-import { Cloth } from './knight/Cloth.js';
 import { BladeTrail } from './Trail.js';
-import { drapeTex } from './knight/Mat.js';
 import { PLAYER_LOOK, lookFor } from './knight/Looks.js';
 import { comfort } from '../ui/Comfort.js';
 
@@ -195,7 +193,6 @@ export class HallView extends World3D {
     const q = this.quality;
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, [1, 1.25, 1.5][q]);
     if (this.mirror) this.mirror.visible = q > 0;
-    [this.player, this.enemy].forEach((f) => (f?.cloths || []).forEach((c) => { if (q >= 2) c.mesh.layers.enable(REFLECT); else c.mesh.layers.disable(REFLECT); }));
     if (this.floor) {
       this.floor.material.opacity = q > 0 ? 0.74 : 1;
       this.floor.material.transparent = q > 0;
@@ -652,29 +649,7 @@ export class HallView extends World3D {
         spheres[`shin${s}`].c.copy(spheres[`knee${s}`].c).lerp(tmp, 0.5);
       }
     };
-    const cloths = [];
-    const cloth = (opts) => {
-      const c = new Cloth({ ...opts, colliders: () => list });
-      // Cloth is drawn in the floor's reflection only on High.
-      if (this.quality >= 2) c.mesh.layers.enable(REFLECT);
-      this.content.add(c.mesh);
-      cloths.push(c);
-      return c;
-    };
-    const drape = (map, alpha = false) => {
-      const m = new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.92, envMapIntensity: 0.25, transparent: alpha, alphaTest: alpha ? 0.45 : 0 });
-      k.mats.push(m);
-      return m;
-    };
-    const kb = k.bodyScale || 1;
-    const along = (jnt, x0, x1, y, z, cols) => (c, out) => jnt.localToWorld(out.set((x0 + ((x1 - x0) * c) / (cols - 1)) * kb, y * kb, z * kb));
-    if (look.leafy) {
-      cloth({ cols: 9, rows: 12, width: 1.0, height: 1.55, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, 0.36, -0.36, 0.21, -0.12, 9) });
-      // A second leafy layer over the shoulders and chest, like a mantle.
-      cloth({ cols: 7, rows: 5, width: 0.6, height: 0.45, material: drape(drapeTex('#3f7a35', null, null, null, 'leaf', true), true), pin: along(J.chest, -0.3, 0.3, 0.22, 0.14, 7) });
-    } else if (look.cape) {
-      cloth({ cols: 7, rows: 10, width: 0.54, height: 1.2, material: drape(drapeTex(look.cape, look.trim, look.capeCharge, look.chargeColor, 'cape')), pin: along(J.chest, 0.21, -0.21, 0.19, -0.15, 7) });
-    }
+    const cloths = [];   // no capes or cloaks
     k.root.traverse((o) => { if (o.isMesh) o.layers.enable(REFLECT); });
     return { k, anim, cloths, updateSpheres, guard, look };
   }
