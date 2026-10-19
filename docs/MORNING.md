@@ -277,3 +277,14 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   leggings, under his own nasal helm and beard. **The Brigand** wears mail with a dark leather
   brigandine and his green hood. All five foes now share Gawain's detailed body and motion. Their
   heads are still the simpler code-built ones.
+
+## Brief 20, pride and life (v36)
+
+`docs/BRIEF-20-pride-and-life.md`
+
+- **Life between blows:** foes rock their weight from foot to foot and reset their feet now and then,
+  each at their own pace (the Brigand restless, the Black Knight still, the Green Knight slow).
+- **Pride:** land two blows on Gawain in a row and the foe gloats with his challenge pose. He's open
+  while he does it, and the crowd jeers. It gives a struggling player a way back. It's in the Book of
+  Arms.
+- Blade trails now only show during actual blows (they flared during gloats and stumbles).

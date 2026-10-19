@@ -778,7 +778,7 @@ export class HallView extends World3D {
         omega = 40; zWant = e.attack && e.attack.bash ? 0.52 : 0.45; zRate = 22; break;
       case ES.GAP: target = strikePose(guard, dir, 380 + e.t, style); omega = 14; zWant = 0.25; break;
       case ES.FEINT: omega = 16; zWant = -0.1; break;
-      case ES.RECOVER: target = recoverPose(guard, dir, e.t, style); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
+      case ES.RECOVER: target = e.gloating ? tauntPose(guard, e.def.taunt, e.t) : recoverPose(guard, dir, e.t, style); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
       case ES.PARRIED: target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
@@ -788,13 +788,27 @@ export class HallView extends World3D {
         if (e.t > t0 && e.t < e.introMs * 0.9) { target = tauntPose(guard, e.def.taunt, e.t - t0); omega = 12; }
         break;
       }
-      case ES.IDLE:
+      case ES.IDLE: {
         if (e.usesStances && e.stance) { target = pose(guard, e.stance === 'high' ? STATES.highGuard : STATES.lowGuard); omega = 9; }
+        // Life between blows: weight rocks from foot to foot, and now and then he resets his feet.
+        const rate = e.def.restless || 1;
+        const tt = this.time / 1000;
+        target = pose(target);
+        const sway = Math.sin(tt * 1.3 * rate + (v.phase || (v.phase = Math.random() * 6)));
+        target.pelvis[0] += sway * 0.035;
+        target.pelvis[1] -= Math.abs(sway) * 0.008;
+        target.chest[2] += sway * 0.04;
+        const beat = Math.floor(tt * 0.45 * rate);
+        const r1 = Math.sin(beat * 12.9898) * 43758.5453;
+        const jitter = (r1 - Math.floor(r1)) - 0.5;
+        if (beat % 2) target.footL[1] += jitter * 0.08;
+        else target.footR[1] += jitter * 0.08;
         // Your swipe clanged: he visibly takes it on his shield or his blade.
         if (e.flinchAt && performance.now() - e.flinchAt < 320) {
           target = pose(target, e.def.offhand && e.def.offhand !== 'holly' ? STATES.shieldBlock : STATES.bladeBlock); omega = 30;
         }
         break;
+      }
       case ES.LOCKED: {
         // The struggle shows in the gap: his weight comes on as he wins, goes back as he loses.
         const lv = this.duel && this.duel.director.lock ? this.duel.director.lock.v : 0.5;
@@ -848,7 +862,9 @@ export class HallView extends World3D {
     if (k.retarget) k.retarget();
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
-    this._trail(v, e.state === ES.DEFEATED || e.state === ES.LOCKED ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
+    // Trails belong to blows only (not gloats, guards or stumbles).
+    const blow = e.state === ES.TELEGRAPH || e.state === ES.STRIKE || e.state === ES.GAP;
+    this._trail(v, !blow ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
     this._wear(v, e.healthFrac);
     // Gold shimmer while he is open: the moment to strike.
     const now = performance.now();

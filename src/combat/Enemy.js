@@ -382,6 +382,7 @@ export class Enemy extends Fighter {
       return;
     }
     this.setState(ES.IDLE);
+    this.gloating = false;
     this.shiftGuard(Math.random() < 0.5 ? 'high' : 'low');
     this.superStagger = false;
     this.idleDur = this.forceShortIdle ? 250 : rand(this.cfg.idleMs);
@@ -545,7 +546,24 @@ export class Enemy extends Fighter {
     this.lastOutcome = this.director.resolveImpact(this.attack);
   }
 
+  // Two of his blows landed in a row: he gloats (his challenge), and is open while he does.
+  gloat() {
+    this.gloatPending = false;
+    this.attacksSinceGloat = 0;
+    this.setState(ES.RECOVER);
+    this.openDur = 1150;
+    this.gloating = true;
+    this.cuts = 0;
+    this.director.onOpen?.();
+    this.director.onGloat?.();
+  }
+
   afterStrike() {
+    this.attacksSinceGloat = (this.attacksSinceGloat ?? 3) + 1;
+    if (this.gloatPending && !this.scripted && this.comboIdx + 1 >= this.combo.length) {
+      if (this.attacksSinceGloat >= 3) { this.gloat(); return; }
+      this.gloatPending = false;
+    }
     // A perfect dodge or perfect block breaks the combo and leaves him open.
     if (!this.scripted && (this.lastOutcome === 'perfect' || this.lastOutcome === 'perfectBlock')) {
       this.cuts = 0;

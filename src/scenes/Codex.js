@@ -30,6 +30,7 @@ const TRICKS = [
   { title: 'The Hesitation', flag: 'hesitateHint', text: 'The Black Knight stops at the top of his blow; the ring stalls and flickers. Wait for it to move.', how: 'Patience' },
   { title: 'The Counter-cut', flag: 'spamHint', text: 'Swipe twice at his guard and he answers at once.', how: 'Strike only when he is open' },
   { title: 'Recovering Early', flag: 'limitHint', text: 'Better foes won\'t stand for many cuts: the Brigand slips away, the Red Knight turns your blade. The gold glow flickers first.', how: 'Stop when the glow flickers' },
+  { title: 'Pride', flag: 'gloatHint', text: 'Land two blows on you in a row and he gloats. While he does, he is open.', how: 'Strike while he gloats' },
   { title: 'The Last Stand', flag: 'standSeen', text: 'Near the end every foe fights on harder: faster wind-ups, shorter pauses.', how: 'Hold your nerve' },
 ];
 

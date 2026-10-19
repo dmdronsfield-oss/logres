@@ -62,6 +62,7 @@ export const ENEMIES = [
   {
     id: 'saxon',
     taunt: 'bang',
+    restless: 1.0,
     name: 'Saxon Raider',
     epithet: 'come over the grey sea',
     scene: 'forest',
@@ -106,6 +107,7 @@ export const ENEMIES = [
   {
     id: 'black',
     taunt: 'salute',
+    restless: 0.55,
     name: 'The Black Knight',
     epithet: 'who holds the ford',
     scene: 'hall',
@@ -149,6 +151,7 @@ export const ENEMIES = [
   {
     id: 'brigand',
     taunt: 'point',
+    restless: 1.7,
     openLimit: { cuts: 3, react: 'hop' },
     name: 'The Brigand Captain',
     epithet: 'of the Wirral road',
@@ -192,6 +195,7 @@ export const ENEMIES = [
   {
     id: 'red',
     taunt: 'raise',
+    restless: 0.85,
     openLimit: { cuts: 3, react: 'counter' },
     name: 'The Red Knight',
     epithet: 'of the Red Lands',
@@ -235,6 +239,7 @@ export const ENEMIES = [
   {
     id: 'green',
     taunt: 'laugh',
+    restless: 0.45,
     name: 'The Green Knight',
     epithet: 'of the Green Chapel',
     scene: 'chapel',

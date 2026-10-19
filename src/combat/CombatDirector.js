@@ -399,6 +399,9 @@ export class CombatDirector {
       const dead = p.takeHit(dmg);
       Sfx.hurt();
       Sfx.gasp();
+      // Pride: two of his blows in a row and he'll gloat.
+      this.hitsInRow = (this.hitsInRow || 0) + 1;
+      if (this.hitsInRow >= 2) { e.gloatPending = true; this.hitsInRow = 0; }
       this.juice.hitStop(CONFIG.juice.takenStopMs);
       this.juice.edgeFlash(attack.direction);
       this.juice.shake(attack.heavy ? CONFIG.juice.shakeHeavy : CONFIG.juice.shakeTaken);
@@ -409,6 +412,7 @@ export class CombatDirector {
       this.hitCount = 0;
       if (dead) this.playerDefeated();
     }
+    if (outcome !== 'hit') this.hitsInRow = 0;
     if (outcome !== 'hit' && outcome !== 'blocked') this.juice.sparksAt(tip.x, tip.y, 4);
     this.tutorial?.onImpact?.(outcome, attack);
     return outcome;
@@ -457,6 +461,12 @@ export class CombatDirector {
     Save.set({ [l.flag]: true });
     this.hud.banner(l.msg, 3400);
     this.lessonAt = now;
+  }
+
+  onGloat() {
+    this.hud.bigText('He gloats! Strike!', '#fff3c4', 170, 38);
+    Sfx.jeer();
+    this._teach('gloatHint', 'Land two blows on you and he GLOATS. While he does he is open: make him pay.', 1, true);
   }
 
   // A perfect dodge or perfect block broke his attack.

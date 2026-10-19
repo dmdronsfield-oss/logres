@@ -152,6 +152,12 @@ class SfxEngine {
     }
   }
 
+  // The galleries jeer a gloating foe.
+  jeer() {
+    this.noise(0.9, { gain: 0.12, attack: 0.1, filter: 'bandpass', freq: 300, freqEnd: 220, q: 0.8 });
+    [0, 0.25].forEach((d) => this.tone(180, 0.35, { gain: 0.04, type: 'sawtooth', freqEnd: 140, delay: d }));
+  }
+
   gasp() {
     this.noise(0.5, { gain: 0.14, attack: 0.04, filter: 'bandpass', freq: 1100, freqEnd: 420, q: 0.7 });
   }
