@@ -3,7 +3,7 @@ import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { img, text } from '../art/Tex.js';
-import { backgroundKey, borderKey } from '../art/Backgrounds.js';
+import { backgroundKey } from '../art/Backgrounds.js';
 import { menuButton } from '../ui/Button.js';
 import { bindMenuKeys } from '../input/Keys.js';
 import { Music } from '../audio/Music.js';
@@ -26,7 +26,6 @@ export class Victory extends Phaser.Scene {
     img(this, W / 2, H / 2, bgKey).setAlpha(0.5);
     this.events.once('shutdown', () => { if (this.textures.exists(bgKey)) this.textures.remove(bgKey); });
     this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.35);
-    img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
     const P = VIEW.portrait;
     const title = text(this, W / 2, py(80, 0.42), data.final ? 'The Cycle Turns' : 'Victory', {

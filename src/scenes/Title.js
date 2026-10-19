@@ -4,7 +4,7 @@ import { Sfx } from '../audio/Sfx.js';
 import { Music } from '../audio/Music.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { img, text, canvasTex, roundRect } from '../art/Tex.js';
-import { backgroundKey, borderKey } from '../art/Backgrounds.js';
+import { backgroundKey } from '../art/Backgrounds.js';
 import { drawShieldShape } from '../art/Rig.js';
 import { DIR_ARROW } from '../input/SwipeInput.js';
 import { menuButton, arrowButton } from '../ui/Button.js';
@@ -49,7 +49,6 @@ export class Title extends Phaser.Scene {
 
     img(this, W / 2, H / 2, backgroundKey(this, 'forest')).setAlpha(0.55);
     this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.25);
-    img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
     // Layout: three columns in landscape; stacked when the phone is upright.
     const P = VIEW.portrait;

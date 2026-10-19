@@ -4,7 +4,7 @@ import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { ENEMIES } from '../combat/enemies.js';
 import { img, text, canvasTex } from '../art/Tex.js';
-import { backgroundKey, borderKey } from '../art/Backgrounds.js';
+import { backgroundKey } from '../art/Backgrounds.js';
 import { drawShieldShape } from '../art/Rig.js';
 import { setupCamera, fadeTo, py } from './common.js';
 import { Music } from '../audio/Music.js';
@@ -25,7 +25,6 @@ export class Death extends Phaser.Scene {
     const shield = CONFIG.shields.find((x) => x.id === data.shield) || CONFIG.shields[0];
 
     img(this, W / 2, H / 2, backgroundKey(this, 'chapelInterior'));
-    img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
     // The hung shield, with its cord and nail.
     const key = `hung_${shield.id}`;

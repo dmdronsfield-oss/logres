@@ -2,7 +2,7 @@ import { VIEW, PALETTE } from '../config.js';
 import { Save } from '../save/Save.js';
 import { Sfx } from '../audio/Sfx.js';
 import { img, text, canvasTex, roundRect } from '../art/Tex.js';
-import { backgroundKey, borderKey } from '../art/Backgrounds.js';
+import { backgroundKey } from '../art/Backgrounds.js';
 import { menuButton } from '../ui/Button.js';
 import { bindMenuKeys } from '../input/Keys.js';
 import { setupCamera, fadeTo } from './common.js';
@@ -51,7 +51,6 @@ export class Codex extends Phaser.Scene {
     const H = VIEW.H;
     img(this, W / 2, H / 2, backgroundKey(this, 'forest')).setAlpha(0.45);
     this.add.rectangle(W / 2, H / 2, W, H, 0x1a1410, 0.4);
-    img(this, W / 2, H / 2, borderKey(this)).setDepth(10);
 
     const pw = Math.min(W - 50, 780);
     const top = 70;

@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preload" as="image" href="assets/art/loading.jpg">
   <style>
     html, body {
       margin: 0;
@@ -47,16 +48,33 @@
       pointer-events: none;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
+    /* Loading: the Sacra di San Michele above the clouds, the title in the fog beside it. */
     #loading {
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #f6dc8a;
-      font: 700 34px "Cinzel", Georgia, serif;
+      gap: 18px;
+      padding-left: 48%;
+      color: #2a1f14;
+      font: 700 38px "Cinzel", Georgia, serif;
       letter-spacing: 0.2em;
+      text-shadow: 0 0 14px rgba(255, 255, 255, 0.9);
+      background: #d8d6d2 url(assets/art/loading.jpg) 34% 50% / cover no-repeat;
     }
+    @media (orientation: portrait) {
+      /* Upright: the whole abbey at the top, fading into fog where the title sits. */
+      #loading {
+        padding-left: 0; justify-content: flex-end; padding-bottom: 14vh;
+        background: linear-gradient(to bottom, #d8d6d2 4%, rgba(216, 214, 210, 0) 13%, rgba(216, 214, 210, 0) 48%, #d8d6d2 60%),
+          #d8d6d2 url(assets/art/loading.jpg) 30% 12% / 250% auto no-repeat;
+      }
+    }
+    #loading .bar { width: min(60vw, 320px); height: 8px; border: 2px solid #7a5a20; border-radius: 6px; padding: 2px; background: rgba(255, 255, 255, 0.35); }
+    #loading .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #6b4e14, #b88a2c); border-radius: 3px; transition: width 0.25s; }
+    #loading .msg { font: 400 15px "Cinzel", Georgia, serif; letter-spacing: 0.08em; color: #3a2c1c; }
     #rotate {
       display: none;
       position: fixed;

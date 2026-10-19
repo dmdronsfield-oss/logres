@@ -397,3 +397,10 @@ keyboard only. Then I fixed what got in the way:
   the trail was a big pale sheet. Each swipe is now one clean arc: draw back, straight across the
   front at the foe, through to the far side.
 - The trail is now a thin streak following the tip, shown only during the cut.
+
+## Loading screen and no border (v48)
+
+- The loading screen is now your photograph of the Sacra di San Michele above the clouds. In
+  landscape, the title and progress bar sit in the fog beside the abbey; on an upright phone the
+  abbey is at the top, fading into fog where the title sits.
+- The illuminated border is gone from every screen.

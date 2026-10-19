@@ -15,7 +15,7 @@ import { Hud } from '../ui/Hud.js';
 import { menuButton } from '../ui/Button.js';
 import { img, text, canvasTex } from '../art/Tex.js';
 import { PLAYER_CREST, playerName } from '../art/Heraldry.js';
-import { backgroundKey, borderKey } from '../art/Backgrounds.js';
+import { backgroundKey } from '../art/Backgrounds.js';
 import { setupCamera, fadeTo, isPortrait, py } from './common.js';
 
 export class Duel extends Phaser.Scene {
@@ -52,7 +52,6 @@ export class Duel extends Phaser.Scene {
       this.bgKey = backgroundKey(this, def.scene);
       this.world.add(img(this, W / 2, H / 2, this.bgKey));
     }
-    img(this, W / 2, H / 2, borderKey(this)).setDepth(38);
 
     this.juice = new Juice(this);
     this.player = new Player(this, {
