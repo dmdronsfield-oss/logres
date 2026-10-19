@@ -169,6 +169,16 @@ function antlers(bag, head, L) {
   });
 }
 
+// A code-built head and helm on their own (for a borrowed body whose helmet is
+// hidden): a group with its origin at the head joint (chin level).
+export function headPiece(L, M) {
+  const g = new THREE.Group();
+  const bag = new PartBag(M);
+  helm(bag, g, L);
+  bag.build();
+  return g;
+}
+
 // Antlers on their own (for a borrowed helm): a group with its origin at the
 // head joint of the code-built knight (antler bases about 0.24 m above it).
 export function antlerCrown(L) {

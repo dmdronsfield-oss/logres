@@ -3,7 +3,7 @@ import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/j
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js';
 import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
-import { DIM, buildSkeleton, weapon, shield, antlerCrown } from './Knight.js';
+import { DIM, buildSkeleton, weapon, shield, antlerCrown, headPiece } from './Knight.js';
 import { figureMaterials } from './Mat.js';
 
 // Skinned characters made in a real 3D tool (here Quaternius's CC0 "Lowpoly
@@ -280,6 +280,30 @@ export function buildSkinnedKnight(assets, look, weaponKind, offhandKind, size =
   const hipsDelta = hips.getWorldPosition(new THREE.Vector3()).sub(sk.J.pelvis.getWorldPosition(v));
 
   // Helmet and shoulder pads ride the head and torso bones.
+  // A borrowed body stripped to suit: hide whole materials (plate, helmet), recolour
+  // others (plate legs as leather), and give it a code-built head and helm.
+  if (gltf && look.strip) {
+    mats.forEach((m) => { if (look.strip.some((n) => (m.name || '').startsWith(n))) m.visible = false; });
+  }
+  if (gltf && look.recolor) {
+    mats.forEach((m) => {
+      const hex = look.recolor[m.name];
+      if (hex && m.color) { m.color.multiply(new THREE.Color(hex)); m.metalness = Math.min(m.metalness, 0.12); m.roughness = Math.max(m.roughness, 0.75); m.envMapIntensity = 0.3; }
+    });
+  }
+  if (gltf && look.codeHead) {
+    const HM = figureMaterials(look);
+    const piece = headPiece(look, HM);
+    mats.push(...Object.values(HM).filter((m) => m && m.isMaterial));
+    const head = bone('Head');
+    head.getWorldPosition(v);
+    piece.position.copy(v).add(new THREE.Vector3(0, -0.06 * unit, 0.01 * unit));
+    piece.scale.setScalar(unit);
+    piece.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    root.add(piece);
+    root.updateMatrixWorld(true);
+    head.attach(piece);
+  }
   // The Green Knight's antlers, set on the borrowed helm.
   if (gltf && look.antler) {
     const crown = antlerCrown(look);

@@ -51,6 +51,13 @@ const thrust = (t, dmg, rec, extra = {}) => ({
   ...extra,
 });
 
+
+// INKXO's harness stripped for foes who aren't plate knights: hide the helmet and
+// the plate, keep the mail hauberk, gloves and boots; a code-built head goes on top.
+const HELMET = ['BaseMetal', 'EdgeReins', 'RimsMetal', 'Padding', 'Screw', 'FeatherRed'];
+const SHEATHED = ['Type_Xiiia', 'Scabbard', 'HolsterMetal'];
+const PLATE = ['LeftShoulderMetal', 'GorgetMetal', 'ArmMetal', 'Ridges', 'GauntletMetal', 'HingeMetal', 'BeltsBucklesTorso'];
+
 export const ENEMIES = [
   {
     id: 'saxon',
@@ -67,6 +74,8 @@ export const ENEMIES = [
     look: {
       tabard: '#8a5a32', trim: '#d9a933', charge: 'chevron', helm: 'nasal', helmColor: '#9ea4ad',
       beard: '#c8892e', skin: '#e2b48a', mail: '#7d8289', metal: '#9ea4ad', cape: '#5a3a22',
+      // INKXO's mail hauberk, leather leggings, his own nasal helm and beard.
+      model: 'inkxo', codeHead: true, strip: [...HELMET, ...SHEATHED, ...PLATE, 'TorsoMetal'], recolor: { legArmor: '#6b4a2e', TorsoArmorHanger: '#6b4a2e' },
     },
     crest: { field: '#8a5a32', charge: 'axes' },
     idleMs: [1100, 1800],
@@ -152,6 +161,8 @@ export const ENEMIES = [
     look: {
       tabard: '#5c6a35', trim: '#c8a24a', charge: null, helm: 'hood', helmColor: '#4b5a2a', beard: '#3b2716',
       skin: '#d4a57c', mail: '#6e5a44', metal: '#7a6a52', cape: '#4b3a24',
+      // INKXO's mail with the breastplate as a dark leather brigandine; his hood.
+      model: 'inkxo', codeHead: true, strip: [...HELMET, ...SHEATHED, ...PLATE], recolor: { TorsoMetal: '#5a4030', legArmor: '#4a3626', TorsoArmorHanger: '#4a3626' },
     },
     crest: { field: '#4b5a2a', charge: 'star' },
     idleMs: [600, 1100],

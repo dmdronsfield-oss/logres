@@ -268,3 +268,12 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   your foes' tricks, with what each is, how to do or answer it (touch and keys), and why it matters.
   Entries you haven't met yet stay sealed and open as you meet them in battle. It scrolls by drag,
   wheel or arrow keys, and works upright too.
+
+## Brief 19, the last two foes (v35)
+
+`docs/BRIEF-19-last-two.md`
+
+- **The Saxon** now wears INKXO's mail hauberk (the plate and helmet stripped off) with leather
+  leggings, under his own nasal helm and beard. **The Brigand** wears mail with a dark leather
+  brigandine and his green hood. All five foes now share Gawain's detailed body and motion. Their
+  heads are still the simpler code-built ones.
