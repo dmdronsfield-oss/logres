@@ -242,12 +242,18 @@ export class CombatDirector {
     const chest = e.rig.chestPoint
       ? e.rig.chestPoint()
       : { x: e.rig.root.x + (e.rig.root.parentContainer?.x || 0), y: e.rig.root.y - 120 * e.size };
-    const hx = chest.x + dx * 20;
-    const hy = chest.y + dy * 30;
+    // Where the cut lands: high cuts across the head and shoulders, level ones across the body,
+    // somewhere along the blade's line through him.
+    const head = e.rig.headPoint ? e.rig.headPoint() : { x: chest.x, y: chest.y - 60 };
+    const high = Math.abs(dy) > 0.6;
+    const along = (Math.random() - 0.5) * 50;
+    const hx = (high ? (chest.x + head.x) / 2 : chest.x) + dx * along;
+    const hy = (high ? (chest.y + head.y) / 2 + 10 : chest.y + 8) + dy * along;
     this.juice.flash(e.rig.root);
     this.juice.hitStop(CONFIG.juice.hitStopMs);
     this.juice.shake(CONFIG.juice.shakeHit);
-    this.juice.sparksAt(hx, hy, 14, 'red');
+    this.juice.sparksAt(hx, hy, 8, 'red');
+    this.juice.sparksAlong(hx, hy, dx, dy, 18);
     this.juice.damageNumber(hx, hy - 40, dmg, { color: mult > 1 ? '#fff6cf' : PALETTE.goldLight, size: mult > 1 ? 40 : 32 });
     Sfx.hit();
     this.hud.showCounter(this.hitCount);

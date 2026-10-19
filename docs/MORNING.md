@@ -207,3 +207,14 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
   his antler crown, leaf cloak, great axe and holly. Everything else about him (phases, blows, the
   ending from the poem) is unchanged. In the poem he wears no armour; this is the romantic, armoured
   reading. Say if you'd rather he stayed unarmoured.
+
+## Brief 13, contact (v29)
+
+`docs/BRIEF-13-contact.md`
+
+- **Hits land somewhere:** high cuts strike across his head and shoulders, level ones across his body,
+  at a point along the blade's line, with sparks sprayed in the direction of the cut.
+- **He reacts to where:** high cuts snap his head back and aside (the head now has its own spring);
+  level cuts twist his trunk round.
+- **Battle wear:** at two-thirds and one-third health a knight's armour darkens and dulls a step.
+  Gawain's too.

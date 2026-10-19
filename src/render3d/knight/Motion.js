@@ -348,6 +348,7 @@ export class Animator {
     this.omega = 10;
     this.lift = { L: 0, R: 0 };
     this.hit = { p: 0, y: 0, r: 0, vp: 0, vy: 0, vr: 0 };
+    this.headHit = { p: 0, y: 0, vp: 0, vy: 0 };
   }
 
   set(target, omega = 10) {
@@ -361,10 +362,12 @@ export class Animator {
   }
 
   // Knock the torso (a spring that settles back): directional hit reactions.
-  jolt(p, y = 0, r = 0) {
+  jolt(p, y = 0, r = 0, hp = 0, hy = 0) {
     this.hit.vp += p;
     this.hit.vy += y;
     this.hit.vr += r;
+    this.headHit.vp += hp;
+    this.headHit.vy += hy;
   }
 
   // Exact critically damped springs (stable at any frame time); clips set the
@@ -393,6 +396,12 @@ export class Animator {
     for (const [x, v] of [['p', 'vp'], ['y', 'vy'], ['r', 'vr']]) {
       h[v] += (-140 * h[x] - 14 * h[v]) * dt;
       h[x] += h[v] * dt;
+    }
+    // The head on its own, quicker spring.
+    const hh = this.headHit;
+    for (const [x, v] of [['p', 'vp'], ['y', 'vy']]) {
+      hh[v] += (-260 * hh[x] - 18 * hh[v]) * dt;
+      hh[x] += hh[v] * dt;
     }
   }
 
@@ -430,6 +439,13 @@ export class Animator {
       const pitch = Math.max(-0.5, Math.min(0.5, -Math.atan2(tmp2.y, Math.hypot(tmp2.x, tmp2.z))));
       J.neck.rotation.set(pitch * 0.5, yaw * 0.5, 0, 'YXZ');
       J.head.rotation.set(pitch * 0.5, yaw * 0.5, 0, 'YXZ');
+    }
+    const hh = this.headHit;
+    if (Math.abs(hh.p) + Math.abs(hh.y) > 0.001) {
+      J.neck.rotation.x += hh.p * 0.4;
+      J.neck.rotation.y += hh.y * 0.4;
+      J.head.rotation.x += hh.p * 0.6;
+      J.head.rotation.y += hh.y * 0.6;
     }
 
     // Legs: planted feet, knees forward.

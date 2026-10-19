@@ -114,6 +114,19 @@ export class Juice {
     (kind === 'gold' ? this.sparks : this.embers).explode(n, x, y);
   }
 
+  // Sparks sprayed along a cut's direction (dx, dy) from where it lands.
+  sparksAlong(x, y, dx, dy, n = 16) {
+    if (!this.cutSparks) {
+      this.cutSparks = this.scene.add.particles(0, 0, 'spark', {
+        lifespan: { min: 180, max: 420 }, speed: { min: 260, max: 760 }, scale: { start: 1.5 / VIEW.RES, end: 0 },
+        gravityY: 700, blendMode: 'ADD', emitting: false,
+      }).setDepth(25);
+    }
+    const a = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
+    this.cutSparks.setEmitterAngle({ min: a - 28, max: a + 28 });
+    this.cutSparks.explode(n, x, y);
+  }
+
   clash(x, y) {
     this.sparksAt(x, y, 34);
     const s = this.scene.add.image(x, y, 'clashstar').setDepth(26).setBlendMode(Phaser.BlendModes.ADD)

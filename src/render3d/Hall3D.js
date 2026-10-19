@@ -824,7 +824,9 @@ export class HallView extends World3D {
       // Knocked the way your blade travelled (his +x is your screen-right).
       const pl = this.playerState;
       const [dx, dy] = (pl && DIR_VEC[pl.swingDir]) || [0, 0];
-      anim.jolt(-2.4 + dy * 3, dx * 4.2, -dx * 2.8);
+      // High cuts snap the head back and aside; level cuts twist the trunk round.
+      const high = Math.abs(dy) > 0.6;
+      anim.jolt(-2.4 + dy * 3, dx * (high ? 2.5 : 5), -dx * 2.8, high ? -6 - dy * 2 : -1.5, dx * (high ? 7 : 2));
       v.zvel -= 1.6;
       this.camPunch = 1;
       this.cheer = 1;
@@ -837,6 +839,7 @@ export class HallView extends World3D {
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
     this._trail(v, e.state === ES.DEFEATED || e.state === ES.LOCKED ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
+    this._wear(v, e.healthFrac);
     // Gold shimmer while he is open: the moment to strike.
     const now = performance.now();
     const openNow = e.isOpen() && e.state !== ES.DEFEATED;
@@ -929,6 +932,20 @@ export class HallView extends World3D {
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
     this._trail(v, pl.state === PS.DEAD || lock ? null : 0x6f86b8);
+    this._wear(v, pl.healthFrac);
+  }
+
+  // Battle wear: at two-thirds and one-third health the armour darkens and dulls a step.
+  _wear(v, frac) {
+    const stage = frac < 1 / 3 ? 2 : frac < 2 / 3 ? 1 : 0;
+    if (!(stage > (v.wear || 0))) return;
+    for (let s = (v.wear || 0); s < stage; s++) {
+      v.k.mats.forEach((m) => {
+        if (m.color) m.color.multiplyScalar(0.86);
+        if (m.roughness !== undefined) m.roughness = Math.min(1, m.roughness + 0.12);
+      });
+    }
+    v.wear = stage;
   }
 
   _trail(v, color) {
