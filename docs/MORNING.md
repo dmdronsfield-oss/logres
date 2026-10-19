@@ -143,3 +143,14 @@ Not done: in-game credits for INKXO's armour (still credited in the README), and
 - **Gawain's own moves:** the dodge is now a crouched side-step with the shoulders turned away and the
   shield up. Blows throw him back and twist him with their direction, and a block braces him with a
   half step back.
+
+## Brief 7, phone-ready (v23)
+
+`docs/BRIEF-07-phone-ready.md`
+
+- **Loading screen:** a gold progress bar and what's happening ("Arming Sir Gawain…") while the
+  knights download.
+- **Colour-blind safe:** blows that can't be parried now have a dashed, turning ring and a ✕, not just
+  a red one.
+- **Graphics: High / Medium / Low** in the pause menu. It takes effect at once, is remembered, and
+  stops the automatic step-down from overriding your choice.

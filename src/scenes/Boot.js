@@ -25,6 +25,7 @@ export class Boot extends Phaser.Scene {
         .catch((e) => { console.warn('3D unavailable, falling back to 2D', e); })
       : Promise.resolve();
     Promise.all([Promise.race([fontReady, timeout]).catch(() => {}), three]).then(() => {
+      window.__loadProgress?.(1, 'Lighting the candles…');
       const l = document.getElementById('loading');
       if (l) l.remove();
       this.scene.start('Title');

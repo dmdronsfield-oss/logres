@@ -458,10 +458,29 @@ export class Enemy extends Fighter {
       r.lineStyle(2, 0xffffff, 0.3 * intro);
       r.strokeCircle(p.x, p.y, R0 + 92 * (win / total));
     }
-    r.lineStyle(inWin ? 6 : 3, 0x1a1008, 0.35 * intro);
-    r.strokeCircle(p.x, p.y, R + 1);
-    r.lineStyle(inWin ? 5 : 3, col, 0.95 * intro);
-    r.strokeCircle(p.x, p.y, R);
+    if (red) {
+      // Unparryable: a dashed ring and a cross, so shape tells it apart as well as colour.
+      const n = 14;
+      for (let i = 0; i < n; i++) {
+        const a0 = (i / n) * Math.PI * 2 + this.t / 400;
+        const a1 = a0 + (Math.PI * 2 / n) * 0.55;
+        r.lineStyle(5, 0x1a1008, 0.35 * intro);
+        r.beginPath(); r.arc(p.x, p.y, R + 1, a0, a1); r.strokePath();
+        r.lineStyle(3.5, col, 0.95 * intro);
+        r.beginPath(); r.arc(p.x, p.y, R, a0, a1); r.strokePath();
+      }
+      const cx = p.x + R * 0.72 + 10;
+      const cy = p.y - R * 0.72 - 10;
+      r.lineStyle(6, 0x1a1008, 0.5 * intro);
+      r.lineBetween(cx - 8, cy - 8, cx + 8, cy + 8); r.lineBetween(cx + 8, cy - 8, cx - 8, cy + 8);
+      r.lineStyle(3.5, col, intro);
+      r.lineBetween(cx - 8, cy - 8, cx + 8, cy + 8); r.lineBetween(cx + 8, cy - 8, cx - 8, cy + 8);
+    } else {
+      r.lineStyle(inWin ? 6 : 3, 0x1a1008, 0.35 * intro);
+      r.strokeCircle(p.x, p.y, R + 1);
+      r.lineStyle(inWin ? 5 : 3, col, 0.95 * intro);
+      r.strokeCircle(p.x, p.y, R);
+    }
     // Path of the blow.
     const [dx, dy] = a.direction === 'T' ? [0, 0] : DIR_VEC[a.direction];
     // Tags for blows with a rule of their own.

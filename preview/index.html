@@ -52,12 +52,18 @@
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 18px;
       color: #f6dc8a;
       font: 700 34px "Cinzel", Georgia, serif;
       letter-spacing: 0.2em;
+      background: radial-gradient(ellipse at center, #2a2018 0%, #1a1410 70%);
     }
+    #loading .bar { width: min(60vw, 320px); height: 8px; border: 2px solid #d9a933; border-radius: 6px; padding: 2px; }
+    #loading .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8a6416, #f6dc8a); border-radius: 3px; transition: width 0.25s; }
+    #loading .msg { font: 400 15px "Cinzel", Georgia, serif; letter-spacing: 0.08em; color: #e8d6a8; opacity: 0.85; }
     #rotate {
       display: none;
       position: fixed;
@@ -87,7 +93,17 @@
 <body>
   <div id="game"></div>
   <div id="safe-probe"></div>
-  <div id="loading">LOGRES</div>
+  <div id="loading"><div>LOGRES</div><div class="bar"><i></i></div><div class="msg">Preparing the hall…</div></div>
+  <script>
+    // Loading progress for the models (fraction 0..1, with a line of what's happening).
+    window.__loadProgress = (f, msg) => {
+      const el = document.getElementById('loading');
+      if (!el) return;
+      const bar = el.querySelector('.bar i');
+      if (bar) bar.style.width = `${Math.round(Math.max(0, Math.min(1, f)) * 100)}%`;
+      if (msg) el.querySelector('.msg').textContent = msg;
+    };
+  </script>
   <div id="rotate" aria-live="polite">
     <svg viewBox="0 0 100 100" aria-hidden="true">
       <rect x="30" y="8" width="40" height="84" rx="7" fill="#f1e3c4" stroke="#d9a933" stroke-width="4"/>

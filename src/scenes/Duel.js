@@ -255,20 +255,30 @@ export class Duel extends Phaser.Scene {
     const H = VIEW.H;
     const c = this.add.container(0, 0).setDepth(70);
     c.add(this.add.rectangle(W / 2, H / 2, W + 400, H + 400, 0x120c08, 0.72).setInteractive());
-    c.add(text(this, W / 2, py(92), 'Paused', {
-      fontSize: '46px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
+    c.add(text(this, W / 2, py(64), 'Paused', {
+      fontSize: '42px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
     }));
     const toggle = (y, label, get, set) => {
-      const b = menuButton(this, W / 2, py(y), 320, 50, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: 19 });
+      const b = menuButton(this, W / 2, py(y), 320, 42, '', () => { set(!get()); b.setLabel(`${label}: ${get() ? 'on' : 'off'}`); }, { size: 18 });
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
       c.add(b);
     };
-    c.add(menuButton(this, W / 2, py(170), 300, 58, 'Resume', () => this.resume(), { size: 26, fill: '#f6dc8a' }));
-    toggle(238, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
-    toggle(296, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
-    toggle(354, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
-    toggle(412, 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
-    c.add(menuButton(this, W / 2, py(478), 300, 54, 'Retreat to camp', () => {
+    c.add(menuButton(this, W / 2, py(130), 300, 52, 'Resume', () => this.resume(), { size: 25, fill: '#f6dc8a' }));
+    toggle(190, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
+    toggle(240, 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
+    toggle(290, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
+    toggle(340, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
+    if (this.w3 && this.w3.setQuality) {
+      // Graphics: looks or battery life. Remembered; turns off the automatic step-down.
+      const names = ['Low', 'Medium', 'High'];
+      const gb = menuButton(this, W / 2, py(390), 320, 42, '', () => {
+        this.w3.setQuality((this.w3.quality + 2) % 3, true);
+        gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
+      }, { size: 18 });
+      gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
+      c.add(gb);
+    }
+    c.add(menuButton(this, W / 2, py(454), 300, 50, 'Retreat to camp', () => {
       this.tweens.resumeAll();
       fadeTo(this, 'Title');
     }, { size: 20 }));

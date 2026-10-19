@@ -203,8 +203,24 @@ export class HallView extends World3D {
   }
 
   // Step quality down if the phone can't hold ~45 fps.
+  // Player's choice from the pause menu (manual = stop stepping it down automatically).
+  setQuality(q, manual = false) {
+    this.quality = Math.max(0, Math.min(2, q));
+    try {
+      localStorage.setItem(QUALITY_KEY, String(this.quality));
+      if (manual) localStorage.setItem(`${QUALITY_KEY}.manual`, '1');
+    } catch (e) { /* ignore */ }
+    if (manual) this.manualQuality = true;
+    this.applyQuality();
+    this.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
+  }
+
   _watchPerformance(now) {
     const p = this.perf;
+    if (this.manualQuality === undefined) {
+      try { this.manualQuality = localStorage.getItem(`${QUALITY_KEY}.manual`) === '1'; } catch (e) { this.manualQuality = false; }
+    }
+    if (this.manualQuality) return;
     if (p.last) {
       const d = now - p.last;
       if (d < 200) {

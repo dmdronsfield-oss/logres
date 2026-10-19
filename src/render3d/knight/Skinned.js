@@ -90,12 +90,24 @@ export function loadQuaternius() {
   return assetsPromise;
 }
 
+// Download progress across the model files, for the loading screen.
+const progress = new Map();
+function track(url, label) {
+  return (ev) => {
+    progress.set(url, { loaded: ev.loaded, total: ev.total || ev.loaded || 1 });
+    let l = 0;
+    let t = 0;
+    progress.forEach((p) => { l += p.loaded; t += p.total; });
+    window.__loadProgress?.(t ? (l / t) * 0.9 : 0, label);
+  };
+}
+
 // Sir Gawain from Blender: one skinned body plus separate sword and shield
 // objects (grip / centre at their origins). Metres, authored materials.
 let gawainPromise = null;
 export function loadGawain() {
   if (!gawainPromise) {
-    gawainPromise = new GLTFLoader().loadAsync(GAWAIN).then(({ scene }) => {
+    gawainPromise = new GLTFLoader().loadAsync(GAWAIN, track(GAWAIN, 'Sharpening the sword…')).then(({ scene }) => {
       const take = (n) => {
         const o = scene.getObjectByName(n);
         o.removeFromParent();
@@ -137,7 +149,7 @@ export function loadInkxo() {
   if (!inkxoPromise) {
     const draco = new DRACOLoader().setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
-    inkxoPromise = Promise.all([loader.loadAsync(INKXO), loadGawain()])
+    inkxoPromise = Promise.all([loader.loadAsync(INKXO, track(INKXO, 'Arming Sir Gawain…')), loadGawain()])
       .then(([{ scene }, g]) => ({ kind: 'gltf', knight: scene, sword: g.sword, shield: g.shield, names: INKXO_NAMES, curlFingers: true }));
   }
   return inkxoPromise;
