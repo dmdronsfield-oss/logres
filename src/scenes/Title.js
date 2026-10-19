@@ -53,7 +53,7 @@ export class Title extends Phaser.Scene {
     // After the first tap, also report the sound clips (so a device that can't load them shows it).
     this.time.addEvent({ delay: 500, loop: true, callback: () => {
       const st = Sfx.clipStats;
-      if (!st) return;
+      if (!st) { build.setText(`${BUILD} · sounds: tap to start`); return; }
       build.setText(`${BUILD} · sounds ${st.ok}/${st.total}${st.failed ? ` · ${st.failed} failed${st.error ? `: ${st.error.slice(0, 40)}` : ''}` : ''}`);
     } });
 
@@ -136,7 +136,8 @@ export class Title extends Phaser.Scene {
     const setY = panelY + 84;
     // Four toggles when there's room; on narrow screens vibration lives in the pause menu only.
     const items = [
-      ['Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); }],
+      // Turning sound on plays a sword clash: a quick test that the recorded sounds work.
+      ['Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); if (v) { Sfx.unlock(); setTimeout(() => Sfx.parry(), 60); } }],
       ['Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); }],
       ['Buzz', () => Save.data.vibration, (v) => Save.set({ vibration: v })],
       ['Lefty', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v })],

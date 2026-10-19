@@ -63,14 +63,19 @@ class SfxEngine {
       this.master.connect(comp);
       comp.connect(this.ctx.destination);
       this.noiseBuf = this._makeNoise();
-      this._loadClips();
       // iOS needs a sound started inside the gesture to fully unlock.
       const b = this.ctx.createBufferSource();
       b.buffer = this.ctx.createBuffer(1, 1, 22050);
       b.connect(this.master);
       b.start(0);
     }
-    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    if (!this.clipStats) this._loadClips();
+    if (this.ctx.state !== 'running') {
+      try {
+        const p = this.ctx.resume();
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) { /* older Safari: resume() returns nothing */ }
+    }
   }
 
   // Fetch and decode the clips once the audio is unlocked (about 175 KB in all).

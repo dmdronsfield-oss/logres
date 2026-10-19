@@ -469,3 +469,10 @@ keyboard only. Then I fixed what got in the way:
   instead. They now use the form every browser supports.
 - After your first tap, the title screen's corner shows how many sound clips loaded (for example
   "v55 · sounds 34/34"), and the reason if any failed.
+
+## Sound check (v56)
+
+- The title screen's corner now says "sounds: tap to start" until the audio starts, then
+  "sounds 34/34" (or how many failed, and why).
+- Clip loading starts on any tap and can't be stopped by older Safari's audio quirks.
+- Turning **Sound** on in camp plays a sword clash: a quick test of the recorded sounds.
