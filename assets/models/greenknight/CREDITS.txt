@@ -1,0 +1,9 @@
+The Green Knight, built from "Santa" by lawtrigg
+https://sketchfab.com (lawtrigg)
+Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+
+Changes: hat removed, hair and mane added, coat and body decimated, colours shifted to
+green, rigged with Mixamo-style bone names (the GreenKnight folder), then for Logres:
+skin weights cleaned up, the feet hidden in the boots removed, fingers curled into fists,
+and Mixamo's Pro Melee Axe Pack (plus the Sword and Shield Pack's death) retargeted onto
+him. Source: reference/greenknight_lawtrigg_work.blend.

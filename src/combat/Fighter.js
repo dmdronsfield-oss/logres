@@ -15,6 +15,8 @@ export class Fighter {
   }
 
   applyDamage(amount) {
+    // The cheat (tap your crest): no harm comes to you.
+    if (this.invulnerable) return false;
     // minHealth lets the tutorial keep its enemy alive until the lessons are done.
     this.health = Math.max(this.minHealth || 0, this.health - amount);
     return this.health <= 0;

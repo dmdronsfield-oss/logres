@@ -1,0 +1,7 @@
+"Paladin J Nordstrom" with the Pro Sword and Shield Pack, from Mixamo (Adobe), https://www.mixamo.com
+Used under Mixamo's terms (royalty-free in games).
+
+paladin.glb holds the Paladin, his sword and shield, and 24 of the pack's clips (textures
+reduced to 1024 px WebP, Draco-compressed). In Logres he plays Sir Gawain and every
+challenger but the Green Knight; the overhead blow is the pack's leaping attack with the
+legs held planted (src/render3d/knight/Paladin.js). Source: reference/paladin_work.blend.

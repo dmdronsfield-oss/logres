@@ -1,5 +1,5 @@
 // Cache-first service worker. Bump VERSION on every release.
-const VERSION = 'logres-v57';
+const VERSION = 'logres-v58';
 
 const CORE = [
   './',
@@ -48,14 +48,15 @@ const CORE = [
   './src/render3d/knight/Cloth.js',
   './src/render3d/knight/Looks.js',
   './src/render3d/knight/Skinned.js',
+  './src/render3d/knight/Paladin.js',
   './preview/',
   './preview/index.html',
   './lab/',
   './lab/index.html',
   './src/lab/Lab.js',
   './src/art/Heraldry.js',
-  './assets/models/gawain/gawain.glb',
-  './assets/models/inkxo-knight/inkxo-knight.glb',
+  './assets/models/paladin/paladin.glb',
+  './assets/models/greenknight/greenknight.glb',
   './assets/art/loading.jpg',
   'https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js',
 ];

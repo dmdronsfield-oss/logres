@@ -1,0 +1,48 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Paladin lab</title><script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" } }</script>
+<style>body{margin:0;background:#222;color:#ddd;font:12px sans-serif}#ui{position:fixed;left:8px;top:8px}</style></head>
+<body><div id="ui"></div><script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
+import { loadPaladin, buildPaladin, loadGreenKnight } from '../src/render3d/knight/Paladin.js';
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#333');
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.2)); const d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(2, 4, 3); scene.add(d);
+const cam = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 50); cam.position.set(0, 1.3, 5); cam.lookAt(0, 1, 0);
+const GK = new URLSearchParams(location.search).has('green');
+const a = GK ? await loadGreenKnight() : await loadPaladin();
+const k = GK ? buildPaladin(a, { tint: '#5f9e4c', antler: '#d8c8a8', foe: true }, 'greataxe', 'holly', 1.2) : buildPaladin(a, {}, 'sword', 'heater', 1); scene.add(k.root);
+window.k = k; window.THREE = THREE; window.cam = cam; window.scene = scene;
+window.draw = () => { k.clips.update(1); r.render(scene, cam); };
+// Tip path of a clip, in the knight's frame (x right = -X of three since he faces +z, y up, z forward).
+window.track = (name) => {
+  const out = []; const n = Math.round(k.clips.dur(name) * 30);
+  for (let f = 0; f <= n; f++) { k.clips.frame(name, f, 0.001, name); k.clips.update(1); k.root.updateMatrixWorld(true);
+    const t = k.weaponObj.localToWorld(new THREE.Vector3(0, -k.weaponLen, 0)); out.push([-t.x, t.y, t.z]); }
+  return out.map((p, i) => { const q = out[Math.max(0, i - 1)]; const s = Math.hypot(p[0]-q[0], p[1]-q[1], p[2]-q[2]) * 30; return [i, ...p.map((x) => +x.toFixed(2)), +s.toFixed(1)]; });
+};
+window.lineup = async () => {
+  const { ENEMIES } = await import('../src/combat/enemies.js');
+  const { lookFor } = await import('../src/render3d/knight/Looks.js');
+  scene.remove(k.root);
+  const all = [buildPaladin(a, { swordId: 'excalibur' }, 'sword', 'heater', 1), ...ENEMIES.map((d) => buildPaladin(a, { ...lookFor(d), foe: true }, d.weapon, d.offhand, d.size || 1))];
+  all.forEach((f, i) => { f.root.position.x = (i - (all.length - 1) / 2) * 1.3; scene.add(f.root); f.clips.show('idle', 0.5, 0.001); f.clips.update(1); });
+  cam.position.set(0, 1.4, 7.5); cam.lookAt(0, 1, 0); r.render(scene, cam);
+  return all.length;
+};
+// Contact sheet of clip frames: sheet('downward', [10, 20, 27, 34], 'side'|'front')
+window.sheet = (name, frames, view = 'front') => {
+  const W = 320, H = 360, cv = document.createElement('canvas'); cv.width = W * frames.length; cv.height = H; const ctx = cv.getContext('2d');
+  const old = [r.domElement.width, r.domElement.height]; r.setSize(W, H); cam.aspect = W / H; cam.updateProjectionMatrix();
+  if (view === 'side') { cam.position.set(5.5, 1.5, 1); } else { cam.position.set(0.5, 1.6, 6); } cam.lookAt(0, 1.1, 0.6);
+  frames.forEach((f, i) => { k.clips.frame(name, f, 0.001, name + f); k.clips.update(1); k.root.updateMatrixWorld(true); r.render(scene, cam); ctx.drawImage(r.domElement, i * W, 0); ctx.fillStyle = '#ff0'; ctx.font = '16px monospace'; ctx.fillText(name + ' ' + f, i * W + 6, 18); });
+  r.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
+  let img = document.getElementById('sv'); if (!img) { img = document.createElement('img'); img.id = 'sv'; img.style.cssText = 'position:fixed;left:0;top:0;width:100vw;background:#000'; document.body.append(img); }
+  img.src = cv.toDataURL(); return frames.length;
+};
+// One large frame from a chosen viewpoint: big('360_high', 38, [x,y,z], [lookx,looky,lookz])
+window.big = (name, f, pos = [1.2, 1.0, 3.2], look = [0, 0.7, 0.2]) => {
+  document.getElementById('sv')?.remove();
+  k.clips.frame(name, f, 0.001, name + f + Math.random()); k.clips.update(1); k.root.updateMatrixWorld(true);
+  cam.position.set(...pos); cam.lookAt(...look); r.render(scene, cam);
+};
+window.labReady = true; draw();
+</script></body></html>

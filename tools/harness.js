@@ -23,6 +23,7 @@ export function step(n = 1, each = null) {
   for (let i = 0; i < n; i++) {
     T += 16.67;
     game().step(T, 16.67);
+    window.__onStep?.();   // e.g. a frame recorder
     if (each && each(i) === false) return i;
   }
   return n;
@@ -169,4 +170,43 @@ export async function swingSheet(dir, cells = 12, cols = 4, opts = {}) {
   }
   img.src = out.toDataURL('image/jpeg', 0.9);
   return dir;
+}
+
+// Contact sheet of the foe's next blow (or blows), every `every` frames from the wind-up.
+export async function foeSheet(cells = 16, cols = 4, every = 4) {
+  const { VIEW } = await import('/src/config.js');
+  const gl = VIEW.world3d.renderer.domElement;
+  const d = duel();
+  const e = d.enemy;
+  const go = (n) => step(n, () => { if (d.paused) d.resume(); return true; });
+  until(() => e.state === 'Telegraph', 3000);
+  d.hud.hideBanner(true);
+  const sx = gl.width * 0.25, sy = gl.height * 0.02, sw = gl.width * 0.6, sh = gl.height * 0.96;
+  const cw = 360;
+  const ch = Math.round((cw * sh) / sw);
+  const out = document.createElement('canvas');
+  out.width = cw * cols;
+  out.height = ch * Math.ceil(cells / cols);
+  const ctx = out.getContext('2d');
+  for (let i = 0; i < cells; i++) {
+    const x = (i % cols) * cw;
+    const y = Math.floor(i / cols) * ch;
+    ctx.drawImage(gl, sx, sy, sw, sh, x, y, cw, ch);
+    ctx.fillStyle = '#000a';
+    ctx.fillRect(x, y, 200, 22);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '600 14px monospace';
+    ctx.fillText(`${e.state} ${Math.round(e.t)} ${e.attack ? e.attack.direction : ''}`, x + 4, y + 16);
+    go(every);
+  }
+  let img = document.getElementById('sheetview');
+  if (!img) {
+    img = document.createElement('img');
+    img.id = 'sheetview';
+    img.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;object-fit:contain;background:#000;z-index:99999';
+    img.onclick = () => img.remove();
+    document.body.append(img);
+  }
+  img.src = out.toDataURL('image/jpeg', 0.9);
+  return e.attack && e.attack.direction;
 }

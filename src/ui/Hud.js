@@ -335,6 +335,8 @@ export class Hud {
     this.tb = {
       top, panelW, panelH, segW,
       pSeg: { x: segX(leftX), y: playerTop + 36 },
+      // Your crest doubles as the cheat switch.
+      crest: { x: leftX + 6 + crestW / 2, y: playerTop + 2 + (crestH + 10) / 2, w: crestW, h: crestH + 10 },
       eSeg: { x: P ? segX(rightX) : rightX + 20, y: top + 36 },
     };
   }
@@ -395,7 +397,8 @@ export class Hud {
     const v = this.vals;
     if (this.tourney) {
       const t = this.tb;
-      this._drawSegments(g, t.pSeg.x, t.pSeg.y, t.segW, v.player, 0xd23a2a);
+      // White while the cheat keeps you from harm.
+      this._drawSegments(g, t.pSeg.x, t.pSeg.y, t.segW, v.player, this.cheat ? 0xffffff : 0xd23a2a);
       this._drawSegments(g, t.eSeg.x, t.eSeg.y, t.segW, v.enemy, 0xd23a2a);
       // Stagger meter and open window under the enemy's panel.
       const sy = t.top + t.panelH + 2;
@@ -438,7 +441,7 @@ export class Hud {
     g.fillRoundedRect(p.x - 4, p.y - 4, p.w + 8, p.h + 8, 6);
     g.fillStyle(0x14204a, 1);
     g.fillRect(p.x, p.y, p.w, p.h);
-    g.fillStyle(PALETTE.lapis, 1);
+    g.fillStyle(this.cheat ? 0xffffff : PALETTE.lapis, 1);
     g.fillRect(p.x, p.y, p.w * v.player, p.h);
     g.fillStyle(0xffffff, 0.25);
     g.fillRect(p.x, p.y, p.w * v.player, 3);

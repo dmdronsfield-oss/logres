@@ -109,7 +109,9 @@ export class Codex extends Phaser.Scene {
     // Credits for the work by others in the game (their licences ask for it).
     section('Credits');
     [
-      'Knight armour: "Medieval Knight Armor (Low-poly / Rigged)" by INKXO, CC BY 4.0 (sketchfab.com).',
+      'Sir Gawain and his challengers: "Paladin J Nordstrom" and the Pro Sword and Shield and Pro Melee Axe animation packs, from Mixamo (Adobe).',
+      'The Green Knight: built from "Santa" by lawtrigg, CC BY 4.0 (sketchfab.com), recoloured, rigged and given fists for Logres.',
+      'Knight armour (used if the Paladin cannot load): "Medieval Knight Armor (Low-poly / Rigged)" by INKXO, CC BY 4.0 (sketchfab.com).',
       'Menu music: "Wendale Abbey" by Yubatake, CC BY 4.0 (OpenGameArt.org).',
       'Duel music: "Heroic Demise (updated)" by Matthew Pablo, CC BY 3.0 (OpenGameArt.org).',
       'Boss music: "Epic Boss Battle" by Juhani Junkala, CC0 (OpenGameArt.org).',
@@ -118,7 +120,7 @@ export class Codex extends Phaser.Scene {
       'Voices: "Male Grunt/Yelling sounds" by HaelDB and "grunts of male death and pain" by thebardofblasphemy, CC0 (OpenGameArt.org).',
       'Whooshes, scrapes and boots: "Tinysized SFX" by Vehicle, CC0. Heartbeat: bart, CC0. The Green Knight\'s laugh: "Evil laughter" by qubodup, CC0 (OpenGameArt.org).',
       'Armour, shield, footsteps, cloth, chimes, bell and pages: Impact Sounds and RPG Audio by Kenney (kenney.nl), CC0.',
-      'The art and motion are made in code for Logres.',
+      'The hall, the effects and the timing of every blow are made in code for Logres.',
     ].forEach((line) => {
       const t = text(this, x0, y, line, { fontSize: '14px', color: PALETTE.inkCss, wordWrap: { width: wrap }, originX: 0, originY: 0, align: 'left' });
       col.add(t);

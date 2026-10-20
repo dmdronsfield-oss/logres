@@ -12,6 +12,7 @@ import { drawCharge } from '../art/Heraldry.js';
 import { World3D, P } from './View3D.js';
 import { buildKnight } from './knight/Knight.js';
 import { loadQuaternius, loadInkxo, buildSkinnedKnight } from './knight/Skinned.js';
+import { loadPaladin, loadGreenKnight, buildPaladin, cutFrame } from './knight/Paladin.js';
 import { Animator, GUARD, STATES, pose, mirrorDir, windupPose, strikePose, recoverPose, playerSwingPose, bashPose, tauntPose, styleFor } from './knight/Motion.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { BladeTrail } from './Trail.js';
@@ -39,6 +40,9 @@ const ENEMY_TURN = 0.12;
 const RELEASE_MS = 90;             // the blow leaves the wind-up this long before impact
 const REFLECT = 1;                // render layer seen by the floor's reflection
 const QUALITY_KEY = 'logres.quality';
+const NO_ANIM = { set() {}, update() {}, jolt() {}, apply() {}, target: null };
+const smooth = (x) => { const u = Math.max(0, Math.min(1, x)); return u * u * (3 - 2 * u); };
+const easeOut = (x) => 1 - (1 - Math.max(0, Math.min(1, x))) ** 2;
 
 
 // ---------- deterministic randomness and hall textures ----------
@@ -164,8 +168,16 @@ export class HallView extends World3D {
     // The player is Sir Gawain in INKXO's rigged knight armour (falls back to
     // the code-built knight if the model can't load). On the model preview the
     // challengers use the CC0 Quaternius knight too.
+    // Gawain and his foes are the Paladin, played from motion capture; INKXO's knight if it can't load.
     this.ready = Promise.all([
-      loadInkxo(this.quality < 2).then((a) => { this.hero = a; }).catch((err) => console.warn('Player model failed to load', err)),
+      loadPaladin((ev) => window.__loadProgress?.((ev.loaded / (ev.total || ev.loaded || 1)) * 0.9, 'Arming Sir Gawain…'))
+        .then((a) => { this.paladin = a; })
+        // The Green Knight is his own man: loaded after the Paladin, and only needed in the last round.
+        .then(() => { loadGreenKnight().then((a) => { this.greenKnight = a; }).catch((err) => console.warn('Green Knight failed to load', err)); })
+        .catch((err) => {
+          console.warn('Paladin failed to load', err);
+          return loadInkxo(this.quality < 2).then((a) => { this.hero = a; }).catch((e2) => console.warn('Player model failed to load', e2));
+        }),
       window.LOGRES_MODEL === 'quaternius' ? loadQuaternius().then((a) => { this.skinned = a; }) : null,
     ]);
     this.fovKick = 0;
@@ -629,9 +641,10 @@ export class HallView extends World3D {
 
   // Build a knight with its animator, cloth and collision spheres.
   _figure(look, weaponKind, offhandKind, size, guard, { front = true, back = true, assets = this.skinned } = {}) {
-    const k = assets ? buildSkinnedKnight(assets, look, weaponKind, offhandKind, size) : buildKnight(look, weaponKind, offhandKind, size);
+    const k = assets && assets.kind === 'paladin' ? buildPaladin(assets, look, weaponKind, offhandKind, size)
+      : assets ? buildSkinnedKnight(assets, look, weaponKind, offhandKind, size) : buildKnight(look, weaponKind, offhandKind, size);
     this.content.add(k.root);
-    const anim = new Animator(k, guard);
+    const anim = k.clips ? NO_ANIM : new Animator(k, guard);
     const J = k.J;
     const bs = (k.bodyScale || 1) * size;
     const sp = (r) => ({ c: new THREE.Vector3(), r: r * bs });
@@ -658,7 +671,8 @@ export class HallView extends World3D {
     const look = lookFor(def);
     const giant = def.weapon === 'greataxe';
     // Plate knights wear INKXO's harness, recoloured; the others stay code-built.
-    const assets = look.model === 'inkxo' && this.hero ? this.hero : this.skinned;
+    const assets = (def.id === 'green' && this.greenKnight) || this.paladin || (look.model === 'inkxo' && this.hero ? this.hero : this.skinned);
+    look.foe = true;
     const f = this._figure(look, def.weapon, def.offhand, def.size || 1, giant ? GUARD.giant : GUARD.ss, { assets });
     f.k.root.position.set(0, 0, ENEMY_Z);
     f.k.root.rotation.y = ENEMY_TURN;
@@ -689,9 +703,9 @@ export class HallView extends World3D {
     // heater, Pridwen a blue heater with gold crowns, the Targe a round wooden one.
     const look = {
       ...PLAYER_LOOK, blade: sword.color, shield: shield.field, shieldCharge: shield.id === 'pridwen' ? shield.charge : 'lion',
-      swordId: sword.id, modelShield: shield.id === 'kite',
+      swordId: sword.id, modelShield: shield.id === 'kite', shieldTint: { pridwen: '#5a78d8', targe: '#a07850' }[shield.id],
     };
-    const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false, assets: this.hero || this.skinned });
+    const f = this._figure(look, 'sword', shield.id === 'targe' ? 'round' : 'heater', 1, GUARD.hero, { back: false, assets: this.paladin || this.hero || this.skinned });
     f.k.root.position.set(0, 0, PLAYER_Z);
     f.k.root.rotation.y = Math.PI;
     this.player = { body3d: true, ...f, hp: null, zoff: 0, zvel: 0 };
@@ -846,6 +860,8 @@ export class HallView extends World3D {
       // High cuts snap the head back and aside; level cuts twist the trunk round.
       const high = Math.abs(dy) > 0.6;
       anim.jolt(-2.4 + dy * 3, dx * (high ? 2.5 : 5), -dx * 2.8, high ? -6 - dy * 2 : -1.5, dx * (high ? 7 : 2));
+      v.hitAt = this.gameT;
+      v.hits = (v.hits || 0) + 1;
       v.zvel -= 1.6;
       this.camPunch = 1;
       this.cheer = 1;
@@ -854,8 +870,11 @@ export class HallView extends World3D {
     v.hp = e.health;
     this._disarm(v, e, dt);
     const look = this.player ? this.player.k.J.head.getWorldPosition(this.v2 || (this.v2 = new THREE.Vector3())) : null;
-    anim.apply(look, { breathe: e.state === ES.DEFEATED ? 0 : 1, wobble, time: this.time });
-    if (k.retarget) k.retarget();
+    if (k.clips) this._clipEnemy(v, e, dt, walking);
+    else {
+      anim.apply(look, { breathe: e.state === ES.DEFEATED ? 0 : 1, wobble, time: this.time });
+      if (k.retarget) k.retarget();
+    }
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
     // Trails belong to blows only (not gloats, guards or stumbles).
@@ -995,6 +1014,8 @@ export class HallView extends World3D {
       // Struck: thrown back, twisted with the blow's direction of travel.
       const ad = this.duel && this.duel.enemy.attack ? DIR_VEC[this.duel.enemy.attack.direction] || [0, 0.3] : [0, 0.3];
       anim.jolt(-5.5 - ad[1] * 2, -ad[0] * 4, ad[0] * 3);
+      v.hitAt = this.gameT;
+      v.hits = (v.hits || 0) + 1;
       v.zoff += 0.25;
       this.camHurt = 1;
     }
@@ -1003,15 +1024,128 @@ export class HallView extends World3D {
     v.pips = pl.pips;
     v.hp = pl.health;
     const look = this.enemy ? this.enemy.k.J.head.getWorldPosition(this.v3 || (this.v3 = new THREE.Vector3())) : null;
-    anim.apply(look, { breathe: pl.state === PS.DEAD ? 0 : 1, time: now });
-    if (k.retarget) k.retarget();
+    if (k.clips) this._clipPlayer(v, pl, dt, lock, st);
+    else {
+      anim.apply(look, { breathe: pl.state === PS.DEAD ? 0 : 1, time: now });
+      if (k.retarget) k.retarget();
+    }
     v.updateSpheres();
     v.cloths.forEach((c) => c.update(dt / 1000));
     // The streak marks the cut itself: from the draw-back to the far side, not the wind-up or the return.
-    const cutting = pl.state === PS.ATTACKING && pl.stateT >= 140 && pl.stateT <= 250;
+    const cutting = pl.state === PS.ATTACKING && pl.stateT >= (k.clips ? 110 : 140) && pl.stateT <= (k.clips ? 270 : 250);
     this._trail(v, pl.state === PS.DEAD || lock || !cutting ? null : v.trailColor);
     this._superGlow(v);
     this._wear(v, pl.healthFrac);
+  }
+
+  // ---------- the Paladin's clips ----------
+
+  // A knight's clip for this moment. Blows are scrubbed to the combat clock: the
+  // contact frame of the clip lands exactly when the game lands the blow.
+  _clipEnemy(v, e, dt, walking) {
+    const C = v.k.clips;
+    const S = v.k.set;
+    const T = this.gameT / 1000;
+    const dir = e.attack ? e.attack.direction : 'S';
+    const [cut, rev] = e.attack && e.attack.bash ? [S.bash, false] : S.foe[dir] || S.foe.S;
+    // Each blow of a combination starts its clip afresh.
+    if (e.state === ES.TELEGRAPH && v.lastState !== ES.TELEGRAPH) v.blow = (v.blow || 0) + 1;
+    v.lastState = e.state;
+    const key = `${cut}${v.blow}`;
+    const idle = () => C.show(S.idle, (T * (e.def.restless || 1)) % C.dur(S.idle), 0.3);
+    const hit = v.hitAt !== undefined && this.gameT - v.hitAt < 420;
+    switch (e.state) {
+      case ES.TELEGRAPH: {
+        const rem = e.telegraphTotal - e.t;
+        let p;
+        if (rem < RELEASE_MS && !e.feintAt) p = 1 + ((RELEASE_MS - rem) / RELEASE_MS) ** 1.3;
+        else {
+          const u = Math.min(1, e.visualT() / Math.max(1, e.visualTotal() - RELEASE_MS));
+          // Quickly up, then held at the top, trembling.
+          p = easeOut(u * 1.25) + (u > 0.6 ? Math.sin(this.time / 37) * 0.012 : 0);
+        }
+        C.frame(cut, cutFrame(cut, rev, p, S.cuts), rev ? 0.25 : 0.14, key);
+        break;
+      }
+      case ES.STRIKE: {
+        const c = S.cuts[cut];
+        const span = Math.abs(rev ? c.a - c.c : c.e - c.c) / 30 * 1000;
+        C.frame(cut, cutFrame(cut, rev, 2 + Math.min(1, e.t / span), S.cuts), 0.1, key);
+        break;
+      }
+      case ES.GAP: C.frame(cut, cutFrame(cut, rev, 3, S.cuts), 0.1, key); break;
+      case ES.PARRIED:
+      case ES.STAGGERED: {
+        // Thrown back off your parry; each of your cuts while he's open rocks him again.
+        if (hit) C.show(S.hits[v.hits % 2], (this.gameT - v.hitAt) / 1000 * 1.2, 0.06, `hit${v.hits}`);
+        else if (e.t < C.dur(S.parried) * 1000 * 0.75) C.show(S.parried, e.t / 1000 * 1.1, 0.08, `parried${v.blow}`);
+        else C.show(S.guard, T % C.dur(S.guard), 0.3);
+        break;
+      }
+      case ES.LOCKED: C.show(S.guard, T % C.dur(S.guard), 0.2); break;
+      case ES.INTERLUDE: C.show(S.taunt, e.t / 1000, 0.3); break;
+      case ES.INTRO: {
+        const t0 = e.introMs * 0.52;
+        if (walking) C.show(S.walk, (T * 1.1) % C.dur(S.walk), 0.2);
+        else if (e.t > t0 && e.t < e.introMs * 0.9) C.show(S.taunt, (e.t - t0) / 1000 * 1.2, 0.3);
+        else idle();
+        break;
+      }
+      case ES.DEFEATED:
+        if (e.rises && e.t > 1500) C.show(S.taunt, (e.t - 1500) / 1000, 0.5);
+        else C.show(S.death, e.t / 1000, 0.15);
+        break;
+      default:
+        if (hit) C.show(S.hits[v.hits % 2], (this.gameT - v.hitAt) / 1000 * 1.2, 0.06, `hit${v.hits}`);
+        else if (e.state === ES.IDLE && e.flinchAt && performance.now() - e.flinchAt < 320) C.show(S.flinch, (performance.now() - e.flinchAt) / 1000 * 1.5, 0.06, `flinch${e.flinchAt}`);
+        else idle();
+    }
+    C.update(dt / 1000);
+    v.k.root.updateMatrixWorld(true);
+  }
+
+  _clipPlayer(v, pl, dt, lock, st) {
+    const C = v.k.clips;
+    const T = this.gameT / 1000;
+    const hit = v.hitAt !== undefined && this.gameT - v.hitAt < 380;
+    if (pl.state === PS.BLOCKING && v.lastPl !== PS.BLOCKING) v.blockT = T;
+    if (pl.state === PS.DODGING && v.lastPl !== PS.DODGING) v.dodges = (v.dodges || 0) + 1;
+    v.lastPl = pl.state;
+    if (st < 1000) {
+      // Strike of the Pendragon: the power-up, then an overhead blow.
+      if (st < 560) C.show('power_up', (st / 560) * 1.3, 0.15, 'pendragon');
+      else C.frame('overhead', cutFrame('overhead', false, 1 + Math.min(2, (st - 560) / 150)), 0.1, `pendragon-cut${this.duel.director.superFx.at}`);
+    } else if (lock) C.show('block_idle', T % C.dur('block_idle'), 0.2);
+    else if (pl.state === PS.ATTACKING && pl.swingDir) {
+      const [cut, rev] = v.k.set.player[pl.swingDir] || v.k.set.player.S;
+      const t = pl.stateT;
+      const A = CONFIG.player.attackMs;
+      const H = CONFIG.player.contactMs;
+      // Wind-up 0-100 ms, the cut 100 ms to contact, the follow-through to the end of the swing.
+      const p = t < 100 ? smooth(t / 100) : t < H ? 1 + ((t - 100) / (H - 100)) ** 1.4 : 2 + easeOut((t - H) / (A - H));
+      if (pl !== v.swingOf || t < v.swingT) v.swing = (v.swing || 0) + 1;
+      v.swingOf = pl;
+      v.swingT = t;
+      C.frame(cut, cutFrame(cut, rev, p), rev ? 0.08 : 0.1, `${cut}${v.swing}`);
+    } else if (pl.state === PS.DODGING) {
+      // A side-step away and back.
+      const u = Math.min(1, pl.stateT / CONFIG.dodge.durationMs);
+      const away = pl.dodgeSide === 'left' ? 'strafe3' : 'strafe4';
+      const back = pl.dodgeSide === 'left' ? 'strafe4' : 'strafe3';
+      if (u < 0.5) C.show(away, u * 2 * C.dur(away), 0.06, `dodge${v.dodges}`);
+      else C.show(back, (u - 0.5) * 2 * C.dur(back), 0.08, `dodgeback${v.dodges}`);
+    } else if (pl.state === PS.BLOCKING) {
+      // Shield brought up, then held.
+      const b = T - v.blockT;
+      if (b < C.dur('block')) C.show('block', b, 0.06, `block${v.blockT}`);
+      else C.show('block_idle', b % C.dur('block_idle'), 0.1);
+    }
+    else if (pl.state === PS.STUNNED) C.show('impact2', pl.stateT / 1000, 0.08);
+    else if (pl.state === PS.DEAD) C.show('death2', pl.stateT / 1000, 0.15);
+    else if (hit) C.show(v.hits % 2 ? 'impact' : 'impact3', (this.gameT - v.hitAt) / 1000 * 1.2, 0.06, `hit${v.hits}`);
+    else C.show('idle', T % C.dur('idle'), 0.2);
+    C.update(dt / 1000);
+    v.k.root.updateMatrixWorld(true);
   }
 
   // Battle wear: at two-thirds and one-third health the armour darkens and dulls a step.

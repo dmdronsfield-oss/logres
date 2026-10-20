@@ -135,6 +135,7 @@ export class Duel extends Phaser.Scene {
         else if (id === 'super') d.onSuper();
         else if (id === 'pause') this.pause();
         else if (id === 'debug') this._debugTap();
+        else if (id === 'cheat') this._toggleCheat();
       },
       onButtonUp: (id) => {
         hud.press(id, false);
@@ -145,6 +146,12 @@ export class Duel extends Phaser.Scene {
       const p = hud.pos[id];
       this.swipe.addButton(id, p.x, p.y, { r: p.r, pad: id === 'pause' ? 8 : 14 });
     }
+    // Tap Gawain's crest: the cheat (he takes no damage; his bar turns white). Lasts the session.
+    if (hud.tb && hud.tb.crest) {
+      const c = hud.tb.crest;
+      this.swipe.addButton('cheat', c.x, c.y, { w: c.w, h: c.h, pad: 4 });
+    }
+    this._setCheat(!!this.game.registry.get('cheat'));
     const cs = CONFIG.debug.cornerSize;
     const debugX = Save.data.leftHanded ? cs / 2 : VIEW.W - cs / 2;
     this.swipe.addButton('debug', debugX, cs / 2, { w: cs, h: cs, pad: 0 });
@@ -170,6 +177,17 @@ export class Duel extends Phaser.Scene {
       pause: () => (this.paused ? this.resume() : this.pause()),
     });
     if (desktopLikely()) hud.showKeyHints();
+  }
+
+  _toggleCheat() {
+    this._setCheat(!this.player.invulnerable);
+    Sfx.clip('chime', { gain: 0.4 });
+  }
+
+  _setCheat(on) {
+    this.player.invulnerable = on;
+    this.hud.cheat = on;
+    this.game.registry.set('cheat', on);
   }
 
   _debugTap() {
