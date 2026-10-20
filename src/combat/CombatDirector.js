@@ -31,7 +31,7 @@ export class CombatDirector {
     this.comboHint = null;    // { combo, step } while he is open
     this.comboTurn = 0;
     this.over = false;
-    this.stats = { parries: 0, blocks: 0, dodges: 0, hits: 0, combos: 0, taken: 0 };
+    this.stats = { parries: 0, blocks: 0, dodges: 0, hits: 0, combos: 0, taken: 0, chains: 0, breaks: 0, clashes: 0 };
   }
 
   // ---------- player input ----------
@@ -256,12 +256,15 @@ export class CombatDirector {
 
   // ---------- outcomes ----------
 
+  // A parry. The burst, sound and meter gains are the same wherever it falls in his combination;
+  // what follows depends on the chain (brief 33): inside it, a clash and he fights on; on the last
+  // blow, the ordinary parried opening, or the Break if every blow of the chain was answered.
   doParry() {
     const e = this.enemy;
     const tip = e._tip();
-    e.parried();
     this.stats.parries += 1;
     this.noteAnswer('parry');
+    e.noteParry();
     this.juice.hitStop(CONFIG.juice.parryStopMs);
     this.juice.slowMo(CONFIG.juice.parrySlowScale, CONFIG.juice.parrySlowMs);
     this.juice.parryBurst(tip.x, tip.y);
@@ -272,20 +275,36 @@ export class CombatDirector {
     this.hud.callout('Parry');
     this.addSuper(CONFIG.super.fromParry);
     this.addStagger(CONFIG.stagger.fromParry);
-    // Riposte: the return cut along his blow's own line.
-    const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
-    this.riposte = { dir: back, until: performance.now() + CONFIG.parriedOpenMs };
-    this.hud.showHint(back, 'Riposte!', 'riposte');
-    this._teach('ripHint', say('RIPOSTE: swipe along the white arrow for double damage.', 'RIPOSTE: press the arrow key the white arrow shows, for double damage.'), 1, true);
-    this.tutorial?.onParry?.();
-    // Three parries in a row strike the weapon from his hand.
+    // Three parries in a row, inside a chain or across chains, strike the weapon from his hand.
     this.parryRun = (this.parryRun || 0) + 1;
-    if (this.parryRun >= CONFIG.disarm.parries && e.state === ES.PARRIED && !this.tutorial) this.doDisarm();
+    if (e.state === ES.STAGGERED) {
+      // The parry filled his stagger meter: the stagger takes over, and the parry count carries on.
+      this.onChainEnd();
+    } else if (this.parryRun >= CONFIG.disarm.parries && !this.tutorial) {
+      this.doDisarm();
+    } else if (!e.lastBlow) {
+      // A clash: he is held back a beat, then the chain goes on. No riposte, and he is not open.
+      this.stats.clashes += 1;
+      e.clashed();
+    } else {
+      // The chain ends on the parry: a Break if every blow was answered (never in the tutorial's
+      // scripted lessons), else the ordinary parried opening. The riposte arrow shows either way
+      // and applies to the first cut.
+      this.onChainEnd();
+      if (!e.scripted && e.chainAnswered) e.breakOpen(true);
+      else e.parried();
+      const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
+      this.riposte = { dir: back, until: performance.now() + e.openDur };
+      this.hud.showHint(back, 'Riposte!', 'riposte');
+      this._teach('ripHint', say('RIPOSTE: swipe along the white arrow for double damage.', 'RIPOSTE: press the arrow key the white arrow shows, for double damage.'), 1, true);
+    }
+    this.tutorial?.onParry?.();
   }
 
   doDisarm() {
     const e = this.enemy;
     this.parryRun = 0;
+    this.onChainEnd();   // his weapon is gone: the chain is over, wherever it was
     this.riposte = null;
     this.hud.hideHint();
     e.disarm(CONFIG.disarm.openMs);
@@ -479,7 +498,7 @@ export class CombatDirector {
       this.juice.sparksAt(VIEW.W / 2, VIEW.H - 170, 10);
       this.addStagger(CONFIG.stagger.fromBlock);
       this.addSuper(CONFIG.super.fromBlock);
-      this._teach('perfectBlockHint', 'Raise the shield at the LAST instant for a perfect block: no pip spent, and he is thrown open.', 2);
+      this._teach('perfectBlockHint', 'Raise the shield at the LAST instant for a perfect block: no pip spent, and his stagger meter fills twice as fast.', 2);
       if (p.pips === 0) {
         Sfx.shieldBreak();
         this.hud.callout('Shield spent', 'bad');
@@ -564,11 +583,20 @@ export class CombatDirector {
     this._teach('gloatHint', 'Land two blows on you and he GLOATS. While he does he is open: make him pay.', 1, true);
   }
 
-  // A perfect dodge or perfect block broke his attack.
-  onCounter() {
-    this.hud.callout('Counter');
+  // A combination of his has run its course (for the briefs' tables: Breaks per chain).
+  onChainEnd() {
+    this.stats.chains += 1;
+  }
+
+  // The Break (brief 33): every blow of his combination was answered, and he is thrown open for a
+  // long moment. The big centre text, as a stagger gets; the open glow is already his.
+  onBreak(allParried, parriedLast) {
+    this.stats.breaks += 1;
+    this.hud.bigText('Break!', '#fff6cf', 200, 52);
     Sfx.windowOpen();
-    this._teach('counterHint', 'A perfect dodge or block breaks his attack. He is open: strike!');
+    Sfx.voice(this.enemy.def.voice, 'stagger');
+    if (!parriedLast) Sfx.cheer();   // a parry on the last blow has just had its cheer
+    this._teach('breakHint', 'BREAK! Answer every blow of his combination and he is thrown open for a long moment. Parry them all for the longest Break.', 1, true);
   }
 
   _showComboHint() {
@@ -721,7 +749,7 @@ export class CombatDirector {
       this.hud.placeHint(c.x, c.y);
     }
     this.hud.set({
-      alert: e.state === ES.TELEGRAPH || e.state === ES.STRIKE || e.state === ES.GAP,
+      alert: e.state === ES.TELEGRAPH || e.state === ES.STRIKE || e.state === ES.GAP || e.state === ES.CLASH,
       enemy: e.healthFrac,
       player: p.healthFrac,
       stagger: e.state === ES.STAGGERED ? e.openFraction() : e.stagger / CONFIG.stagger.max,

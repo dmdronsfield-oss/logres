@@ -228,6 +228,7 @@ export class Duel extends Phaser.Scene {
       `Impact in ${Number.isFinite(rem) ? Math.round(rem) : '-'} ms`,
       `Parry window ${e.inParryWindow() ? 'OPEN' : 'closed'} (${CONFIG.parry.windowMs}ms)`,
       `Open ${Math.round(e.openFraction() * 100)}%  Stagger ${Math.round(e.stagger)}`,
+      `Chain ${e.combo ? `${e.comboIdx + 1}/${e.combo.length}` : '-'}  answered ${e.chain ? e.chain.answered : 0}${e.chain && e.chain.failed ? ' (forfeit)' : ''}${e.broken ? '  BREAK' : ''}`,
       `Player ${p.state}  pips ${p.pips}/${p.maxPips}`,
       `Last swipe ${this.swipe.lastDir}`,
       `Time scale ${this.juice.scale().toFixed(2)}`,

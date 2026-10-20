@@ -771,6 +771,11 @@ export class HallView extends World3D {
         target = e.attack && e.attack.bash ? bashPose(guard, 'drive', 110 + e.t) : strikePose(guard, dir, 110 + e.t, style);
         omega = 40; zWant = e.attack && e.attack.bash ? 0.52 : 0.45; zRate = 22; break;
       case ES.GAP: target = strikePose(guard, dir, 380 + e.t, style); omega = 14; zWant = 0.25; break;
+      case ES.CLASH:
+        // Parried inside his chain: knocked back for a beat, then on guard for the next blow.
+        if (e.t < 220) { target = pose(guard, STATES.parried); omega = 26; zWant = -0.3; zRate = 14; }
+        else { omega = 16; zWant = -0.05; zRate = 6; }
+        break;
       case ES.FEINT: omega = 16; zWant = -0.1; break;
       case ES.RECOVER: target = e.gloating ? tauntPose(guard, e.def.taunt, e.t) : recoverPose(guard, dir, e.t, style); omega = 18; zWant = e.t < 300 ? 0.3 : 0; zRate = 3; break;
       case ES.PARRIED:
@@ -788,6 +793,8 @@ export class HallView extends World3D {
           }
           break;
         }
+        // A Break after a parry is long: the recoil, then he hangs open, unsteady.
+        if (e.broken && e.t > 600) { target = pose(guard, STATES.open); omega = 9; wobble = 0.5; zWant = -0.2; zRate = 4; break; }
         target = pose(guard, STATES.parried); omega = 26; zWant = -0.4; zRate = 14; break;
       case ES.STAGGERED: target = pose(guard, STATES.staggered); omega = 12; wobble = 1; zWant = -0.3; zRate = 5; break;
       case ES.INTERLUDE: target = pose(guard, STATES.roar); omega = 10; break;
@@ -866,7 +873,7 @@ export class HallView extends World3D {
       this.camPunch = 1;
       this.cheer = 1;
     }
-    if (e.state === ES.PARRIED && e.t < 30) anim.jolt(-3.5, 1.5, 0);
+    if ((e.state === ES.PARRIED || e.state === ES.CLASH) && e.t < 30) anim.jolt(-3.5, 1.5, 0);
     v.hp = e.health;
     this._disarm(v, e, dt);
     const look = this.player ? this.player.k.J.head.getWorldPosition(this.v2 || (this.v2 = new THREE.Vector3())) : null;
@@ -1074,6 +1081,7 @@ export class HallView extends World3D {
         break;
       }
       case ES.GAP: C.frame(cut, cutFrame(cut, rev, 3, S.cuts), 0.1, key); break;
+      case ES.CLASH:
       case ES.PARRIED:
       case ES.STAGGERED: {
         // Thrown back off your parry; each of your cuts while he's open rocks him again.
@@ -1308,7 +1316,7 @@ export class HallView extends World3D {
     }
     // A short zoom punch on parries and staggers.
     const e = duel.enemy;
-    if (e && ((e.state === ES.PARRIED && e.t < 40) || (e.state === ES.STAGGERED && e.t < 40))) this.fovKick = 7;
+    if (e && ((e.state === ES.PARRIED || e.state === ES.CLASH || e.state === ES.STAGGERED) && e.t < 40)) this.fovKick = 7;
     if (e && e.state === ES.LOCKED) this.fovKick = Math.max(this.fovKick, 6 + Math.sin(now / 40) * 0.4);
     if (calm) this.fovKick = 0;
     this.fovKick *= Math.exp(-(dt || 16) / 180);

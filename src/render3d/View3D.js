@@ -725,7 +725,7 @@ export class World3D {
     let reach = 0;
     if (e.state === ES.TELEGRAPH) reach = -0.5 * Math.min(1, e.t / 260);
     else if (e.state === ES.STRIKE) reach = -0.75;
-    else if (e.state === ES.PARRIED) reach = 0.3;
+    else if (e.state === ES.PARRIED || e.state === ES.CLASH) reach = 0.3;
     const k = Math.min(1, dt / (e.state === ES.STRIKE ? 40 : 120));
     this.reach += (reach - this.reach) * k;
     v.armR.rotation.z = -r.armR.angle * DEG;

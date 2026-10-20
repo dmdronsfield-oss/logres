@@ -95,3 +95,6 @@ lessons rely on them. Infinity Blade's lesson is restraint everywhere else.
 Not proposed: the parry-break rule (a full combination to open him). Logres's per-parry riposte and
 the three-parry disarm already reward parrying, and changing it would undo the difficulty tuning
 from brief 21.
+
+(Taken up after all in brief 33, `docs/BRIEF-33-break-the-chain.md`: a parry inside a combination
+is only a clash, and defending through the whole chain gives the Break.)

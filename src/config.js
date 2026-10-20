@@ -52,7 +52,7 @@ export const CONFIG = {
 
   player: {
     baseHealth: 100,
-    baseDamage: 20,          // (10 before brief 29's one-cut-at-a-time; 14 before the weightier 0.42 s cut)
+    baseDamage: 16,          // (20 before brief 33's Breaks of six or more cuts; 14 before the weightier 0.42 s cut; 10 before brief 29's one-cut-at-a-time)
     attackMs: 420,          // the sword arm is busy for the whole cut (coil, cut, follow-through)
     contactMs: 175,          // the blade reaches him this long into the swing; the hit lands then
     offBalanceMs: 320,      // a cut that rings off his guard leaves you off balance this long
@@ -74,8 +74,12 @@ export const CONFIG = {
     perfectMs: 120,         // shield raised this close to impact = perfect block (no pip spent)
   },
 
-  counter: {
-    openMs: 700,            // a perfect dodge or perfect block breaks his combo and opens him this long
+  // Brief 33, the Infinity Blade rhythm: a parry inside his combination is only a clash, and the
+  // reward for answering the whole chain is the Break, a long opening.
+  chain: {
+    clashDelayMs: 150,        // a parry inside his combination holds his next blow back this much beyond its usual gap
+    breakOpenMs: 2500,        // answer every blow of a combination (dodge, block or parry) and he is open this long
+    breakParriedOpenMs: 3500, // the Break is this long when every blow of the combination was parried
   },
 
   lock: {
@@ -126,13 +130,15 @@ export const CONFIG = {
     damageMult: 2,
   },
 
-  parriedOpenMs: 900,       // enemy is open this long after being parried (if not staggered)
+  parriedOpenMs: 900,       // open this long after a parry on the last blow of a combination that wasn't answered in full (a full answer is a Break)
   disarm: { parries: 3, openMs: 2600 },   // parries in a row to disarm him; how long he's open
 
+  // Known strikes' bonus blows, scaled with baseDamage (30/30/36 at 20; brief 33): a Break holds
+  // a whole sequence or two, so they stay a bonus and not the bulk of the damage.
   combos: [
-    { id: 'cross', name: 'Pendragon Cross', seq: ['E', 'W', 'S'], damage: 30 },
-    { id: 'sun', name: "Gawain's Sun", seq: ['N', 'S', 'N'], damage: 30 },
-    { id: 'lake', name: 'Blade of the Lake', seq: ['SW', 'SE', 'N'], damage: 36 },
+    { id: 'cross', name: 'Pendragon Cross', seq: ['E', 'W', 'S'], damage: 24 },
+    { id: 'sun', name: "Gawain's Sun", seq: ['N', 'S', 'N'], damage: 24 },
+    { id: 'lake', name: 'Blade of the Lake', seq: ['SW', 'SE', 'N'], damage: 29 },
   ],
 
   juice: {

@@ -11,6 +11,7 @@ export const ES = {
   TELEGRAPH: 'Telegraph',
   STRIKE: 'Strike',
   GAP: 'ComboGap',
+  CLASH: 'Clash',
   RECOVER: 'Recover',
   PARRIED: 'Parried',
   STAGGERED: 'Staggered',
@@ -236,6 +237,7 @@ export class Enemy extends Fighter {
   setState(s) {
     this.state = s;
     this.t = 0;
+    this.broken = false;   // only a Break sets it (breakOpen)
   }
 
   isOpen() {
@@ -329,6 +331,14 @@ export class Enemy extends Fighter {
       case ES.GAP:
         if (this.t >= this.gapDur) this.telegraph(this.comboIdx + 1);
         break;
+      case ES.CLASH:
+        // Knocked back by the parry, then on guard for the rest of the beat; then the chain goes on.
+        if (!this.clashGuard && this.t >= 200) {
+          this.clashGuard = true;
+          this.pose('guard', Math.max(80, this.gapDur - this.t));
+        }
+        if (this.t >= this.gapDur) this.telegraph(this.comboIdx + 1);
+        break;
       case ES.RECOVER:
       case ES.PARRIED:
         if (this.t >= this.openDur) this.toIdle();
@@ -407,6 +417,7 @@ export class Enemy extends Fighter {
       this.scripted = false;
     }
     this.combo = seq.map((id) => ({ id, ...this.def.attacks[id] }));
+    this._beginChain();
     this.afterFeint = afterFeint;
     this.telegraph(0);
   }
@@ -581,6 +592,11 @@ export class Enemy extends Fighter {
     this.setState(ES.STRIKE);
     this.pose('strike', CONFIG.enemy.strikeMs, this.attack);
     this.lastOutcome = this.director.resolveImpact(this.attack);
+    // The chain's tally: a blow that lands (or a spent shield) forfeits the Break.
+    if (this.chain) {
+      if (this.lastOutcome === 'hit') this.chain.failed = true;
+      else this.chain.answered += 1;
+    }
   }
 
   // Two of his blows landed in a row: he gloats (his challenge), and is open while he does.
@@ -597,28 +613,76 @@ export class Enemy extends Fighter {
 
   afterStrike() {
     this.attacksSinceGloat = (this.attacksSinceGloat ?? 3) + 1;
-    if (this.gloatPending && !this.scripted && this.comboIdx + 1 >= this.combo.length) {
+    const last = this.comboIdx + 1 >= this.combo.length;
+    if (last) this.director.onChainEnd?.();
+    if (this.gloatPending && !this.scripted && last) {
       if (this.attacksSinceGloat >= 3) { this.gloat(); return; }
       this.gloatPending = false;
     }
-    // A perfect dodge or perfect block breaks the combo and leaves him open.
-    if (!this.scripted && (this.lastOutcome === 'perfect' || this.lastOutcome === 'perfectBlock')) {
-      this.cuts = 0;
-      this.setState(ES.PARRIED);
-      this.openDur = CONFIG.counter.openMs;
-      this.countered = true;
-      this.pose('recoil', 160);
-      this.director.onOpen?.();
-      this.director.onCounter?.();
-      return;
-    }
-    if (this.comboIdx + 1 < this.combo.length) {
+    // A perfect dodge or perfect block no longer cuts the chain short (brief 33): they feed his
+    // stagger meter, and the chain is answered blow by blow for the Break at its end.
+    if (!last) {
       this.setState(ES.GAP);
       this.gapDur = rand(this.cfg.comboGapMs);
       this.pose('guard', Math.min(this.gapDur, 200));
+    } else if (!this.scripted && this.chainAnswered) {
+      this.breakOpen(false);
     } else {
       this.recover(this.scriptRecover || this.attack.recoverMs);
     }
+  }
+
+  // ---------------- the chain (brief 33) ----------------
+
+  // How the current combination has been answered. Every blow dodged, blocked or parried earns
+  // the Break at its end; a blow that lands (or a spent shield) forfeits it.
+  _beginChain() {
+    this.chain = { answered: 0, parried: 0, failed: false };
+  }
+
+  // A parry answers the blow (the director notes it before deciding clash, Break or parried).
+  noteParry() {
+    if (!this.chain) return;
+    this.chain.answered += 1;
+    this.chain.parried += 1;
+  }
+
+  get lastBlow() {
+    return !this.combo || this.comboIdx + 1 >= this.combo.length;
+  }
+
+  get chainAnswered() {
+    const c = this.chain;
+    return !!c && !!this.combo && !c.failed && c.answered >= this.combo.length;
+  }
+
+  // Parried inside his combination: a clash. He is knocked back for a beat and the chain goes on,
+  // his next blow coming CONFIG.chain.clashDelayMs later than its usual gap. He is not open.
+  clashed() {
+    this._clearRing();
+    this.glint.setVisible(false);
+    this.rig.setWeaponTint(null);
+    this.setState(ES.CLASH);
+    this.gapDur = CONFIG.chain.clashDelayMs + rand(this.cfg.comboGapMs);
+    this.clashGuard = false;
+    this.pose('recoil', 140);
+  }
+
+  // The Break: every blow of his combination was answered, and he is thrown open for a long
+  // moment, longer still if every blow was parried. After a parry he recoils (the riposte
+  // follows); otherwise he is left open as after an ordinary chain, only for far longer.
+  breakOpen(parriedLast) {
+    const all = this.chain.parried >= this.combo.length;
+    this.cuts = 0;
+    this._clearRing();
+    this.glint.setVisible(false);
+    this.rig.setWeaponTint(null);
+    this.setState(parriedLast ? ES.PARRIED : ES.RECOVER);
+    this.broken = true;
+    this.openDur = all ? CONFIG.chain.breakParriedOpenMs : CONFIG.chain.breakOpenMs;
+    this.pose(parriedLast ? 'recoil' : 'open', 220);
+    this.director.onOpen?.();
+    this.director.onBreak?.(all, parriedLast);
   }
 
   // Cuts taken in the current opening, against his limit (if he has one).
@@ -692,6 +756,7 @@ export class Enemy extends Fighter {
     const opts = Object.entries(this.def.attacks).filter(([, a]) => a.parryable && a.dodge.length && !a.hesitate);
     const [id, a] = opts.sort((x, y) => x[1].telegraphMs - y[1].telegraphMs)[0] || Object.entries(this.def.attacks)[0];
     this.combo = [{ id, ...a, telegraphMs: Math.min(a.telegraphMs, 460) / this.cfg.telegraphMult, counter: true }];
+    this._beginChain();
     this.scripted = false;
     this.afterFeint = true;   // no feint on a counter
     this.telegraph(0);
@@ -707,9 +772,10 @@ export class Enemy extends Fighter {
     this.released = false;
   }
 
+  // Parried on the last blow of a combination that wasn't answered in full: the ordinary parried
+  // opening (a full answer is a Break; a parry inside the chain is a clash).
   parried() {
     this.cuts = 0;
-    this.countered = false;
     this._clearRing();
     this.glint.setVisible(false);
     this.rig.setWeaponTint(null);

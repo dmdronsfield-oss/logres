@@ -8,7 +8,8 @@
 //   parryable    false = red glint; can only be dodged or blocked
 //   parryDirs    optional: swipe directions that parry it (default: opposite of `direction`)
 //   damage       damage before level/cycle scaling
-//   recoverMs    how long the enemy is Open after a combo ending with this attack
+//   recoverMs    how long the enemy is Open after a combo ending with this attack, when the combo
+//                wasn't answered in full (answer every blow and he Breaks instead: CONFIG.chain)
 //   heavy        bigger shake when it lands
 //   unblockable  goes through the shield: only a dodge works (the Saxon's shield bash)
 //   bash         drawn as a shield charge rather than a weapon blow
@@ -16,7 +17,8 @@
 //
 // openLimit (per foe or per phase): { cuts, react } - after that many cuts in one
 // opening he recovers: 'hop' (slips back out of reach) or 'counter' (turns your
-// next cut and answers). Staggers ignore it.
+// next cut and answers). Staggers ignore it. A Break must allow at least five cuts
+// (brief 33), so no limit below 5 for a foe whose chains can be answered in full.
 //
 // Horizontal slashes are dodged against the blade's travel (an E slash is dodged left).
 
@@ -159,11 +161,11 @@ export const ENEMIES = [
     voice: { f0: 150, vowel: 'ae' },
     armour: 'leather',
     restless: 1.7,
-    openLimit: { cuts: 3, react: 'hop' },
+    openLimit: { cuts: 5, react: 'hop' },   // 3 before brief 33: a Break allows five cuts
     name: 'The Brigand Captain',
     epithet: 'of the Wirral road',
     scene: 'road',
-    health: 340,
+    health: 300,   // 340 before brief 33: his three- and four-blow chains are the hardest to answer in full
     size: 0.98,
     weapon: 'falchion',
     offhand: 'buckler',
@@ -205,11 +207,11 @@ export const ENEMIES = [
     voice: { f0: 128, vowel: 'a' },
     armour: 'plate',
     restless: 0.85,
-    openLimit: { cuts: 3, react: 'counter' },
+    openLimit: { cuts: 5, react: 'counter' },   // 3 before brief 33: a Break allows five cuts
     name: 'The Red Knight',
     epithet: 'of the Red Lands',
     scene: 'field',
-    health: 440,
+    health: 500,   // 440 before brief 33: his short chains Break often
     size: 1.05,
     weapon: 'sword',
     offhand: null,
