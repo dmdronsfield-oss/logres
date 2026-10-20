@@ -1,0 +1,229 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Brentor drone</title>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" } }</script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#000;color:#ccc;font:12px sans-serif}canvas{display:block;width:100vw;height:56.25vw}</style></head>
+<body><script type="module">
+// The drone shot: Brent Tor standing out of a sea of mist, trees breaking its surface, while
+// Gawain climbs out of it up the path to the Black Knight waiting at the porch door. The drone
+// circles high and wide, comes down to follow him, and ends over his shoulder on the knight.
+// Open it to preview (?t=12 holds a moment); window.drone.record() renders every frame and posts
+// it to /frame?i=N for a frame server to save (encoded with Blender afterwards).
+import * as THREE from 'three';
+import { RoomEnvironment } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js';
+import { loadPaladin, buildPaladin } from '../src/render3d/knight/Paladin.js';
+import { PLAYER_LOOK, lookFor } from '../src/render3d/knight/Looks.js';
+import { ENEMIES } from '../src/combat/enemies.js';
+import {
+  loadBrentor, moorland, installGroundFog, mistClouds, mistTrees, holdWalkInPlace,
+  ROUTE, WALK_SPEED, PORCH_DOOR, PORCH_OUT, CHURCH, SUN_DIR,
+} from '../src/render3d/Brentor.js';
+
+const W = 1920, H = 1080, FPS = 30, DUR = 34;
+const BARS = Math.round((H - W / 2.2) / 2);   // letterbox to 2.2:1
+const MIST_TOP = -5.5, MIST_BOTTOM = -11;     // the mist's surface, and where it's thick
+installGroundFog(MIST_TOP, MIST_BOTTOM);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.LinearToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// What gets saved: the render with a vignette, bars and titles laid over it.
+const out = document.createElement('canvas');
+out.width = W; out.height = H;
+document.body.prepend(out);
+const ctx = out.getContext('2d');
+
+const MIST = new THREE.Color('#c9d0d4');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(MIST, 0.0042);
+// Sky: grey-blue overhead, paling to the mist at the horizon, warm toward the sun.
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { top: { value: new THREE.Color('#5a7999') }, mid: { value: new THREE.Color('#a9b8c4') }, low: { value: MIST }, sun: { value: SUN_DIR } },
+  vertexShader: 'varying vec3 d; void main(){ d = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform vec3 top, mid, low, sun; varying vec3 d;
+    void main(){ float h = d.y; vec3 c = h > 0.1 ? mix(mid, top, smoothstep(0.1, 0.7, h)) : mix(low, mid, smoothstep(-0.01, 0.04, h));
+      c += vec3(1.0, 0.86, 0.62) * pow(max(dot(d, normalize(vec3(sun.x, 0.25, sun.z))), 0.0), 8.0) * 0.3;
+      gl_FragColor = vec4(c, 1.0); }`,
+})));
+scene.add(new THREE.HemisphereLight(0xe6edf5, 0x6a6040, 1.3));
+const sun = new THREE.DirectionalLight(0xffe4bd, 1.6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+Object.assign(sun.shadow.camera, { left: -17, right: 17, top: 17, bottom: -17, near: 1, far: 80 });
+sun.shadow.bias = -0.0004;
+const SHADE = new THREE.Vector3(-9.5, -3, -11.5);   // the shadows cover the path and the porch
+sun.position.copy(SHADE).addScaledVector(SUN_DIR, 40);
+sun.target.position.copy(SHADE);
+scene.add(sun, sun.target);
+const cam = new THREE.PerspectiveCamera(40, W / H, 0.1, 2000);
+
+const [land, assets] = await Promise.all([loadBrentor(), loadPaladin(), document.fonts.load('700 64px Cinzel'), document.fonts.load('400 30px Cinzel')]);
+const clouds = mistClouds(MIST_TOP, new THREE.Color('#f4f5f2'));
+scene.add(land.root, moorland(), mistTrees(land.heightAt, MIST_TOP), clouds);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+pm.dispose();
+
+// Gawain's way up, from the foot of the steps; he halts a few paces short of the knight.
+const path = new THREE.CatmullRomCurve3(ROUTE.map(([x, z]) => new THREE.Vector3(x, land.heightAt(x, z), z)), false, 'centripetal');
+const LEN = path.getLength();
+const S0 = 4, STOP = LEN - 3.4;
+const walk = holdWalkInPlace(assets.animations);
+const gawain = buildPaladin(assets, { ...PLAYER_LOOK, swordId: 'excalibur' }, 'sword', 'heater', 1);
+scene.add(gawain.root);
+const ARRIVE = (STOP - S0) / WALK_SPEED;
+const G_END = path.getPointAt(STOP / LEN);
+
+// The Black Knight, a pace out from the door, watching him come.
+const def = ENEMIES.find((e) => e.id === 'black');
+const knight = buildPaladin(assets, { ...lookFor(def), foe: true }, def.weapon, def.offhand, def.size || 1);
+const K = PORCH_DOOR.clone().addScaledVector(PORCH_OUT, 1.3);
+K.y = land.heightAt(K.x, K.z);
+knight.root.position.copy(K);
+knight.root.rotation.y = Math.atan2(G_END.x - K.x, G_END.z - K.z);
+scene.add(knight.root);
+[gawain, knight].forEach((f) => f.root.traverse((o) => { if (o.isMesh) o.castShadow = true; }));
+
+// Candlelight in the porch behind the knight, and a cold light on his back, to stand him off the dark stone.
+const candle = new THREE.PointLight(0xffb46a, 14, 5, 1.6);
+candle.position.copy(PORCH_DOOR).addScaledVector(PORCH_OUT, 0.35).setY(K.y + 1.3);
+const rim = new THREE.SpotLight(0xd8e4ff, 40, 7, 0.5, 0.6, 1.5);
+rim.position.copy(PORCH_DOOR).addScaledVector(PORCH_OUT, 0.2).setY(K.y + 3.2);
+rim.target = knight.root;
+scene.add(candle, rim);
+
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const lerp = (a, b, t) => a + (b - a) * t;
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+const C0 = new THREE.Vector3(CHURCH.x, land.heightAt(CHURCH.x, CHURCH.z) + 3, CHURCH.z);   // the church, part way up the tower
+const KH = K.clone().setY(K.y + 1.55);   // the knight's helm
+
+// Gawain at time t: where he is, which way he faces, and what he's doing.
+let gy = null, gHeading = null, lastT = -1;
+function placeGawain(t) {
+  const s = Math.min(STOP, S0 + WALK_SPEED * t);
+  const P = path.getPointAt(s / LEN);
+  const T = path.getTangentAt(Math.min(s / LEN, 0.999));
+  const fresh = gy === null || t < lastT || t - lastT > 0.5;
+  const ground = land.heightAt(P.x, P.z, P.y);
+  gy = fresh ? ground : gy + (ground - gy) * Math.min(1, (t - lastT) * 10);   // eased, so the steps read as a climb
+  let want = Math.atan2(T.x, T.z);
+  if (t >= ARRIVE) want = Math.atan2(K.x - P.x, K.z - P.z);
+  gHeading = fresh ? want : gHeading + angDiff(want, gHeading) * Math.min(1, (t - lastT) * 4);
+  gawain.root.position.set(P.x, gy, P.z);
+  gawain.root.rotation.y = gHeading;
+  if (t < ARRIVE) gawain.clips.show('walk', t % walk.duration, 0.3);
+  else gawain.clips.show('idle', (t - ARRIVE) % gawain.clips.dur('idle'), 0.5);
+  return gawain.root.position;
+}
+
+// The last pose: over Gawain's right shoulder, trailing him in to the knight.
+function finalPose(t, G) {
+  const toK = new THREE.Vector3().subVectors(K, G).setY(0).normalize();
+  const side = new THREE.Vector3(toK.z, 0, -toK.x);
+  const back = lerp(4.4, 3.5, smooth(ARRIVE - 1, DUR, t));
+  const pos = G.clone().addScaledVector(toK, -back).addScaledVector(side, -2.1);
+  pos.y = G.y + 1.8;
+  return pos;
+}
+const FINAL_YAW = (() => { const d = finalPose(ARRIVE, G_END).sub(G_END); return Math.atan2(d.x, d.z); })();
+const T_LAND = ARRIVE - 6;   // when the drone settles into that pose
+const SWEEP = Math.PI * 1.7;
+
+// Where the drone is at time t, and what it looks at.
+function shot(t, G) {
+  const follow = smooth(4, 13, t);   // from circling the church to following him
+  const centre = C0.clone().lerp(G.clone().setY(G.y + 1.2), follow);
+  const r = lerp(lerp(52, 30, smooth(0, 9, t)), 10, smooth(7, 17, t));
+  const h = lerp(lerp(30, 18, smooth(0, 9, t)), 4, smooth(8, 19, t));
+  const yaw = FINAL_YAW + SWEEP * Math.pow(1 - Math.min(1, t / T_LAND), 1.5);
+  const orbit = new THREE.Vector3(centre.x + Math.sin(yaw) * r, centre.y + h, centre.z + Math.cos(yaw) * r);
+  const settle = smooth(T_LAND - 6, T_LAND + 2, t);
+  const pos = orbit.lerp(finalPose(t, G), settle);
+  pos.y = Math.max(pos.y, land.heightAt(pos.x, pos.z, -50) + 1.0);
+  // the church, then Gawain, then past him to the knight
+  const look = centre.clone().lerp(KH.clone().lerp(G.clone().setY(G.y + 1.6), 0.45), smooth(T_LAND - 1, T_LAND + 5, t));
+  return { pos, look };
+}
+
+function titles(t) {
+  ctx.textAlign = 'center';
+  const card = (txt, sub, y, a) => {
+    if (a <= 0) return;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#f2e8d2';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 12;
+    ctx.font = '700 64px Cinzel';
+    ctx.fillText(txt, W / 2, y);
+    ctx.font = '400 30px Cinzel';
+    ctx.fillText(sub, W / 2, y + 48);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  };
+  card('Brent Tor', 'St Michael de Rupe  ·  Dartmoor', H - BARS - 120, smooth(1.5, 3, t) * (1 - smooth(7, 8.5, t)));
+  card('The Black Knight', 'awaits at the church door', H - BARS - 120, smooth(ARRIVE + 1.5, ARRIVE + 3, t));
+  ctx.globalAlpha = smooth(ARRIVE + 2, ARRIVE + 3.5, t) * 0.8;
+  ctx.fillStyle = '#f2e8d2';
+  ctx.font = '400 18px Cinzel';
+  ctx.fillText('Brentor Church scan by Chris Bibb (CC BY 4.0)  ·  Music: “Heroic Demise” by Matthew Pablo (CC BY 3.0)', W / 2, H - BARS - 22);
+  ctx.globalAlpha = 1;
+}
+
+function frame(t) {
+  const G = placeGawain(t);
+  knight.clips.show('idle', t % knight.clips.dur('idle'), 0.5);
+  const dt = lastT >= 0 && t > lastT ? t - lastT : 1 / FPS;
+  gawain.clips.update(dt);
+  knight.clips.update(dt);
+  lastT = t;
+  clouds.userData.update(t);
+  const s = shot(t, G);
+  cam.position.copy(s.pos);
+  cam.lookAt(s.look);
+  renderer.render(scene, cam);
+
+  ctx.drawImage(renderer.domElement, 0, 0);
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  v.addColorStop(0, 'rgba(0,0,0,0)');
+  v.addColorStop(1, 'rgba(10,8,6,0.5)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, W, H);
+  titles(t);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, BARS);
+  ctx.fillRect(0, H - BARS, W, BARS);
+  // fade in from black, and out at the end
+  const black = 1 - smooth(0, 1.2, t) + smooth(DUR - 0.8, DUR, t);
+  if (black > 0) { ctx.globalAlpha = Math.min(1, black); ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+}
+
+async function record(from = 0, to = DUR * FPS) {
+  lastT = -1; gy = null;
+  for (let i = 0; i < to; i++) {
+    frame(i / FPS);
+    if (i < from) continue;
+    const blob = await new Promise((r) => out.toBlob(r, 'image/jpeg', 0.93));
+    await fetch(`/frame?i=${i}`, { method: 'POST', body: blob });
+    document.title = `frame ${i + 1}/${to}`;
+  }
+  document.title = 'done';
+  return to;
+}
+
+window.drone = { frame, record, shot, knight, gawain, cam, DUR, FPS, ARRIVE };
+const q = new URLSearchParams(location.search);
+if (q.has('t')) frame(+q.get('t'));
+else {
+  const t0 = performance.now();
+  const tick = () => { if (window.drone.preview !== false) { frame(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(tick); } };
+  tick();
+}
+window.droneReady = true;
+</script></body></html>

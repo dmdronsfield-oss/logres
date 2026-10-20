@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Logres Brentor</title>
+  <meta name="theme-color" content="#9fb4c8">
+  <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" } }</script>
+  <link rel="icon" type="image/png" href="../icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #9fb4c8; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; position: fixed; inset: 0; }
+    canvas { display: block; }
+    #title { position: absolute; left: 0; right: 0; top: max(14px, env(safe-area-inset-top)); text-align: center; font: 700 20px Cinzel, serif; color: #fff; text-shadow: 0 1px 4px #0008; pointer-events: none; }
+    #title small { display: block; font-weight: 400; font-size: 12px; opacity: 0.85; }
+    #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; background: #1a1410; color: #e8d9b8; font: 16px Cinzel, serif; transition: opacity 0.6s; }
+    #bar { width: 60%; max-width: 320px; height: 6px; background: #3a2e22; border-radius: 3px; overflow: hidden; }
+    #bar i { display: block; height: 100%; width: 0; background: #d4a845; }
+    #ui { position: absolute; left: 0; right: 0; bottom: max(18px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 10px; }
+    button { font: 700 14px Cinzel, serif; color: #f4ead2; background: #1b2c63cc; border: 1px solid #d4a845; border-radius: 8px; padding: 10px 16px; }
+    #credit { position: absolute; right: 8px; top: max(8px, env(safe-area-inset-top)); font: 10px sans-serif; color: #fffc; text-shadow: 0 1px 2px #000a; }
+    #credit a { color: inherit; }
+    #hint { position: absolute; left: 0; right: 0; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 52px); text-align: center; font: 12px sans-serif; color: #fff; text-shadow: 0 1px 3px #000a; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="title">Brent Tor<small>St Michael de Rupe, Dartmoor</small></div>
+  <div id="hint">Drag to look around</div>
+  <div id="credit">Scan: <a href="https://sketchfab.com/3d-models/brentor-church-in-dartmoor-national-park-cb9b0e7681a54aff89b805c319c62804" target="_blank" rel="noopener">Chris Bibb</a>, CC BY 4.0</div>
+  <div id="ui"><button id="again">Walk again</button><button id="pause">Pause</button></div>
+  <div id="load"><div id="msg">Climbing to Brent Tor…</div><div id="bar"><i></i></div></div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { RoomEnvironment } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js';
+    import { loadPaladin, buildPaladin } from '../src/render3d/knight/Paladin.js';
+    import { PLAYER_LOOK } from '../src/render3d/knight/Looks.js';
+    import { loadBrentor, holdWalkInPlace, ROUTE, WALK_SPEED, PORCH_DOOR as PORCH, SUN_DIR } from '../src/render3d/Brentor.js';
+
+    const SKY = new THREE.Color('#a9bccd');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.LinearToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.prepend(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = SKY;
+    scene.fog = new THREE.Fog(SKY, 40, 230);
+    const cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 600);
+    scene.add(new THREE.HemisphereLight(0xe6edf5, 0x6a6040, 1.3));
+    const sun = new THREE.DirectionalLight(0xfff1da, 1.4);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 40 });
+    sun.shadow.bias = -0.0008;
+    scene.add(sun, sun.target);
+
+    const bar = document.querySelector('#bar i');
+    const prog = { land: 0, knight: 0 };
+    const show = () => { bar.style.width = `${(prog.land * 0.75 + prog.knight * 0.25) * 100}%`; };
+    const pct = (k) => (ev) => { prog[k] = ev.total ? ev.loaded / ev.total : 0.5; show(); };
+
+    const [land, assets] = await Promise.all([loadBrentor(pct('land')), loadPaladin(pct('knight'))]);
+    scene.add(land.root);
+    const { heightAt } = land;
+
+    // The path: a smooth curve through the route, laid on the ground.
+    const curve = new THREE.CatmullRomCurve3(ROUTE.map(([x, z]) => new THREE.Vector3(x, heightAt(x, z), z)), false, 'centripetal');
+    const LEN = curve.getLength();
+
+    // Sky and hill for his armour to reflect.
+    const pm = new THREE.PMREMGenerator(renderer);
+    scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    pm.dispose();
+    const k = buildPaladin(assets, { ...PLAYER_LOOK, swordId: 'excalibur' }, 'sword', 'heater', 1);
+    scene.add(k.root);
+    k.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+
+    const walk = holdWalkInPlace(assets.animations);
+    const SPEED = WALK_SPEED;
+
+    // Drag to swing the camera round him.
+    let yawOff = 0, pitchOff = 0, dragging = null;
+    addEventListener('pointerdown', (e) => { if (e.target.tagName !== 'BUTTON') dragging = { x: e.clientX, y: e.clientY }; });
+    addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      yawOff -= (e.clientX - dragging.x) * 0.008;
+      pitchOff = Math.max(-0.35, Math.min(0.8, pitchOff + (e.clientY - dragging.y) * 0.004));
+      dragging = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener('pointerup', () => { dragging = null; });
+    addEventListener('pointercancel', () => { dragging = null; });
+
+    let s = 0, clipT = 0, y = curve.getPointAt(0).y, heading = 0, paused = false, idleT = 0;
+    const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+    const reset = () => { s = 0; clipT = 0; idleT = 0; snap = true; };
+    let snap = true;
+    document.getElementById('again').onclick = reset;
+    const pauseBtn = document.getElementById('pause');
+    pauseBtn.onclick = () => { paused = !paused; pauseBtn.textContent = paused ? 'Go on' : 'Pause'; };
+
+    const P = new THREE.Vector3(), T = new THREE.Vector3();
+    const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+    function step(dt) {
+      const walking = s < LEN && !paused;
+      if (walking) s = Math.min(LEN, s + SPEED * dt);
+      const u = s / LEN;
+      curve.getPointAt(u, P);
+      curve.getTangentAt(Math.min(u, 0.999), T);
+      let want = Math.atan2(T.x, T.z);
+      if (s >= LEN) want = Math.atan2(PORCH.x - P.x, PORCH.z - P.z);
+      heading += angDiff(want, heading) * Math.min(1, dt * (s >= LEN ? 3 : 6));
+      // Feet on the ground: the highest point under either foot, eased so the steps read as a climb.
+      const gy = heightAt(P.x, P.z, y);
+      y = snap ? gy : y + (gy - y) * Math.min(1, dt * 10);
+      k.root.position.set(P.x, y, P.z);
+      k.root.rotation.y = heading;
+      if (s < LEN) {
+        if (walking) clipT = (clipT + dt) % walk.duration;
+        k.clips.show('walk', clipT, 0.25);
+      } else {
+        idleT += dt;
+        k.clips.show('idle', idleT % k.clips.dur('idle'), 0.4);
+      }
+      k.clips.update(dt);
+
+      // Camera: behind and above, swinging with the path, kept clear of the hill.
+      // At the porch it draws back and up, to show him before the door.
+      const end = s >= LEN ? Math.min(1, idleT / 2) : 0;
+      const yaw = heading + Math.PI + yawOff;
+      const dist = 5.2 + end * 1.6, lift = 2.0 + end * 0.9 + pitchOff * 4;
+      const want3 = new THREE.Vector3(P.x + Math.sin(yaw) * dist, y + lift, P.z + Math.cos(yaw) * dist);
+      want3.y = Math.max(want3.y, heightAt(want3.x, want3.z, want3.y) + 0.7);
+      const look = new THREE.Vector3(P.x, y + 1.25 + end * 0.5, P.z).lerp(new THREE.Vector3(PORCH.x, y + 1.75, PORCH.z), end * 0.3);
+      if (snap) { camPos.copy(want3); camLook.copy(look); snap = false; }
+      camPos.lerp(want3, Math.min(1, dt * 2.5));
+      camLook.lerp(look, Math.min(1, dt * 6));
+      cam.position.copy(camPos);
+      cam.lookAt(camLook);
+
+      sun.position.copy(k.root.position).addScaledVector(SUN_DIR, 20);
+      sun.target.position.copy(k.root.position);
+    }
+
+    const fit = () => {
+      const w = innerWidth || document.documentElement.clientWidth, h = innerHeight || document.documentElement.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h);
+      cam.aspect = w / h;
+      cam.updateProjectionMatrix();
+    };
+    addEventListener('resize', fit);
+    fit();
+    const clock = new THREE.Clock();
+    window.brentor = { step, cam, k, curve, scene, renderer, get s() { return s; }, set s(v) { s = v; }, SPEED, LEN };
+    renderer.setAnimationLoop(() => {
+      step(Math.min(0.05, clock.getDelta()));
+      renderer.render(scene, cam);
+    });
+    const load = document.getElementById('load');
+    load.style.opacity = 0;
+    setTimeout(() => load.remove(), 700);
+  </script>
+</body>
+</html>

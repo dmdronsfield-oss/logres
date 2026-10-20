@@ -1,0 +1,7 @@
+brentor.glb
+"Brentor Church in Dartmoor National Park" by Chris Bibb (chrisbibb on Sketchfab)
+https://sketchfab.com/3d-models/brentor-church-in-dartmoor-national-park-cb9b0e7681a54aff89b805c319c62804
+Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Changed: the scan's cut sides and base removed, small holes filled, decimated from 389k to
+120k triangles, a sloping skirt added round its edge, texture reduced to 2048 px, rescaled
+to metres and recentred on the porch, Draco-compressed (tools/brentor_build.py).
