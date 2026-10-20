@@ -57,8 +57,10 @@ export class Duel extends Phaser.Scene {
     this.player = new Player(this, {
       level: s.level, sword: Save.sword(), shield: Save.shield(), leftHanded: s.leftHanded,
     });
-    // In the side view the fighters fill the upper screen, so prompts go lower.
-    const bannerY = VIEW.portrait ? Math.round(H * 0.6) : this.w3 && this.w3.cam === 'side' ? 372 : 236;
+    // Banners and callouts live in the band under the health bars, clear of the fighters.
+    const side = this.w3 && this.w3.cam === 'side';
+    const bannerY = VIEW.portrait ? 150 : side ? 128 : 120;
+    const calloutY = VIEW.portrait ? 76 : side ? 66 : 116;
     const tourney = this.w3 && this.w3.tourney ? {
       playerName: playerName(s.generation),
       round: s.runStage + 1,
@@ -68,7 +70,7 @@ export class Duel extends Phaser.Scene {
       enemyId: def.id,
     } : null;
     this.hud = new Hud(this, {
-      enemyName: def.name, leftHanded: s.leftHanded, bannerY, style: tourney ? 'tourney' : 'classic', tourney,
+      enemyName: def.name, leftHanded: s.leftHanded, bannerY, calloutY, style: tourney ? 'tourney' : 'classic', tourney,
     });
     if (tourney) {
       // Painterly vignette over the 3D hall, under the HUD.
@@ -87,7 +89,8 @@ export class Duel extends Phaser.Scene {
     this.director.enemy = this.enemy;
 
     this.tutorial = !s.tutorialDone && s.runStage === 0 ? new Tutorial(this.director, this.hud) : null;
-    if (!this.tutorial) this.hud.banner(`${def.name}, ${def.epithet}`, this.w3 ? 2800 : 1900);
+    // The entrance banner names him and, in the tourney, the round (the top bar no longer does).
+    if (!this.tutorial) this.hud.banner(`${tourney ? `Round ${tourney.round} of ${tourney.rounds} · ` : ''}${def.name}, ${def.epithet}`, this.w3 ? 2800 : 1900);
 
     this._setupInput();
 
@@ -278,8 +281,8 @@ export class Duel extends Phaser.Scene {
     // Upright phones get finger-sized buttons, spread over the taller screen.
     const P = VIEW.portrait;
     const my = (y) => py(P ? 270 + (y - 270) * 1.45 : y);
-    const bh = P ? 60 : 42;
-    c.add(text(this, W / 2, my(64), 'Paused', {
+    const bh = P ? 54 : 38;
+    c.add(text(this, W / 2, my(58), 'Paused', {
       fontSize: '42px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
     }));
     const toggle = (y, label, get, set) => {
@@ -287,24 +290,28 @@ export class Duel extends Phaser.Scene {
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
       c.add(b);
     };
-    c.add(menuButton(this, W / 2, my(130), P ? 380 : 300, P ? 68 : 52, 'Resume', () => this.resume(), { size: P ? 28 : 25, fill: '#f6dc8a' }));
-    toggle(190, 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
-    toggle(240, 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
-    toggle(290, 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
-    toggle(340, 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
+    c.add(menuButton(this, W / 2, my(118), P ? 380 : 300, P ? 64 : 50, 'Resume', () => this.resume(), { size: P ? 28 : 25, fill: '#f6dc8a' }));
+    let y = 170;
+    const row = () => { const v = y; y += 42; return v; };
+    toggle(row(), 'Sound', () => !Save.data.muted, (v) => { Save.set({ muted: !v }); Sfx.setMuted(!v); });
+    toggle(row(), 'Music', () => Save.data.music !== false, (v) => { Save.set({ music: v }); Music.setEnabled(v); });
+    toggle(row(), 'Vibration', () => Save.data.vibration, (v) => Save.set({ vibration: v }));
+    toggle(row(), 'Left-handed', () => Save.data.leftHanded, (v) => Save.set({ leftHanded: v }));
     // Comfort mode: calmer camera, softer flashes (defaults to the device's reduce-motion setting).
-    toggle(440, 'Comfort mode', () => comfort(), (v) => Save.set({ comfort: v }));
+    toggle(row(), 'Comfort mode', () => comfort(), (v) => Save.set({ comfort: v }));
+    // Read his blade: only the glint's flare in the parry window, for every foe; his wind-up is the tell.
+    toggle(row(), 'Read his blade', () => !!Save.data.readBlade, (v) => Save.set({ readBlade: v }));
     if (this.w3 && this.w3.setQuality) {
       // Graphics: looks or battery life. Remembered; turns off the automatic step-down.
       const names = ['Low', 'Medium', 'High'];
-      const gb = menuButton(this, W / 2, my(390), P ? 380 : 320, bh, '', () => {
+      const gb = menuButton(this, W / 2, my(row()), P ? 380 : 320, bh, '', () => {
         this.w3.setQuality((this.w3.quality + 2) % 3, true);
         gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
       }, { size: P ? 22 : 18 });
       gb.setLabel(`Graphics: ${names[this.w3.quality]}`);
       c.add(gb);
     }
-    c.add(menuButton(this, W / 2, my(498), P ? 380 : 300, P ? 60 : 46, 'Retreat to camp', () => {
+    c.add(menuButton(this, W / 2, my(y + 14), P ? 380 : 300, P ? 60 : 46, 'Retreat to camp', () => {
       this.tweens.resumeAll();
       fadeTo(this, 'Title');
     }, { size: P ? 22 : 20 }));

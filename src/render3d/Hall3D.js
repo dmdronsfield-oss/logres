@@ -134,6 +134,27 @@ function glowTex() {
   return t;
 }
 
+// The pool of gold light on the floor under an open foe: a wide plateau with a soft edge.
+function poolTex() {
+  if (texCache.has('pool')) return texCache.get('pool');
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,214,120,1)');
+  g.addColorStop(0.45, 'rgba(255,196,90,0.95)');
+  g.addColorStop(0.75, 'rgba(250,170,60,0.4)');
+  g.addColorStop(1, 'rgba(240,150,40,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.userData.keep = true;
+  texCache.set('pool', t);
+  return t;
+}
+
 // ---------- the view ----------
 
 export class HallView extends World3D {
@@ -678,6 +699,18 @@ export class HallView extends World3D {
     f.k.root.rotation.y = ENEMY_TURN;
     const prox = { root: new P(), body: new P(), head: new P(), armL: new P(), armR: new P(), weapon: new P() };
     this.enemy = { ...f, prox, hp: null, walkPhase: 0, lastZ: null, fade: 1, zoff: 0, zvel: 0, flashUntil: 0, glow: 0 };
+    // The opening: a soft pool of gold light on the floor under him (brief 34; it replaced
+    // the whole-body gold tint). Unlit and blended over the pale marble (additive light
+    // would vanish on it), so no shader cost.
+    const pool = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: poolTex(), transparent: true, opacity: 0, depthWrite: false, fog: false }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(0, 0.012, ENEMY_Z);
+    pool.visible = false;
+    this.content.add(pool);
+    this.enemy.floorGlow = pool;
     this.enemy.trail = new BladeTrail(this.content, { color: 0xffe7a0, from: 0.84, over: 0.06, inner: 0.35, tail: 1.8, life: 120 });
     const view = this;
     const { k } = f;
@@ -881,17 +914,23 @@ export class HallView extends World3D {
     const blow = e.state === ES.TELEGRAPH || e.state === ES.STRIKE || e.state === ES.GAP;
     this._trail(v, !blow ? null : (e.attack && !e.attack.parryable ? 0xff5a3c : 0xffc860));
     this._wear(v, e.healthFrac);
-    // Gold shimmer while he is open: the moment to strike.
+    // The opening: a pool of gold light on the floor under him, the moment to strike.
     const now = performance.now();
     const openNow = e.isOpen() && e.state !== ES.DEFEATED;
-    // The glow fades as the opening runs out, and flickers when he's about to recover early.
+    // It fades as the opening runs out, and flickers when he's about to recover early.
     const wantGlow = openNow ? 0.35 + 0.65 * e.openFraction() : 0;
     v.glow += (wantGlow - v.glow) * Math.min(1, dt / 120);
-    if (now > v.flashUntil && (v.glow > 0.01 || v.glowWas)) {
+    if (v.floorGlow) {
+      const pool = v.floorGlow;
       const flick = e.openWarn ? 0.35 + 0.65 * Math.abs(Math.sin(now / 45)) : 1;
-      const g = v.glow * flick * (0.16 + Math.sin(now / 110) * 0.06) * (v.look && v.look.tint ? 0.45 : 1);
-      k.mats.forEach((m) => m.emissive && m.emissive.setRGB(g, g * 0.75, g * 0.25));
-      v.glowWas = v.glow > 0.01;
+      const alpha = v.glow * flick * (comfort() ? 0.4 : 0.72) * (0.92 + Math.sin(now / 110) * 0.08) * r.root.alpha;
+      pool.material.opacity = alpha;
+      pool.visible = alpha > 0.004;
+      if (pool.visible) {
+        pool.position.set(k.root.position.x, 0.012, k.root.position.z);
+        const sc = (2.6 + 0.2 * Math.sin(now / 180)) * (e.size / 0.9);
+        pool.scale.set(sc, sc, 1);
+      }
     }
 
     const a = r.root.alpha;

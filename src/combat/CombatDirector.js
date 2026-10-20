@@ -139,7 +139,7 @@ export class CombatDirector {
     this.superFx = { at: performance.now() };
     e.forceStagger(CONFIG.super.staggerMs + 600, true);
     this.juice.slowMo(0.4, 900);
-    this.hud.bigText('Strike of the Pendragon!', PALETTE.goldLight, 170, 40);
+    this.hud.callout('Strike of the Pendragon!', 'good', { big: true });
     Sfx.glint(false);
     Sfx.roar();
     this.scene.time.delayedCall(560, () => {
@@ -166,7 +166,7 @@ export class CombatDirector {
     this.juice.shake(CONFIG.juice.shakeTaken);
     this.juice.vibrate(CONFIG.juice.vibrateParryMs);
     Sfx.clashHeavy();
-    this.hud.bigText('Blade lock!', '#fff6cf', 170, 46);
+    this.hud.callout('Blade lock!', 'good', { big: true });
     this.hud.showLock(true);
     Music.play('stand');
     this._teach('lockHint', 'BLADE LOCK! Tap fast, anywhere (or any key), to drive him back!', 1, true);
@@ -211,7 +211,7 @@ export class CombatDirector {
       this.juice.screenFlash('gold', 0.4, 300);
       this.juice.shake(CONFIG.juice.shakeHeavy);
       Sfx.stagger();
-      this.hud.bigText('Overpowered!', '#fff6cf', 200, 50);
+      this.hud.callout('Overpowered!', 'good', { big: true });
       this.addSuper(15);
     } else {
       const dmg = Math.round(L.attack.damage * e.dmgMult * CONFIG.lock.loseDamage);
@@ -220,9 +220,7 @@ export class CombatDirector {
       Sfx.hurt();
       this.juice.screenFlash('red', 0.4, 260);
       this.juice.shake(CONFIG.juice.shakeTaken);
-      this.hud.bigText('Forced down!', PALETTE.vermilionCss, 200, 40);
-      const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
-      this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
+      this.hud.callout('Forced down!', 'bad', { big: true });
       if (p.takeHit(dmg)) this.playerDefeated();
     }
   }
@@ -275,8 +273,8 @@ export class CombatDirector {
     // Riposte: the return cut along his blow's own line.
     const back = e.attack.direction === 'T' ? 'S' : e.attack.direction;
     this.riposte = { dir: back, until: performance.now() + CONFIG.parriedOpenMs };
-    this.hud.showHint(back, 'Riposte!', 'riposte');
-    this._teach('ripHint', say('RIPOSTE: swipe along the white arrow for double damage.', 'RIPOSTE: press the arrow key the white arrow shows, for double damage.'), 1, true);
+    this.hud.showHint(back, 'riposte');
+    this._teach('ripHint', say('RIPOSTE: swipe the way the white chevron flashed, for double damage.', 'RIPOSTE: press the arrow the white chevron flashed, for double damage.'), 1, true);
     this.tutorial?.onParry?.();
     // Three parries in a row strike the weapon from his hand.
     this.parryRun = (this.parryRun || 0) + 1;
@@ -290,7 +288,7 @@ export class CombatDirector {
     this.hud.hideHint();
     e.disarm(CONFIG.disarm.openMs);
     this.stats.disarms = (this.stats.disarms || 0) + 1;
-    this.hud.bigText('Disarmed!', '#fff6cf', 200, 52);
+    this.hud.callout('Disarmed!', 'good', { big: true });
     this.juice.slowMo(0.3, 380);
     Sfx.cheer();
     this.scene.time.delayedCall(820, () => Sfx.clatter());
@@ -354,7 +352,7 @@ export class CombatDirector {
     this.juice.shake(CONFIG.juice.shakeHit);
     this.juice.sparksAt(hx, hy, 8, 'red');
     this.juice.sparksAlong(hx, hy, dx, dy, 18);
-    this.juice.damageNumber(hx, hy - 40, dmg, { color: mult > 1 ? '#fff6cf' : PALETTE.goldLight, size: mult > 1 ? 40 : 32 });
+    this.juice.damageNumber(hx, hy, dmg, { color: mult > 1 ? '#fff6cf' : PALETTE.goldLight, size: mult > 1 ? 24 : 19 });
     Sfx.hitArmour(e.def.armour || 'mail');
     if (Math.random() < 0.45) Sfx.voice(e.def.voice, 'pain');
     this.hud.showCounter(this.hitCount);
@@ -384,8 +382,8 @@ export class CombatDirector {
         this.juice.screenFlash('gold', 0.35, 260);
         this.juice.shake(CONFIG.juice.shakeTaken);
         this.juice.sparksAt(hx, hy, 40);
-        this.juice.damageNumber(hx, hy - 90, bonus, { color: '#ffffff', size: 46 });
-        this.hud.bigText(c.name, PALETTE.goldLight, 150, 42);
+        this.juice.damageNumber(hx, hy - 30, bonus, { color: '#ffffff', size: 28 });
+        this.hud.callout(c.name, 'good', { big: true });
         this.comboHint = null;
         this.hud.hideHint();
         Sfx.combo();
@@ -407,7 +405,7 @@ export class CombatDirector {
     this.juice.hitStop(50);
     this.juice.shake(CONFIG.juice.shakeHit);
     this.juice.sparksAt(c.x, c.y, 10, 'red');
-    this.juice.damageNumber(c.x, c.y - 40, dmg, { color: PALETTE.goldLight, size: 28 });
+    this.juice.damageNumber(c.x, c.y, dmg, { color: PALETTE.goldLight, size: 17 });
     this.hud.callout('Through his guard');
     Sfx.hitArmour(e.def.armour || 'mail');
     this.addSuper(CONFIG.super.fromHit);
@@ -451,8 +449,6 @@ export class CombatDirector {
       this.juice.shake(CONFIG.juice.shakeHeavy);
       this.juice.screenFlash('red', 0.45, 260);
       this.hud.callout('Guard broken', 'bad');
-      const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
-      this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
       this.hitCount = 0;
       if (dead) this.playerDefeated();
     } else if (p.state === PS.BLOCKING && p.blockElapsed <= CONFIG.block.perfectMs) {
@@ -501,8 +497,6 @@ export class CombatDirector {
       this.juice.shake(attack.heavy ? CONFIG.juice.shakeHeavy : CONFIG.juice.shakeTaken);
       this.juice.screenFlash('red', attack.heavy ? 0.5 : 0.35, 260);
       this.juice.vibrate(CONFIG.juice.vibrateHitMs * (attack.heavy ? 2 : 1));
-      const at = p.rig.chestPoint ? p.rig.chestPoint() : { x: VIEW.W / 2, y: VIEW.H - 200 };
-      this.juice.damageNumber(at.x, at.y - 30, dmg, { color: '#ff9a85', size: 34 });
       this.hitCount = 0;
       if (dead) this.playerDefeated();
     }
@@ -520,7 +514,7 @@ export class CombatDirector {
     this.comboTurn += 1;
     if (!this.riposte) {
       this._showComboHint();
-      this._teach('comboHint', say('Follow the gold arrows for a KNOWN STRIKE: a heavy bonus blow.', 'Press the arrow keys the gold arrows show for a KNOWN STRIKE: a heavy bonus blow.'));
+      if (this.hud.strikeHintsOn()) this._teach('comboHint', say('Follow the gold chevrons for a KNOWN STRIKE: a heavy bonus blow.', 'Press the arrow keys the gold chevrons show for a KNOWN STRIKE: a heavy bonus blow.'));
     }
   }
 
@@ -558,6 +552,11 @@ export class CombatDirector {
     this.lessonAt = now;
   }
 
+  // He checked his swing: a word at the top, not over his head.
+  onFeint() {
+    this.hud.callout('Feint', 'bad');
+  }
+
   onGloat() {
     this.hud.callout('He gloats! Strike!', 'warn');
     Sfx.jeer();
@@ -574,7 +573,7 @@ export class CombatDirector {
   _showComboHint() {
     const h = this.comboHint;
     if (!h) return;
-    this.hud.showHint(h.combo.seq[h.step], `${h.combo.name} ${h.step + 1}/${h.combo.seq.length}`, 'combo');
+    this.hud.showHint(h.combo.seq[h.step], 'combo');
   }
 
   _nextComboHint(dir) {
@@ -596,7 +595,7 @@ export class CombatDirector {
     this.tutorial?.onTelegraph?.(attack);
     if (this.tutorial && this.tutorial.step !== 'free') return;
     if (attack.bash) this._teach('bashHint', 'SHIELD BASH! It cannot be parried or blocked. DODGE it!', 1, true);
-    if (attack.hesitate) this._teach('hesitateHint', 'He HESITATES at the top. Wait for the ring to move again.', 1, true);
+    if (attack.hesitate) this._teach('hesitateHint', 'He HESITATES at the top of his blow. Wait for it to fall.', 1, true);
     // One-time explanations for attack types the tutorial doesn't cover.
     if (!attack.parryable && !attack.unblockable && !Save.data.redHintShown) {
       Save.set({ redHintShown: true });
@@ -627,7 +626,7 @@ export class CombatDirector {
       Sfx.stagger();
       Sfx.voice(e.def.voice, 'stagger');
       this.juice.shake(CONFIG.juice.shakeTaken);
-      this.hud.bigText('Staggered!', '#fff6cf', 200, 52);
+      this.hud.callout('Staggered!', 'good', { big: true });
       this.tutorial?.onStagger?.();
     }
   }

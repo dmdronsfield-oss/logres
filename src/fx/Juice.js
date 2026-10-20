@@ -227,19 +227,20 @@ export class Juice {
     this.scene.time.delayedCall(ms, () => { roses.stop(); gold.stop(); });
   }
 
-  damageNumber(x, y, amount, { color = PALETTE.goldLight, size = 34, label = null } = {}) {
-    const t = text(this.scene, x + Phaser.Math.Between(-30, 30), y, label || String(Math.round(amount)), {
+  // Small and at the point of contact (brief 34): about 60% of the old size, a short float.
+  damageNumber(x, y, amount, { color = PALETTE.goldLight, size = 20, label = null } = {}) {
+    const t = text(this.scene, x + Phaser.Math.Between(-12, 12), y, label || String(Math.round(amount)), {
       fontSize: `${size}px`,
       fontStyle: '700',
       color,
       stroke: PALETTE.inkCss,
-      strokeThickness: 6,
+      strokeThickness: 4,
     }).setDepth(42);
     this.scene.tweens.add({
       targets: t,
-      y: y - 90,
+      y: y - 50,
       alpha: { from: 1, to: 0 },
-      scale: { from: 1.25, to: 0.9 },
+      scale: { from: 1.2, to: 0.9 },
       duration: CONFIG.juice.damageFloatMs,
       ease: 'Cubic.easeOut',
       onComplete: () => t.destroy(),

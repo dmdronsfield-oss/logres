@@ -14,6 +14,12 @@
 //   bash         drawn as a shield charge rather than a weapon blow
 //   hesitate     [fraction, ms]: the wind-up stops at that point for ms before falling
 //
+// markers (per foe): how much of the telegraph is drawn (brief 34). 'full' = glint, closing
+// ring, path arrow and DODGE!/NO DODGE tags; 'ring' = glint and ring; 'glint' = the glint
+// alone (gold or red, flaring white in the parry window); 'window' = the glint only while the
+// parry window is open, so the wind-up pose is the tell. 'Read his blade' (pause menu, camp)
+// forces 'window' for every foe; the tutorial always shows 'full'.
+//
 // openLimit (per foe or per phase): { cuts, react } - after that many cuts in one
 // opening he recovers: 'hop' (slips back out of reach) or 'counter' (turns your
 // next cut and answers). Staggers ignore it.
@@ -61,6 +67,7 @@ const PLATE = ['LeftShoulderMetal', 'GorgetMetal', 'ArmMetal', 'Ridges', 'Gauntl
 export const ENEMIES = [
   {
     id: 'saxon',
+    markers: 'full',
     reads: false,   // the first foe doesn't read your habits
     taunt: 'bang',
     voice: { f0: 105, vowel: 'a' },
@@ -109,6 +116,7 @@ export const ENEMIES = [
   },
   {
     id: 'black',
+    markers: 'ring',
     taunt: 'salute',
     voice: { f0: 92, vowel: 'o', muffle: true },
     armour: 'plate',
@@ -155,6 +163,7 @@ export const ENEMIES = [
   },
   {
     id: 'brigand',
+    markers: 'glint',
     taunt: 'point',
     voice: { f0: 150, vowel: 'ae' },
     armour: 'leather',
@@ -201,6 +210,7 @@ export const ENEMIES = [
   },
   {
     id: 'red',
+    markers: 'window',
     taunt: 'raise',
     voice: { f0: 128, vowel: 'a' },
     armour: 'plate',
@@ -247,6 +257,7 @@ export const ENEMIES = [
   },
   {
     id: 'green',
+    markers: 'window',
     taunt: 'laugh',
     voice: { f0: 66, vowel: 'o' },
     armour: 'plate',

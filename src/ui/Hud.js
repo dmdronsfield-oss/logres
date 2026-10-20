@@ -1,77 +1,89 @@
 import { CONFIG, VIEW, PALETTE } from '../config.js';
-import { canvasTex, img, text, roundel, ink, star, roundRect } from '../art/Tex.js';
-import { drawShieldShape } from '../art/Rig.js';
+import { canvasTex, img, text, star, roundRect } from '../art/Tex.js';
 import { drawCrest } from '../art/Heraldry.js';
+import { Save } from '../save/Save.js';
 
 const DEPTH = 40;
+// The line-art buttons (brief 34, after Infinity Blade): a thin gold stroke over a soft
+// dark shadow, no gilt disc, so the fighters' feet show through.
+const LINE = '#f4d070';
 
-function iconArrow(ctx, cx, cy, s, dir) {
+// Stroke the current path as line art: a dark shadow first, then the gold line.
+function lineArt(ctx, w = 3, color = LINE) {
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(20,12,8,0.6)';
+  ctx.lineWidth = w + 3;
+  ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = w;
+  ctx.stroke();
+}
+
+// Double chevron pointing left (dir 1) or right (dir -1): the dodge buttons.
+function iconChevrons(ctx, cx, cy, s, dir) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(dir, 1);
   ctx.beginPath();
-  ctx.moveTo(-s, 0);
-  ctx.lineTo(-s * 0.1, -s * 0.75);
-  ctx.lineTo(-s * 0.1, -s * 0.3);
-  ctx.lineTo(s * 0.9, -s * 0.3);
-  ctx.lineTo(s * 0.9, s * 0.3);
-  ctx.lineTo(-s * 0.1, s * 0.3);
-  ctx.lineTo(-s * 0.1, s * 0.75);
-  ctx.closePath();
-  ctx.fillStyle = PALETTE.lapisCss;
-  ctx.fill();
-  ink(ctx, 2.5);
+  [-5, 17].forEach((ox) => {
+    ctx.moveTo(ox + s * 0.5, -s);
+    ctx.lineTo(ox - s * 0.45, 0);
+    ctx.lineTo(ox + s * 0.5, s);
+  });
+  lineArt(ctx, 3.5);
   ctx.restore();
+}
+
+// Heater shield outline: the block button (the count is drawn inside it as text).
+function iconShield(ctx, cx, cy, s) {
+  ctx.beginPath();
+  ctx.moveTo(cx - s, cy - s * 0.9);
+  ctx.lineTo(cx + s, cy - s * 0.9);
+  ctx.lineTo(cx + s, cy);
+  ctx.quadraticCurveTo(cx + s * 0.9, cy + s * 0.9, cx, cy + s * 1.3);
+  ctx.quadraticCurveTo(cx - s * 0.9, cy + s * 0.9, cx - s, cy);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(20,12,8,0.35)';
+  ctx.fill();
+  lineArt(ctx, 3);
 }
 
 function makeButtonTextures(scene) {
   const R = 54;
   const S = R * 2 + 4;
-  canvasTex(scene, 'btn_dodgeL', S, S, (ctx) => { roundel(ctx, S / 2, S / 2, R); iconArrow(ctx, S / 2, S / 2, 24, 1); });
-  canvasTex(scene, 'btn_dodgeR', S, S, (ctx) => { roundel(ctx, S / 2, S / 2, R); iconArrow(ctx, S / 2, S / 2, 24, -1); });
-  canvasTex(scene, 'btn_block', S, S, (ctx) => {
-    roundel(ctx, S / 2, S / 2, R);
-    drawShieldShape(ctx, 'heater', S / 2, S / 2 - 6, 22, PALETTE.lapisCss, 'cross', PALETTE.goldDark);
-  });
+  canvasTex(scene, 'btn_dodgeL', S, S, (ctx) => iconChevrons(ctx, S / 2, S / 2, 22, 1));
+  canvasTex(scene, 'btn_dodgeR', S, S, (ctx) => iconChevrons(ctx, S / 2, S / 2, 22, -1));
+  canvasTex(scene, 'btn_block', S, S, (ctx) => iconShield(ctx, S / 2, S / 2 - 4, 26));
   const SR = 44;
   const SS = SR * 2 + 4;
+  // The super: a small star that lights and pulses when it's ready.
   canvasTex(scene, 'btn_super', SS, SS, (ctx) => {
-    roundel(ctx, SS / 2, SS / 2, SR);
-    star(ctx, SS / 2, SS / 2, 8, 24, 11);
-    ctx.fillStyle = PALETTE.vermilionCss;
+    star(ctx, SS / 2, SS / 2, 8, 20, 9);
+    ctx.fillStyle = 'rgba(20,12,8,0.3)';
     ctx.fill();
-    ink(ctx, 2);
+    lineArt(ctx, 2.5);
   });
   canvasTex(scene, 'btn_super_lit', SS, SS, (ctx) => {
-    roundel(ctx, SS / 2, SS / 2, SR, { lit: true });
-    star(ctx, SS / 2, SS / 2, 8, 28, 12);
-    ctx.fillStyle = '#ffffff';
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,230,150,0.9)';
+    ctx.shadowBlur = 14;
+    star(ctx, SS / 2, SS / 2, 8, 24, 11);
+    ctx.fillStyle = '#fff6cf';
     ctx.fill();
-    ink(ctx, 2);
+    ctx.restore();
+    star(ctx, SS / 2, SS / 2, 8, 24, 11);
+    lineArt(ctx, 2.5, '#f6d061');
   });
   const PR = 28;
   const PS = PR * 2 + 4;
   canvasTex(scene, 'btn_pause', PS, PS, (ctx) => {
-    roundel(ctx, PS / 2, PS / 2, PR);
-    ctx.fillStyle = PALETTE.inkCss;
-    ctx.fillRect(PS / 2 - 9, PS / 2 - 10, 6, 20);
-    ctx.fillRect(PS / 2 + 3, PS / 2 - 10, 6, 20);
-  });
-  canvasTex(scene, 'pip_on', 18, 18, (ctx) => {
     ctx.beginPath();
-    ctx.arc(9, 9, 7, 0, Math.PI * 2);
-    ctx.fillStyle = PALETTE.goldCss;
-    ctx.fill();
-    ink(ctx, 2);
-  });
-  canvasTex(scene, 'pip_off', 18, 18, (ctx) => {
-    ctx.beginPath();
-    ctx.arc(9, 9, 7, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(42,29,20,0.35)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(42,29,20,0.7)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.moveTo(PS / 2 - 7, PS / 2 - 11);
+    ctx.lineTo(PS / 2 - 7, PS / 2 + 11);
+    ctx.moveTo(PS / 2 + 7, PS / 2 - 11);
+    ctx.lineTo(PS / 2 + 7, PS / 2 + 11);
+    lineArt(ctx, 4);
   });
   // Chevron pointing right (rotated to the swipe direction): combo and riposte hints.
   canvasTex(scene, 'chev', 96, 96, (ctx) => {
@@ -95,6 +107,15 @@ function makeButtonTextures(scene) {
     draw(58, 1);
     ctx.globalAlpha = 1;
   });
+  // A small gold star, flanking the big-moment callouts.
+  canvasTex(scene, 'callstar', 30, 30, (ctx) => {
+    star(ctx, 15, 15, 8, 13, 5.5);
+    ctx.fillStyle = '#f6d061';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = PALETTE.inkCss;
+    ctx.stroke();
+  });
   canvasTex(scene, 'banner', 620, 92, (ctx, w, h) => {
     roundRect(ctx, 4, 4, w - 8, h - 8, 12);
     ctx.fillStyle = 'rgba(241,227,196,0.94)';
@@ -112,8 +133,8 @@ function makeButtonTextures(scene) {
 }
 
 export class Hud {
-  // style 'tourney' = the third-person top bar: named crests, segmented health, round plaque.
-  constructor(scene, { enemyName, leftHanded, bannerY = 236, style = 'classic', tourney = null }) {
+  // style 'tourney' = the third-person top bar: two thin bars between small crests (brief 34).
+  constructor(scene, { enemyName, leftHanded, bannerY = 236, calloutY = 116, style = 'classic', tourney = null }) {
     this.scene = scene;
     makeButtonTextures(scene);
     const W = VIEW.W;
@@ -126,6 +147,7 @@ export class Hud {
     const pauseX = leftHanded ? padL + 40 : W - padR - 74;
 
     this.tourney = style === 'tourney';
+    // Hit zones (SwipeInput reads these radii): unchanged by the line-art redraw.
     this.pos = {
       dodgeL: { x: padL + 66, y: H - 70 - padB, r: 54 },
       dodgeR: { x: W - padR - 66, y: H - 70 - padB, r: 54 },
@@ -134,25 +156,25 @@ export class Hud {
       pause: { x: pauseX, y: 44, r: 28 },
     };
     if (this.tourney) {
-      // The top of the screen belongs to the tourney bar; buttons shrink and sink
-      // so the fighters' legs stay visible.
+      // The buttons shrink and sink so the fighters' legs stay visible; the pause sits
+      // in the corner under the thin top bar.
       const s = 0.82;
       this.btnScale = s;
       this.pos.dodgeL = { x: padL + 54, y: H - 52 - padB, r: 54 * s };
       this.pos.dodgeR = { x: W - padR - 54, y: H - 52 - padB, r: 54 * s };
       this.pos.block = { x: W / 2, y: H - 54 - padB, r: 54 * s };
       this.pos.super = { x: leftHanded ? W / 2 + 120 : W / 2 - 120, y: H - 46 - padB, r: 44 * s };
-      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 118, r: 28 };
+      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 78, r: 28 };
     }
     if (VIEW.portrait) {
-      // Upright: a row of roundels along the bottom, the super above the left thumb.
+      // Upright: a row of buttons along the bottom, the super above the left thumb.
       const s = 0.95;
       this.btnScale = s;
       this.pos.dodgeL = { x: padL + 66, y: H - 84 - padB, r: 54 * s };
       this.pos.dodgeR = { x: W - padR - 66, y: H - 84 - padB, r: 54 * s };
       this.pos.block = { x: W / 2, y: H - 96 - padB, r: 54 * s };
       this.pos.super = { x: leftHanded ? W - padR - 60 : padL + 60, y: H - 214 - padB, r: 44 * s };
-      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 176, r: 28 };
+      this.pos.pause = { x: leftHanded ? padL + 36 : W - padR - 36, y: 96, r: 28 };
     }
 
     this.btn = {};
@@ -164,19 +186,21 @@ export class Hud {
       this.btn[id] = b;
     }
     this.btn.super.setAlpha(0.8);
+    this.btn.pause.setAlpha(0.7);
+    // The blocks left, as a number inside the shield (was a row of pips).
+    const bs = this.btnScale || 1;
+    this.blockCount = text(scene, this.pos.block.x, this.pos.block.y - 2 * bs, '', {
+      fontSize: `${Math.round(24 * bs)}px`, fontStyle: '700', color: '#fff0b8', stroke: PALETTE.inkCss, strokeThickness: 4,
+    }).setDepth(DEPTH + 1);
 
     // Super meter ring
     this.superRing = scene.add.graphics().setDepth(DEPTH + 1);
-
-    // Shield pips above the block button
-    this.pips = [];
-    this.pipY = this.pos.block.y - (this.tourney ? 56 : 70);
 
     // Bars
     this.bars = scene.add.graphics().setDepth(DEPTH);
     this.enemyBar = { x: W / 2 - 220, y: 40, w: 440, h: 16 };
     this.playerBar = { x: W / 2 - 150, y: H - 22 - padB, w: 300, h: 12 };
-    if (this.tourney) this._buildTourneyBar(scene, enemyName, tourney);
+    if (this.tourney) this._buildTourneyBar(scene, tourney, padL, padR);
     else {
       this.enemyName = text(scene, W / 2, 20, enemyName, {
         fontSize: '19px', fontStyle: '700', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 5,
@@ -189,17 +213,16 @@ export class Hud {
       fontSize: '40px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 7,
     }).setDepth(DEPTH).setAlpha(0);
 
-    // Banner / prompts
+    // Banner / prompts: in the band under the bars, never across the fighters.
     this.bannerY = bannerY;
-    // The tutorial arrow sits below the banner, or above it when the banner is low.
-    this.arrowY = bannerY > 280 ? bannerY - 105 : bannerY + 94;
+    this.calloutY = calloutY;
     this.bannerBg = img(scene, W / 2, bannerY, 'banner').setDepth(DEPTH + 5).setAlpha(0);
     this.bannerText = text(scene, W / 2, bannerY, '', {
-      fontSize: '21px', fontStyle: '700', color: PALETTE.inkCss, wordWrap: { width: Math.min(560, W - 90) }, lineSpacing: 2,
+      fontSize: VIEW.portrait ? '20px' : '19px', fontStyle: '700', color: PALETTE.inkCss, wordWrap: { width: Math.min(560, W - 90) }, lineSpacing: 2,
     }).setDepth(DEPTH + 6).setAlpha(0);
-    this.promptArrow = text(scene, W / 2, this.arrowY, '', {
-      fontSize: '92px', fontStyle: '700', color: PALETTE.goldLight, stroke: PALETTE.inkCss, strokeThickness: 8,
-    }).setDepth(DEPTH + 6).setAlpha(0);
+    // The tutorial's prompt: a ghost swipe stroke across the swipe area (was a 92 px arrow glyph).
+    this.ghost = scene.add.graphics().setDepth(DEPTH + 6);
+    this.ghostDir = null;
     this.pulsing = new Set();
 
     // Debug overlay
@@ -209,28 +232,33 @@ export class Hud {
       originX: 0, originY: 0, padding: { x: 6, y: 4 },
     }).setDepth(60).setVisible(false);
 
-    // Strike hint: a chevron over the foe showing which way to swipe.
+    // Strike hint: a chevron over the foe showing which way to swipe (no label).
     this.hint = scene.add.container(0, 0).setDepth(DEPTH - 2).setAlpha(0);
     this.hintArrow = img(scene, 0, 0, 'chev');
-    this.hintLabel = text(scene, 0, 0, '', {
-      fontSize: '15px', fontStyle: '700', color: '#fff3c4', stroke: PALETTE.inkCss, strokeThickness: 4,
-    });
-    this.hint.add([this.hintArrow, this.hintLabel]);
+    this.hint.add([this.hintArrow]);
 
     this.realT = 0;
   }
 
-  showHint(dir, label, kind = 'combo') {
+  // The gold strike chevrons are training wheels: the tutorial and the first duels
+  // after it, then never (the sequences stay in the Book of Arms and in camp).
+  strikeHintsOn() {
+    return Save.data.wins < CONFIG.hud.strikeHintWins;
+  }
+
+  // kind 'combo': the next cut of a known strike, while the hints are on.
+  // kind 'riposte': the return cut after a parry, a short flash rather than a persistent icon.
+  showHint(dir, kind = 'combo') {
+    if (kind === 'combo' && !this.strikeHintsOn()) return;
     const ang = { E: 0, SE: 45, S: 90, SW: 135, W: 180, NW: -135, N: -90, NE: -45 }[dir] ?? 0;
     this.hintDir = dir;
     this.hintArrow.setAngle(ang).setTint(kind === 'riposte' ? 0xffffff : 0xf6d061);
-    // Slim and a little see-through, so he and his open glow read through it; the
-    // label sits off to the side, clear of his body and the callouts.
+    // Slim and a little see-through, so he and his open glow read through it.
     this.hintBase = (kind === 'riposte' ? 1.0 : 0.72) / VIEW.RES;
     this.hintArrow.setAlpha(kind === 'riposte' ? 0.9 : 0.78);
-    this.hintLabel.setText(label).setColor(kind === 'riposte' ? '#ffffff' : '#fff3c4').setOrigin(0, 0.5).setPosition(VIEW.portrait ? 58 : 72, 34);
     this.scene.tweens.killTweensOf(this.hint);
     this.hint.setAlpha(1);
+    this.hintFlashUntil = kind === 'riposte' ? this.realT + CONFIG.hud.riposteFlashMs : null;
     this.hintArrow.setScale(this.hintBase * 1.5);
     this.scene.tweens.add({ targets: this.hintArrow, scale: this.hintBase, duration: 160, ease: 'Back.easeOut' });
   }
@@ -241,19 +269,16 @@ export class Hud {
     const v = { E: [1, 0], SE: [0.7, 0.7], S: [0, 1], SW: [-0.7, 0.7], W: [-1, 0], NW: [-0.7, -0.7], N: [0, -1], NE: [0.7, -0.7] }[this.hintDir] || [0, 0];
     const k = ((this.realT % 600) / 600) * 26 - 13;
     this.hint.setPosition(x + v[0] * k, y - 10 + v[1] * k);
-    // Keep the label on screen: flip it to his other side near the right edge.
-    const off = VIEW.portrait ? 58 : 72;
-    const flip = x + off + this.hintLabel.width > VIEW.W - 24;
-    this.hintLabel.setOrigin(flip ? 1 : 0, 0.5).setX(flip ? -off : off);
   }
 
   hideHint() {
     if (this.hint.alpha <= 0) return;
+    this.hintFlashUntil = null;
     this.scene.tweens.killTweensOf(this.hint);
     this.scene.tweens.add({ targets: this.hint, alpha: 0, duration: 140 });
   }
 
-  // Small key labels under the roundels for keyboard players.
+  // Small key labels by the buttons for keyboard players (the tip line lives in camp).
   showKeyHints() {
     if (this.keyHints) return;
     const label = { dodgeL: 'A', dodgeR: 'D', block: 'S', super: 'W', pause: 'Esc' };
@@ -264,113 +289,38 @@ export class Hud {
         fontSize: '13px', fontStyle: '700', color: '#f3ead2', backgroundColor: 'rgba(20,14,10,0.75)', padding: { x: 5, y: 1 },
       }).setDepth(DEPTH + 2);
     });
-    const tip = text(this.scene, VIEW.W / 2, this.pos.block.y - this.pos.block.r - 26, 'Arrow keys strike · two at once for diagonals', {
-      fontSize: '12px', color: '#f3ead2', backgroundColor: 'rgba(20,14,10,0.6)', padding: { x: 6, y: 2 },
-    }).setDepth(DEPTH + 2);
-    this.scene.tweens.add({ targets: tip, alpha: 0, delay: 6000, duration: 800, onComplete: () => tip.destroy() });
-    this.keyHints.push(tip);
   }
 
-  _buildTourneyBar(scene, enemyName, t) {
+  // Two thin bars joined at the middle, a small crest at each end: yours on the left
+  // (blue; white while the cheat is on), his on the right (red). No names, no round
+  // plaque: those belong on the entrance banner.
+  _buildTourneyBar(scene, t, padL, padR) {
     const W = VIEW.W;
-    const P = VIEW.portrait;
-    const plaqueW = 112;
-    // Landscape: you on the left, him on the right, the round between. Portrait: two
-    // full-width rows, him on top, with the round plaque at the right.
-    const panelW = P ? W - 40 - plaqueW - 10 : Math.min(440, (W - 40 - plaqueW - 16) / 2);
-    const panelH = 60;
-    const top = 8;
-    const crestW = 50;
-    const crestH = 60;
-    const leftX = P ? 20 : W / 2 - plaqueW / 2 - 8 - panelW;
-    const rightX = P ? 20 : W / 2 + plaqueW / 2 + 8;
-    const playerTop = P ? top + panelH + 20 : top;
-    const panel = (key, field, crest, crestLeft) => canvasTex(scene, key, panelW, panelH + 16, (ctx, w) => {
-      roundRect(ctx, 3, 3, w - 6, panelH - 6, 6);
-      const g = ctx.createLinearGradient(0, 0, 0, panelH);
-      g.addColorStop(0, field);
-      g.addColorStop(1, '#0e0f18');
-      ctx.fillStyle = g;
-      ctx.globalAlpha = 0.92;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = PALETTE.goldCss;
-      ctx.stroke();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = PALETTE.inkCss;
-      ctx.stroke();
-      const cx = crestLeft ? 6 : w - crestW - 6;
-      drawCrest(ctx, cx, 2, crestW, crestH + 10, crest.field, crest.charge, crest.color);
-    });
-    const pKey = panel(`tb_p_${W}`, '#22346e', t.playerCrest, true);
-    const eKey = panel(`tb_e_${t.enemyId}_${W}`, t.enemyCrest.field, t.enemyCrest, P);
-    img(scene, leftX, playerTop, pKey, 0, 0).setDepth(DEPTH);
-    img(scene, rightX, top, eKey, 0, 0).setDepth(DEPTH);
-    const nameStyle = { fontSize: '20px', fontStyle: '700', color: '#f3ead2', stroke: PALETTE.inkCss, strokeThickness: 4 };
-    text(scene, leftX + crestW + 22, playerTop + 19, t.playerName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
-    if (P) text(scene, rightX + crestW + 22, top + 19, enemyName, { ...nameStyle, originX: 0 }).setDepth(DEPTH + 1);
-    else text(scene, rightX + panelW - crestW - 22, top + 19, enemyName, { ...nameStyle, originX: 1 }).setDepth(DEPTH + 1);
-    canvasTex(scene, 'tb_plaque', plaqueW, 72, (ctx, w, h) => {
-      roundRect(ctx, 3, 3, w - 6, h - 6, 5);
-      ctx.fillStyle = '#efe2c0';
-      ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = PALETTE.goldCss;
-      ctx.stroke();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = PALETTE.inkCss;
-      ctx.stroke();
-      ctx.fillStyle = PALETTE.vermilionCss;
-      ctx.fillRect(w / 2 - 14, h - 14, 28, 2);
-      ctx.fillRect(w / 2 - 2, h - 18, 4, 10);
-    });
-    const plaqueX = P ? W - 20 - plaqueW / 2 : W / 2;
-    img(scene, plaqueX, top, 'tb_plaque', 0.5, 0).setDepth(DEPTH);
-    text(scene, plaqueX, top + 18, 'Round', { fontSize: '16px', fontStyle: '700' }).setDepth(DEPTH + 1);
-    text(scene, plaqueX, top + 41, `${t.round}/${t.rounds}`, { fontSize: '23px', fontStyle: '700' }).setDepth(DEPTH + 1);
-    const segX = (x0) => x0 + crestW + 20;
-    const segW = panelW - crestW - 40;
-    this.bars.setDepth(DEPTH + 1);   // segments draw over the panels
+    const top = 10;
+    const crestW = 30;
+    const crestH = 36;
+    const crest = (key, c) => canvasTex(scene, key, crestW + 6, crestH + 6, (ctx) => drawCrest(ctx, 3, 3, crestW, crestH, c.field, c.charge, c.color));
+    const pKey = crest('tb_crest_p', t.playerCrest);
+    const eKey = crest(`tb_crest_${t.enemyId}`, t.enemyCrest);
+    img(scene, padL, top - 2, pKey, 0, 0).setDepth(DEPTH);
+    img(scene, W - padR - crestW - 6, top - 2, eKey, 0, 0).setDepth(DEPTH);
+    const h = 7;
+    const y = top + 10;
+    const gap = 14;
+    this.bars.setDepth(DEPTH + 1);
     this.tb = {
-      top, panelW, panelH, segW,
-      pSeg: { x: segX(leftX), y: playerTop + 36 },
+      h, y,
+      pBar: { x: padL + crestW + 14, y, w: W / 2 - gap - (padL + crestW + 14) },
+      eBar: { x: W / 2 + gap, y, w: W - padR - crestW - 20 - (W / 2 + gap) },
       // Your crest doubles as the cheat switch.
-      crest: { x: leftX + 6 + crestW / 2, y: playerTop + 2 + (crestH + 10) / 2, w: crestW, h: crestH + 10 },
-      eSeg: { x: P ? segX(rightX) : rightX + 20, y: top + 36 },
+      crest: { x: padL + 3 + crestW / 2, y: top + 1 + crestH / 2, w: crestW, h: crestH },
     };
   }
 
-  _drawSegments(g, x, y, w, frac, fill) {
-    const n = 10;
-    const gap = 3;
-    const sw = (w - gap * (n - 1)) / n;
-    for (let i = 0; i < n; i++) {
-      const sx = x + i * (sw + gap);
-      g.fillStyle(0x140c0a, 0.9);
-      g.fillRect(sx - 1, y - 1, sw + 2, 16);
-      g.fillStyle(0x3a1a16, 1);
-      g.fillRect(sx, y, sw, 14);
-      const f = Math.max(0, Math.min(1, frac * n - i));
-      if (f > 0) {
-        g.fillStyle(fill, 1);
-        g.fillRect(sx, y, sw * f, 14);
-        g.fillStyle(0xffffff, 0.22);
-        g.fillRect(sx, y, sw * f, 4);
-      }
-    }
-  }
-
   setPips(n, max) {
-    if (this.pips.length !== max) {
-      this.pips.forEach((p) => p.destroy());
-      this.pips = [];
-      for (let i = 0; i < max; i++) {
-        const x = this.pos.block.x + (i - (max - 1) / 2) * 20;
-        this.pips.push(img(this.scene, x, this.pipY, 'pip_on').setDepth(DEPTH));
-      }
-    }
-    this.pips.forEach((p, i) => p.setTexture(i < n ? 'pip_on' : 'pip_off'));
+    if (this.pipsShown === n) return;
+    this.pipsShown = n;
+    this.blockCount.setText(String(n)).setColor(n === 0 ? '#ff8a70' : '#fff0b8');
   }
 
   set(vals) {
@@ -382,7 +332,7 @@ export class Hud {
     if (!b) return;
     b.setScale(b.baseScale * (down ? 0.9 : 1));
     if (down) b.pressedAt = this.realT;
-    if (down) b.setTint(0xe8d8b0);
+    if (down) b.setTint(0xffffff);
     else b.clearTint();
   }
 
@@ -391,24 +341,46 @@ export class Hud {
     if (!on) ids.forEach((id) => this.btn[id] && this.btn[id].setScale(this.btn[id].baseScale));
   }
 
+  // A thin bar with a lighter top edge, draining towards the middle of the screen.
+  _thinBar(g, b, h, frac, fill, fromRight) {
+    g.fillStyle(0x0c0a0e, 0.7);
+    g.fillRoundedRect(b.x - 2, b.y - 2, b.w + 4, h + 4, 3);
+    g.fillStyle(0x3a1c1a, 0.9);
+    g.fillRect(b.x, b.y, b.w, h);
+    const w = b.w * Math.max(0, Math.min(1, frac));
+    if (w <= 0) return;
+    const x = fromRight ? b.x + b.w - w : b.x;
+    g.fillStyle(fill, 1);
+    g.fillRect(x, b.y, w, h);
+    g.fillStyle(0xffffff, 0.35);
+    g.fillRect(x, b.y, w, 2);
+  }
+
   _drawBars() {
     const g = this.bars;
     g.clear();
     const v = this.vals;
     if (this.tourney) {
       const t = this.tb;
-      // White while the cheat keeps you from harm.
-      this._drawSegments(g, t.pSeg.x, t.pSeg.y, t.segW, v.player, this.cheat ? 0xffffff : 0xd23a2a);
-      this._drawSegments(g, t.eSeg.x, t.eSeg.y, t.segW, v.enemy, 0xd23a2a);
-      // Stagger meter and open window under the enemy's panel.
-      const sy = t.top + t.panelH + 2;
-      g.fillStyle(PALETTE.ink, 0.75);
-      g.fillRect(t.eSeg.x, sy, t.segW, 6);
+      this._thinBar(g, t.pBar, t.h, v.player, this.cheat ? 0xffffff : 0x3f63c8, false);
+      this._thinBar(g, t.eBar, t.h, v.enemy, 0xd23a2a, true);
+      // The emblem joining the bars.
+      const cx = VIEW.W / 2;
+      const cy = t.y + t.h / 2;
+      g.fillStyle(PALETTE.ink, 0.8);
+      g.fillTriangle(cx, cy - 9, cx - 7, cy, cx + 7, cy);
+      g.fillTriangle(cx, cy + 9, cx - 7, cy, cx + 7, cy);
       g.fillStyle(0xf6d061, 1);
-      g.fillRect(t.eSeg.x, sy, t.segW * v.stagger, 6);
-      if (v.open > 0) {
-        g.fillStyle(0xfff6cf, 0.95);
-        g.fillRect(t.eSeg.x, sy + 9, t.segW * v.open, 4);
+      g.fillTriangle(cx, cy - 7, cx - 5, cy, cx + 5, cy);
+      g.fillTriangle(cx, cy + 7, cx - 5, cy, cx + 5, cy);
+      // His stagger meter: a thin gold line under his bar (the opening is carried by his glow).
+      const sy = t.y + t.h + 4;
+      g.fillStyle(PALETTE.ink, 0.6);
+      g.fillRect(t.eBar.x, sy, t.eBar.w, 3);
+      if (v.stagger > 0) {
+        const w = t.eBar.w * Math.min(1, v.stagger);
+        g.fillStyle(0xf6d061, 1);
+        g.fillRect(t.eBar.x + t.eBar.w - w, sy, w, 3);
       }
       this._drawSuperRing();
       return;
@@ -429,7 +401,7 @@ export class Hud {
     g.fillRect(e.x + 60, sy, e.w - 120, 7);
     g.fillStyle(0xf6d061, 1);
     g.fillRect(e.x + 60, sy, (e.w - 120) * v.stagger, 7);
-    // Open window
+    // Open window (the 2D figures have no open glow, so the bar stays here).
     if (v.open > 0) {
       g.fillStyle(0xfff6cf, 0.95);
       const ow = (e.w - 200) * v.open;
@@ -454,12 +426,12 @@ export class Hud {
     const r = this.superRing;
     r.clear();
     const sp = this.pos.super;
-    r.lineStyle(6, PALETTE.ink, 0.6);
-    r.strokeCircle(sp.x, sp.y, sp.r + 5);
+    r.lineStyle(4, PALETTE.ink, 0.45);
+    r.strokeCircle(sp.x, sp.y, sp.r + 3);
     if (v.superF > 0) {
-      r.lineStyle(5, v.superF >= 1 ? 0xfff6cf : 0xf6d061, 1);
+      r.lineStyle(3, v.superF >= 1 ? 0xfff6cf : 0xf6d061, 0.95);
       r.beginPath();
-      r.arc(sp.x, sp.y, sp.r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.superF, false);
+      r.arc(sp.x, sp.y, sp.r + 3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.superF, false);
       r.strokePath();
     }
   }
@@ -548,30 +520,48 @@ export class Hud {
 
   // A one-word callout, after Infinity Blade: small, at the top centre under the
   // bars, clear of the fighters; one at a time (a newer one replaces it), gone in
-  // under a second. kind: 'good' (yours), 'bad' (his), 'warn'.
-  callout(str, kind = 'good') {
+  // under a second. kind: 'good' (yours), 'bad' (his), 'warn'. The big moments
+  // (stagger, blade lock, disarm, known strikes, the Pendragon) use the same word
+  // about 1.3× the size, flanked by gold stars.
+  callout(str, kind = 'good', { big = false } = {}) {
     const color = { good: '#fff0b8', bad: '#ff8a70', warn: '#ffc38a' }[kind] || '#fff0b8';
-    const y = VIEW.portrait ? 200 : 116;
-    if (this.calloutText) this.calloutText.destroy();
+    const y = this.calloutY;
+    this._dropCallout();
     // Shown at once and timed on real time (update()), so hit-stop and slow motion
     // can't hold it back.
+    const size = (VIEW.portrait ? 24 : 26) * (big ? CONFIG.hud.calloutBig : 1);
     const t = text(this.scene, VIEW.W / 2, y, str.toUpperCase(), {
-      fontSize: VIEW.portrait ? '24px' : '26px', fontStyle: '700', color, stroke: PALETTE.inkCss, strokeThickness: 4,
+      fontSize: `${Math.round(size)}px`, fontStyle: '700', color, stroke: PALETTE.inkCss, strokeThickness: big ? 5 : 4,
     }).setDepth(DEPTH + 4);
     t.bornAt = this.realT;
+    t.life = big ? 1100 : 880;
     this.calloutText = t;
+    if (big) {
+      const dx = t.width / 2 + 22;
+      this.calloutStars = [-1, 1].map((s) => img(this.scene, VIEW.W / 2 + s * dx, y, 'callstar').setDepth(DEPTH + 4));
+    }
+  }
+
+  _dropCallout() {
+    if (this.calloutText) this.calloutText.destroy();
+    (this.calloutStars || []).forEach((s) => s.destroy());
+    this.calloutText = null;
+    this.calloutStars = null;
   }
 
   _updateCallout() {
     const t = this.calloutText;
     if (!t) return;
     const age = this.realT - t.bornAt;
-    t.setScale(age < 90 ? 0.85 + 0.15 * (age / 90) : 1);
-    t.setAlpha(age < 620 ? 1 : Math.max(0, 1 - (age - 620) / 260));
-    if (age > 880) { t.destroy(); this.calloutText = null; }
+    const scale = age < 90 ? 0.85 + 0.15 * (age / 90) : 1;
+    const fadeAt = t.life - 260;
+    const alpha = age < fadeAt ? 1 : Math.max(0, 1 - (age - fadeAt) / 260);
+    t.setScale(scale).setAlpha(alpha);
+    (this.calloutStars || []).forEach((s) => s.setScale(scale / VIEW.RES).setAlpha(alpha).setAngle(age / 6));
+    if (age > t.life) this._dropCallout();
   }
 
-  // Big centre text: kept for rare moments (disarm, stagger, Pendragon, the end).
+  // Big centre text: kept for the end of the duel (victory, defeat, the Green Knight rising).
   bigText(str, color = PALETTE.goldLight, y = 210, size = 54) {
     if (VIEW.portrait) {
       y = Math.round(VIEW.H * 0.24 + (y - 200) * 0.8);
@@ -584,23 +574,27 @@ export class Hud {
     this.scene.tweens.add({ targets: t, alpha: 0, y: y - 30, delay: 650, duration: 350, onComplete: () => t.destroy() });
   }
 
-  // Persistent banner (tutorial prompts, phase messages). ms = 0 keeps it up.
-  banner(str, ms = 2400, arrow = '') {
+  // Persistent banner (tutorial prompts, lessons, phase messages). ms = 0 keeps it up.
+  // swipeDir ('N', 'E'...) adds a ghost swipe stroke in that direction across the swipe area.
+  banner(str, ms = 2400, swipeDir = '') {
     this.bannerText.setText(str);
     const tw = Math.min(600, Math.max(320, this.bannerText.width + 70));
-    const th = Math.max(70, this.bannerText.height + 34);
+    const th = Math.max(64, this.bannerText.height + 30);
     this.bannerBg.setDisplaySize(tw, th);
-    this.scene.tweens.killTweensOf([this.bannerBg, this.bannerText, this.promptArrow]);
+    this.scene.tweens.killTweensOf([this.bannerBg, this.bannerText]);
     this.bannerBg.setAlpha(1);
     this.bannerText.setAlpha(1);
-    this.promptArrow.setText(arrow).setAlpha(arrow ? 1 : 0);
+    this.ghostDir = swipeDir || null;
+    if (!this.ghostDir) this.ghost.clear();
     if (this._bannerTimer) this._bannerTimer.remove();
     this._bannerTimer = null;
     if (ms > 0) this._bannerTimer = this.scene.time.delayedCall(ms, () => this.hideBanner());
   }
 
   hideBanner(now = false) {
-    const t = [this.bannerBg, this.bannerText, this.promptArrow];
+    const t = [this.bannerBg, this.bannerText];
+    this.ghostDir = null;
+    this.ghost.clear();
     if (now) {
       this.scene.tweens.killTweensOf(t);
       if (this._bannerTimer) this._bannerTimer.remove();
@@ -608,6 +602,44 @@ export class Hud {
       return;
     }
     this.scene.tweens.add({ targets: t, alpha: 0, duration: 250 });
+  }
+
+  // The ghost swipe: a short stroke that sweeps along the prompted direction and fades,
+  // over and over, in the middle of the swipe area.
+  _drawGhostSwipe() {
+    const g = this.ghost;
+    g.clear();
+    const v = { E: [1, 0], SE: [0.7, 0.7], S: [0, 1], SW: [-0.7, 0.7], W: [-1, 0], NW: [-0.7, -0.7], N: [0, -1], NE: [0.7, -0.7] }[this.ghostDir];
+    if (!v) return;
+    const period = 1100;
+    const u = (this.realT % period) / period;
+    if (u > 0.72) return;   // a pause between strokes
+    const k = u / 0.72;
+    const L = Math.min(VIEW.W, VIEW.H) * 0.44;
+    const cx = VIEW.W / 2;
+    const cy = VIEW.portrait ? VIEW.H * 0.5 : VIEW.H * 0.47;
+    const head = Math.min(1, k * 1.15);
+    const tail = Math.max(0, head - 0.42);
+    const fade = k < 0.15 ? k / 0.15 : k > 0.8 ? (1 - k) / 0.2 : 1;
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      const t0 = tail + (head - tail) * (i / n);
+      const t1 = tail + (head - tail) * ((i + 1) / n);
+      const w = CONFIG.swipe.trailWidth * 1.6 * (0.3 + 0.7 * ((i + 1) / n));
+      const a = fade * (0.3 + 0.7 * ((i + 1) / n));
+      const x0 = cx + v[0] * L * (t0 - 0.5);
+      const y0 = cy + v[1] * L * (t0 - 0.5);
+      const x1 = cx + v[0] * L * (t1 - 0.5);
+      const y1 = cy + v[1] * L * (t1 - 0.5);
+      g.lineStyle(w + 5, PALETTE.ink, a * 0.3);
+      g.lineBetween(x0, y0, x1, y1);
+      g.lineStyle(w, 0xf6d061, a);
+      g.lineBetween(x0, y0, x1, y1);
+    }
+    const hx = cx + v[0] * L * (head - 0.5);
+    const hy = cy + v[1] * L * (head - 0.5);
+    g.fillStyle(0xfff6cf, fade);
+    g.fillCircle(hx, hy, CONFIG.swipe.trailWidth * 1.2);
   }
 
   toggleDebug() {
@@ -625,9 +657,9 @@ export class Hud {
       if (b) b.setScale(b.baseScale * k);
     }
     if (this.superReady) {
-      this.btn.super.setScale(this.btn.super.baseScale * (1 + Math.sin(this.realT / 160) * 0.06));
+      this.btn.super.setScale(this.btn.super.baseScale * (1 + Math.sin(this.realT / 160) * 0.08));
     }
-    // Ghosted at rest, after Infinity Blade: the roundels brighten while he attacks,
+    // Ghosted at rest, after Infinity Blade: the buttons brighten while he attacks,
     // when pressed, or when a lesson points at them.
     const alert = this.vals && this.vals.alert;
     for (const id of ['dodgeL', 'dodgeR', 'block', 'super']) {
@@ -636,9 +668,13 @@ export class Hud {
       const want = lit ? 0.95 : 0.48;
       b.setAlpha(b.alpha + (want - b.alpha) * Math.min(1, realDelta / 90));
     }
-    if (this.promptArrow.alpha > 0) {
-      this.promptArrow.y = this.arrowY + Math.sin(this.realT / 120) * 10;
+    this.blockCount.setAlpha(this.btn.block.alpha).setScale(this.btn.block.scaleX / this.btn.block.baseScale);
+    // The riposte chevron is a flash, not a sign.
+    if (this.hintFlashUntil && this.realT > this.hintFlashUntil) {
+      this.hintFlashUntil = null;
+      this.hideHint();
     }
+    if (this.ghostDir) this._drawGhostSwipe();
     if (this.debugOn && debugInfo) this.debugText.setText(debugInfo());
   }
 }

@@ -18,28 +18,28 @@ Open it on your phone, held either way: the side view (`/side/`) has a portrait 
 
 ## How to play
 
-You face one enemy at a time. Watch his weapon: a **gold glint** marks where a blow begins, an arrow shows which way it will travel, and a **ring closes on the glint**, landing on it at the moment of impact. The ring turns **white** while the blow can be parried; a whoosh sounds as he releases it.
+You face one enemy at a time. Watch his weapon: his wind-up is the tell, and a **gold glint** at the blade **flares white** while the blow can be parried; a whoosh sounds as he releases it. Each foe shows less of his blow (brief 34): the Saxon also shows a **ring closing on the glint** (landing on it at the moment of impact) and an arrow for the blade's path; the Black Knight the glint and ring; the Brigand the glint alone; the Red and Green Knights only its flare. **Read his blade** (pause menu or camp) shows only the flare for every foe, as in Infinity Blade.
 
 | Action | How | Notes |
 |---|---|---|
 | Strike | Swipe anywhere | Only lands while he is **open**: recovering after an attack, parried, or staggered. Otherwise he turns it aside. |
-| Dodge | Left / right roundels | Sideways slashes must be dodged *against* the blade's travel. Overhead blows can be dodged either way. Thrusts can't be dodged. |
-| Block | Hold the shield roundel | Stops anything, but each block costs a shield pip. Pips come back over time. You can't swipe while blocking. |
-| Parry | Swipe *against* the blow as the glint flares | Breaks his guard and fills his stagger meter. Swipe up against an overhead, left against a left-to-right slash, and sideways against a thrust. A **red glint** can't be parried. |
-| Perfect block | Raise the shield at the last instant | Costs no pip, fills his stagger meter and breaks his attack. |
-| Riposte | After a parry, swipe along the white arrow | Double damage. |
-| Super | Tap the star when its ring is full | Stuns him and doubles your damage for a moment. |
+| Dodge | Left / right chevrons | Sideways slashes must be dodged *against* the blade's travel. Overhead blows can be dodged either way. Thrusts can't be dodged. |
+| Block | Hold the shield | Stops anything, but each block spends one of the count shown on the shield. They come back over time. You can't swipe while blocking. |
+| Parry | Swipe *against* the blow as the glint flares white | Breaks his guard and fills his stagger meter. Swipe up against an overhead, left against a left-to-right slash, and sideways against a thrust. A **red glint** (and a blade lit red) can't be parried. |
+| Perfect block | Raise the shield at the last instant | Spends nothing, fills his stagger meter and breaks his attack. |
+| Riposte | After a parry, swipe the way the white chevron flashes | Double damage. |
+| Super | Tap the star when it lights | Stuns him and doubles your damage for a moment. |
 
-- Parries, perfect dodges and blocks fill his **stagger meter** (the gold bar under his health). When it fills, he's open for two seconds and takes extra damage.
+- Parries, perfect dodges and blocks fill his **stagger meter** (the thin gold line under his health). When it fills, he's open for two seconds and takes extra damage.
 - **Counters:** a perfect dodge or perfect block breaks his combo and leaves him open.
-- **Known strikes:** while he is open, gold arrows walk you through a strike sequence; finish it for a heavy bonus blow. The sequences are listed on the title screen.
+- **Known strikes:** a strike sequence in one opening earns a heavy bonus blow. In the tutorial and your first two duels, gold chevrons walk you through one while he is open; after that the sequences are yours to remember (they're listed in camp and in the Book of Arms).
 - **The finishing blow** plays in slow motion while the crowd roars. Some foes don't stay down.
 - **Bloodline:** when you fall, your son takes up the oath with your gear and experience, and the run starts over. Beating the Green Knight starts a harder cycle.
 - New swords and shields unlock at generation milestones. Choose your gear in camp (the title screen).
 
 The first duel is a guided tutorial.
 
-**Keyboard (desktop):** arrow keys strike in their direction (press two together for a diagonal, or use the numpad for all eight), **A / D** dodge, hold **S** or **Space** to block, **W** or **Enter** for the super, **Esc** or **P** to pause. In camp, **Enter** rides out, **← →** change sword and **↑ ↓** change shield. Dragging with the mouse also swipes.
+**Keyboard (desktop):** arrow keys strike in their direction (press two together for a diagonal, or use the numpad for all eight), **A / D** dodge, hold **S** or **Space** to block, **W** or **Enter** for the super, **Esc** or **P** to pause. In camp, **Enter** rides out, **← →** change sword and **↑ ↓** change shield; the camp screen's footer carries these tips. Dragging with the mouse also swipes.
 
 **Debug overlay:** tap the top-right corner five times during a duel to see FPS, enemy state and timing windows.
 
