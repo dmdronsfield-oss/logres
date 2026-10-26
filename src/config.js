@@ -2,7 +2,7 @@
 
 // '3d' when loaded from the /3d/ test page (it sets window.LOGRES_MODE first).
 // The release, shown on the title screen (bumped with the service worker's VERSION).
-export const BUILD = 'v59';
+export const BUILD = 'v60';
 
 export const MODE = (typeof window !== 'undefined' && window.LOGRES_MODE) || '2d';
 
