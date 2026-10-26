@@ -195,6 +195,12 @@ export const CONFIG = {
     openHoldMs: 2600,
   },
 
+  hud: {
+    strikeHintWins: 3,      // the gold strike chevrons show until this many duels are won (the tutorial and two more)
+    riposteFlashMs: 300,    // the white riposte chevron flashes this long after a parry
+    calloutBig: 1.3,        // the big moments' callout, relative to the everyday one-word callout
+  },
+
   debug: {
     tapsToToggle: 5,
     tapWindowMs: 2000,

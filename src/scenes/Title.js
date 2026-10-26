@@ -59,13 +59,14 @@ export class Title extends Phaser.Scene {
 
     // Layout: three columns in landscape; stacked when the phone is upright.
     const P = VIEW.portrait;
-    const L = { titleY: 62, subY: 112, crestY: 236, crestScale: 1, playY: 398, foeY: 446, footerY: H - 30 };
+    // Desktop's footer is two lines (the keyboard tips), so it sits a little higher.
+    const L = { titleY: 62, subY: 112, crestY: 236, crestScale: 1, playY: 398, foeY: 446, footerY: desktopLikely() ? H - 38 : H - 30 };
     if (P) {
       L.titleY = 72;
       L.subY = 124;
       L.footerY = H - 34;
-      L.strikesY = L.footerY - 40 - 125;
-      L.gearY = L.strikesY - 274;
+      L.strikesY = L.footerY - 40 - 145;
+      L.gearY = L.strikesY - 290;
       L.foeY = L.gearY - 125 - 30;
       L.playY = L.foeY - 50;
       const room = L.playY - 40 - (L.subY + 24);
@@ -124,7 +125,7 @@ export class Title extends Phaser.Scene {
 
     // ---------- right: known strikes and settings ----------
     if (P) panelY = L.strikesY;
-    panel(this, rightX, panelY, colW, panelH);
+    panel(this, rightX, panelY, colW, panelH + 40);
     text(this, rightX, panelY - 100, 'Known Strikes', { fontSize: '22px', fontStyle: '700' });
     text(this, rightX, panelY - 76, 'swipe in one opening', { fontSize: '13px', color: '#5a4630' });
     CONFIG.combos.forEach((c, i) => {
@@ -133,7 +134,7 @@ export class Title extends Phaser.Scene {
       text(this, rightX, y + 18, c.seq.map((d) => DIR_ARROW[d]).join('  '), { fontSize: '18px', fontFamily: 'sans-serif', color: PALETTE.lapisCss });
     });
 
-    const setY = panelY + 84;
+    const setY = panelY + 78;
     // Four toggles when there's room; on narrow screens vibration lives in the pause menu only.
     const items = [
       // Turning sound on plays a sword clash: a quick test that the recorded sounds work.
@@ -145,17 +146,20 @@ export class Title extends Phaser.Scene {
     const n = items.length;
     const bwn = (colW - 28 - (n - 1) * 6) / n;
     items.forEach(([label, get, set], i) => this._toggle(rightX + (i - (n - 1) / 2) * (bwn + 6), setY, bwn, label, get, set));
+    // Read his blade: only the glint's flare in the parry window, for every foe (his wind-up is the tell).
+    this._toggle(rightX, setY + (P ? 46 : 38), colW - 28, 'Read his blade', () => !!Save.data.readBlade, (v) => Save.set({ readBlade: v }), P ? 40 : 28);
 
     // Small footer
+    // The keyboard tip lives here, not in the duel (brief 34).
     const footer = desktopLikely()
-      ? 'Enter to ride out · ←→ sword · ↑↓ shield   |   In the duel: arrows strike · A/D dodge · S block · W super'
+      ? 'Enter to ride out · ← → sword · ↑ ↓ shield\nIn the duel: arrow keys strike (two at once for a diagonal) · A / D dodge · S block · W super · Esc pause'
       : 'Swipe to strike · Dodge and block with the roundels · Parry by swiping against a blow';
     text(this, W / 2, L.footerY, P ? 'Swipe to strike · Dodge and block with the roundels\nParry by swiping against a blow' : footer, {
       fontSize: '13px', color: PALETTE.parchmentCss, stroke: PALETTE.inkCss, strokeThickness: 3, align: 'center',
     });
 
     if (s.generation > 1 || s.wins > 0) {
-      const reset = text(this, W - 50, P ? 40 : H - 30, 'Reset', {
+      const reset = text(this, W - 50, P ? 40 : H - 58, 'Reset', {
         fontSize: '12px', color: '#cdb98f', stroke: PALETTE.inkCss, strokeThickness: 3,
       }).setInteractive({ useHandCursor: true });
       let armed = false;
@@ -219,7 +223,7 @@ export class Title extends Phaser.Scene {
       nameT.setText(cur.name);
       infoT.setText(kind === 'sword'
         ? `Damage ×${cur.damage.toFixed(2)} · Timing ${Math.round(cur.tolerance * 100)}%`
-        : `${cur.pips} pips · one back every ${(cur.regenMs / 1000).toFixed(1)}s`);
+        : `${cur.pips} blocks · one back every ${(cur.regenMs / 1000).toFixed(1)}s`);
     };
     const step = (d) => {
       const idx = list.findIndex((i) => i.id === Save.data[kind]);
@@ -244,8 +248,8 @@ export class Title extends Phaser.Scene {
     return nameT;
   }
 
-  _toggle(x, y, w, label, get, set) {
-    const b = menuButton(this, x, y, Math.round(w), VIEW.portrait ? 50 : 40, '', () => {
+  _toggle(x, y, w, label, get, set, h = VIEW.portrait ? 46 : 36) {
+    const b = menuButton(this, x, y, Math.round(w), h, '', () => {
       set(!get());
       b.setLabel(`${label}: ${get() ? 'on' : 'off'}`);
     }, { size: w < 80 ? 11 : 13 });

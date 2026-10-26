@@ -72,7 +72,7 @@ export class Tutorial {
       } else if (this.step === 'parry' && rem <= tc.parryFreezeAt) {
         this.froze = true;
         this.frozen = 'parry';
-        this.hud.banner(say('SWIPE UP, against his falling blow!', 'Press ↑, against his falling blow!'), 0, '↑');
+        this.hud.banner(say('SWIPE UP, against his falling blow!', 'Press ↑, against his falling blow!'), 0, 'N');
       }
     }
 
@@ -100,7 +100,7 @@ export class Tutorial {
   }
 
   onClang() {
-    if (this.frozen === 'parry') this.hud.banner(say('Swipe UP: straight against the falling axe!', 'Press ↑: straight against the falling axe!'), 0, '↑');
+    if (this.frozen === 'parry') this.hud.banner(say('Swipe UP: straight against the falling axe!', 'Press ↑: straight against the falling axe!'), 0, 'N');
   }
 
   onParry() {

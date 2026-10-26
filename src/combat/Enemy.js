@@ -4,6 +4,7 @@ import { buildEnemyRig } from '../art/Rig.js';
 import { canvasTex, localToWorld, angFor, star, text } from '../art/Tex.js';
 import { DIR_VEC } from '../input/SwipeInput.js';
 import { Sfx } from '../audio/Sfx.js';
+import { Save } from '../save/Save.js';
 
 export const ES = {
   INTRO: 'Intro',
@@ -481,31 +482,53 @@ export class Enemy extends Fighter {
     return this.rig.tip ? this.rig.tip(1) : localToWorld(this.rig.weapon, 0, this.rig.weaponLen);
   }
 
+  // How much of the telegraph is drawn (brief 34). Each foe declares a tier in enemies.js
+  // ('full', 'ring', 'glint' or 'window'); 'Read his blade' (the pause menu, camp) forces
+  // the barest tier for every foe. The tutorial always shows everything.
+  markerTier() {
+    const tut = this.scene.tutorial;
+    if (tut && tut.step !== 'free') return 'full';
+    if (Save.data.readBlade) return 'window';
+    return this.def.markers || 'full';
+  }
+
   _updateGlint(rem) {
     const p = this._tip();
     const g = this.glint;
     g.setPosition(p.x, p.y);
     const win = CONFIG.parry.windowMs;
-    const intro = Math.min(1, this.t / 140);
+    const tier = this.markerTier();
+    const inWin = rem <= win && !this.feintAt;
+    // The barest tier: nothing until the last moments (the pose is the tell), then the glint.
+    if (tier === 'window' && !inWin) {
+      g.setVisible(false);
+      this._clearRing();
+      return;
+    }
+    g.setVisible(true);
+    let intro = tier === 'window' ? Math.min(1, (win - rem) / 60) : Math.min(1, this.t / 140);
+    // While he hesitates the markers stall and flicker.
+    const hes = this.attack.hesitate;
+    if (hes && this.visualT() !== this.t && this.t < this.visualT() + hes[1]) intro *= 0.45 + 0.55 * Math.abs(Math.sin(this.t / 70));
     let s = 0.7 + Math.sin(this.t / 45) * 0.12;
-    if (rem <= win && !this.feintAt) s = 1.5 + (1 - rem / win) * 0.6;
+    if (inWin) s = 1.5 + (1 - rem / win) * 0.6;
     g.setAlpha(intro);
     g.setScale((s * 1.3) / VIEW.RES);
     g.angle += 4;
-    this._drawRing(p, rem, intro);
+    if (tier === 'full' || tier === 'ring') this._drawRing(p, rem, intro, tier === 'full');
+    else this._clearRing();
   }
 
   // A ring closes on the glint and lands on it at the moment of impact; it turns
-  // white while the parry window is open. An arrow shows the blade's path.
-  _drawRing(p, rem, intro) {
+  // white while the parry window is open. With `arrows` (the 'full' tier) a dashed
+  // arrow shows the blade's path and blows with a rule of their own are tagged.
+  _drawRing(p, rem, intro, arrows) {
     const r = this.ring;
     r.clear();
     const a = this.attack;
     const total = this.visualTotal();
     const win = CONFIG.parry.windowMs;
     const k = Math.max(0, Math.min(1, 1 - this.visualT() / total));
-    // While he hesitates the ring stalls and flickers.
-    if (this.visualT() !== this.t && a.hesitate && this.t < this.visualT() + a.hesitate[1]) intro *= 0.45 + 0.55 * Math.abs(Math.sin(this.t / 70));
     const red = !a.parryable;
     const inWin = rem <= win && !this.feintAt && a.parryable;
     const col = red ? 0xe0503a : inWin ? 0xffffff : 0xf6d061;
@@ -538,10 +561,8 @@ export class Enemy extends Fighter {
       r.lineStyle(inWin ? 5 : 3, col, 0.95 * intro);
       r.strokeCircle(p.x, p.y, R);
     }
-    // Path of the blow.
-    const [dx, dy] = a.direction === 'T' ? [0, 0] : DIR_VEC[a.direction];
-    // Tags for blows with a rule of their own.
-    const tag = a.unblockable ? 'DODGE!' : a.direction === 'T' ? 'NO DODGE' : '';
+    // Tags for blows with a rule of their own (the 'full' tier only).
+    const tag = arrows ? (a.unblockable ? 'DODGE!' : a.direction === 'T' ? 'NO DODGE' : '') : '';
     if (tag) {
       if (!this.tagText) {
         this.tagText = text(this.scene, 0, 0, '', {
@@ -550,6 +571,9 @@ export class Enemy extends Fighter {
       }
       this.tagText.setText(tag).setColor(a.unblockable ? '#ff8a70' : '#fff3c4').setPosition(p.x, p.y + R + 26).setAlpha(intro).setVisible(true);
     } else if (this.tagText) this.tagText.setVisible(false);
+    if (!arrows) return;
+    // Path of the blow.
+    const [dx, dy] = a.direction === 'T' ? [0, 0] : DIR_VEC[a.direction];
     if (a.direction === 'T') {
       for (let i = 0; i < 4; i++) {
         const ang = i * Math.PI / 2 + Math.PI / 4;
@@ -726,11 +750,7 @@ export class Enemy extends Fighter {
     this.rig.setWeaponTint(null);
     this.setState(ES.FEINT);
     this.pose('guard', 200);
-    const p = this.rig.root;
-    const t = text(this.scene, p.x, p.y - 260 * this.size, 'Feint!', {
-      fontSize: '24px', fontStyle: '700', color: '#f6dc8a', stroke: '#2a1d14', strokeThickness: 5,
-    }).setDepth(41);
-    this.scene.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+    this.director.onFeint?.();
   }
 
   _tauntSound() {

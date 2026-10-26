@@ -18,6 +18,7 @@ const DEFAULTS = {
   music: true,
   vibration: true,
   leftHanded: false,
+  readBlade: false,  // 'Read his blade': only the glint's flare in the parry window, for every foe
   tutorialDone: false,
   superHintShown: false,
   redHintShown: false,
