@@ -49,7 +49,9 @@ export class Title extends Phaser.Scene {
     // The abbey takes the centre (the gear panel names the sword and shield).
     this.abbey = abbeyBackdrop(this);
     // Which release this is, small in the corner (so an update can be confirmed).
-    const build = text(this, W - 12, H - 8, BUILD, { fontSize: '12px', color: '#5a4a38', originX: 1, originY: 1 }).setDepth(12);
+    // With a keyboard the footer is two lines across the bottom, so the version goes to the top corner.
+    const buildTop = desktopLikely() && !VIEW.portrait;
+    const build = text(this, W - 12, buildTop ? 8 : H - 8, BUILD, { fontSize: '12px', color: '#5a4a38', originX: 1, originY: buildTop ? 0 : 1 }).setDepth(12);
     // After the first tap, also report the sound clips (so a device that can't load them shows it).
     this.time.addEvent({ delay: 500, loop: true, callback: () => {
       const st = Sfx.clipStats;
@@ -60,7 +62,7 @@ export class Title extends Phaser.Scene {
     // Layout: three columns in landscape; stacked when the phone is upright.
     const P = VIEW.portrait;
     // Desktop's footer is two lines (the keyboard tips), so it sits a little higher.
-    const L = { titleY: 62, subY: 112, crestY: 236, crestScale: 1, playY: 398, foeY: 446, footerY: desktopLikely() ? H - 38 : H - 30 };
+    const L = { titleY: 62, subY: 112, crestY: 236, crestScale: 1, playY: 398, foeY: 446, footerY: desktopLikely() ? H - 21 : H - 30 };
     if (P) {
       L.titleY = 72;
       L.subY = 124;

@@ -23,7 +23,7 @@ You face one enemy at a time. Watch his weapon: his wind-up is the tell, and a *
 | Action | How | Notes |
 |---|---|---|
 | Strike | Swipe anywhere | Only lands while he is **open**: after his combination, in a Break, or staggered. Otherwise he turns it aside. |
-| Dodge | Left / right chevrons | Sideways slashes must be dodged *against* the blade's travel. Overhead blows can be dodged either way. Thrusts can't be dodged. |
+| Dodge | Touch the left or right side of the screen | Sideways slashes must be dodged *against* the blade's travel. Overhead blows can be dodged either way. Thrusts can't be dodged. |
 | Block | Hold the shield | Stops anything, but each block spends one of the count shown on the shield. They come back over time. You can't swipe while blocking. |
 | Parry | Swipe *against* the blow as the glint flares white | Turns the blow aside and fills his stagger meter. Inside a combination it is only a clash: he fights on, a beat late. Swipe up against an overhead, left against a left-to-right slash, and sideways against a thrust. A **red glint** (and a blade lit red) can't be parried. |
 | Perfect block | Raise the shield at the last instant | Spends nothing and fills his stagger meter twice as fast. |

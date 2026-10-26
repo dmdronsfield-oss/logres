@@ -186,6 +186,15 @@ export class Hud {
       this.btn[id] = b;
     }
     this.btn.super.setAlpha(0.8);
+    // Each side of the screen dodges: a see-through strip from under the top bar to the
+    // bottom edge. The chevron stays in its corner as the marker; the veil brightens with it.
+    const sw = Math.round(W * (VIEW.portrait ? CONFIG.hud.dodgeStripPortrait : CONFIG.hud.dodgeStrip));
+    const top = CONFIG.hud.dodgeStripTop;
+    this.zones = {
+      dodgeL: { x: 0, y: top, w: sw, h: H - top, inner: sw, dir: 1 },
+      dodgeR: { x: W - sw, y: top, w: sw, h: H - top, inner: W - sw, dir: -1 },
+    };
+    this.zoneG = scene.add.graphics().setDepth(DEPTH - 1);
     this.btn.pause.setAlpha(0.7);
     // The blocks left, as a number inside the shield (was a row of pips).
     const bs = this.btnScale || 1;
@@ -334,6 +343,31 @@ export class Hud {
     if (down) b.pressedAt = this.realT;
     if (down) b.setTint(0xffffff);
     else b.clearTint();
+  }
+
+  // The dodge strips: a faint veil fading in from the screen edge, with a hairline at the
+  // inner edge. Barely there at rest; brighter while he attacks; a flash when pressed.
+  _drawZones() {
+    const g = this.zoneG;
+    g.clear();
+    if (!g.visible) return;
+    for (const id of ['dodgeL', 'dodgeR']) {
+      const z = this.zones[id];
+      const b = this.btn[id];
+      const lit = Math.max(0, Math.min(1, (b.alpha - 0.48) / 0.47));
+      const since = b.pressedAt === undefined ? Infinity : this.realT - b.pressedAt;
+      const flash = since < 260 ? 1 - since / 260 : 0;
+      const a = 0.045 + 0.06 * lit + 0.18 * flash;
+      const n = 6;
+      const sw = z.w / n;
+      for (let i = 0; i < n; i++) {
+        const x = z.dir > 0 ? z.x + i * sw : z.x + z.w - (i + 1) * sw;
+        g.fillStyle(0xfff3c4, a * (1 - i / n));
+        g.fillRect(x, z.y, sw + 0.5, z.h);
+      }
+      g.lineStyle(1.5, 0xfff3c4, 0.1 + 0.12 * lit + 0.3 * flash);
+      g.lineBetween(z.inner, z.y + 12, z.inner, z.y + z.h - 12);
+    }
   }
 
   pulse(ids, on) {
@@ -508,6 +542,7 @@ export class Hud {
     this.scene.children.list.filter((o) => o.depth >= DEPTH - 2 && o.depth <= DEPTH + 2).forEach((o) => o.setAlpha(on ? 0 : 1));
     this.superRing.setVisible(!on);
     this.bars.setVisible(!on);
+    this.zoneG.setVisible(!on);
   }
 
   showCounter(n) {
@@ -669,6 +704,7 @@ export class Hud {
       b.setAlpha(b.alpha + (want - b.alpha) * Math.min(1, realDelta / 90));
     }
     this.blockCount.setAlpha(this.btn.block.alpha).setScale(this.btn.block.scaleX / this.btn.block.baseScale);
+    this._drawZones();
     // The riposte chevron is a flash, not a sign.
     if (this.hintFlashUntil && this.realT > this.hintFlashUntil) {
       this.hintFlashUntil = null;

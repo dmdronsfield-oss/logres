@@ -145,7 +145,7 @@ export class Duel extends Phaser.Scene {
         if (id === 'block') d.onBlock(false);
       },
     });
-    for (const id of ['dodgeL', 'dodgeR', 'block', 'super', 'pause']) {
+    for (const id of ['block', 'super', 'pause']) {
       const p = hud.pos[id];
       this.swipe.addButton(id, p.x, p.y, { r: p.r, pad: id === 'pause' ? 8 : 14 });
     }
@@ -158,6 +158,11 @@ export class Duel extends Phaser.Scene {
     const cs = CONFIG.debug.cornerSize;
     const debugX = Save.data.leftHanded ? cs / 2 : VIEW.W - cs / 2;
     this.swipe.addButton('debug', debugX, cs / 2, { w: cs, h: cs, pad: 0 });
+    // The dodge strips: each whole side of the screen, checked last so the buttons above win.
+    for (const id of ['dodgeL', 'dodgeR']) {
+      const z = hud.zones[id];
+      this.swipe.addButton(id, z.x + z.w / 2, z.y + z.h / 2, { w: z.w, h: z.h, pad: 0 });
+    }
 
     // Desktop: arrows (or numpad) strike, A/D dodge, S/Space block, W/Enter super,
     // Esc/P pause. Mouse drag still swipes.

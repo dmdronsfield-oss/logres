@@ -2,7 +2,7 @@
 
 // '3d' when loaded from the /3d/ test page (it sets window.LOGRES_MODE first).
 // The release, shown on the title screen (bumped with the service worker's VERSION).
-export const BUILD = 'v60';
+export const BUILD = 'v61';
 
 export const MODE = (typeof window !== 'undefined' && window.LOGRES_MODE) || '2d';
 
@@ -199,6 +199,11 @@ export const CONFIG = {
     strikeHintWins: 3,      // the gold strike chevrons show until this many duels are won (the tutorial and two more)
     riposteFlashMs: 300,    // the white riposte chevron flashes this long after a parry
     calloutBig: 1.3,        // the big moments' callout, relative to the everyday one-word callout
+    // Dodge: each side of the screen is a see-through touch strip, top to bottom (the
+    // smaller buttons inside it keep their own spot). Width as a share of the screen.
+    dodgeStrip: 0.16,
+    dodgeStripPortrait: 0.2,
+    dodgeStripTop: 56,      // below the crests and bars
   },
 
   debug: {
